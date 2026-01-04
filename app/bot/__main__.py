@@ -7,7 +7,7 @@ import discord
 from discord.ext import commands
 from dotenv import load_dotenv
 
-from app.bot.cogs import teams_cog, users_cog
+from app.bot.cogs import memberships_cog, teams_cog, users_cog
 
 
 class MyBot(commands.Bot):
@@ -39,6 +39,7 @@ class MyBot(commands.Bot):
     async def load_cogs(self) -> None:
         await self.load_extension(teams_cog.__name__)
         await self.load_extension(users_cog.__name__)
+        await self.load_extension(memberships_cog.__name__)
 
 
 def load_environment() -> None:
