@@ -174,6 +174,28 @@ class Err[E]:
         """
         return Err(f(self.error))
 
+    def unwrap(self) -> Never:
+        """
+        Raise the underlying error.
+
+        This ensures that unwrap() can be called on Result (Ok | Err).
+        """
+        if isinstance(self.error, Exception):
+            raise self.error
+        raise RuntimeError(f"Unwrap failed: {self.error}")
+
+    def unwrap_or[T](self, default: T) -> T:
+        """
+        Return the default value.
+
+        Args:
+            default: Value to return.
+
+        Returns:
+            The default value.
+        """
+        return default
+
 
 Result = Ok[T] | Err[E]
 
@@ -490,9 +512,9 @@ def combine_all[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, E: Exception](
 ) -> Result[tuple[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10], AggregateErr[E]]: ...
 
 
-def combine_all[T, E: Exception](
-    results: tuple[Result[T, E], ...],
-) -> Result[tuple[T, ...], AggregateErr[E]]:
+def combine_all[E: Exception](
+    results: Sequence[Result[Any, E]],
+) -> Result[tuple[Any, ...], AggregateErr[E]]:
     """
     Aggregates a tuple of Results, collecting all errors.
 
@@ -515,7 +537,7 @@ def combine_all[T, E: Exception](
         >>> combined = combine_all(results)
         >>> # Returns Err(AggregateErr([Exception("error1"), Exception("error2")]))
     """
-    values: list[T] = []
+    values: list[Any] = []
     errors: list[E] = []
 
     for r in results:

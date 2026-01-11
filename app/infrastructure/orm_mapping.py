@@ -77,10 +77,6 @@ def entity_to_orm_dict(entity: Any) -> dict[str, Any]:
             else:
                 result[field.name] = field_value
 
-    logger.debug(
-        f"Converted {type(entity).__name__} to ORM dict: {list(result.keys())}"
-    )
-
     return result
 
 
@@ -230,8 +226,6 @@ def orm_to_entity[T](orm_instance: SQLModel, entity_type: type[T]) -> T:
             init_kwargs[field_name] = converted_value
         else:
             non_init_values[field_name] = converted_value
-
-    logger.debug(f"Converted {type(orm_instance).__name__} to {entity_type.__name__}")
 
     # Create entity with init fields only
     entity = entity_type(**init_kwargs)
