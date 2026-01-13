@@ -5,11 +5,11 @@ from dataclasses import dataclass
 
 from injector import inject
 
+from app.core.mediator import Request, RequestHandler
 from app.core.result import Ok, Result, combine_all, is_err
 from app.domain.aggregates.team import Team
 from app.domain.repositories import IUnitOfWork
 from app.domain.value_objects import TeamName
-from app.mediator import Request, RequestHandler
 from app.usecases.result import ErrorType, UseCaseError
 
 logger = logging.getLogger(__name__)

@@ -4,8 +4,8 @@ import pytest
 from injector import Injector
 
 from app import container
+from app.core.mediator import HandlerNotFoundError, Mediator, Request, RequestHandler
 from app.core.result import Ok, Result
-from app.mediator import HandlerNotFoundError, Mediator, Request, RequestHandler
 
 # Initialize Mediator for tests
 Mediator.initialize(Injector([container.configure]))
