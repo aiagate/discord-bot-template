@@ -26,6 +26,12 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     injector = Injector([container.configure])
     Mediator.initialize(injector)
 
+    # 3. Initialize AI Agent
+    from app.domain.interfaces.ai_service import IAIService
+
+    ai_service = injector.get(IAIService)
+    await ai_service.initialize_ai_agent()
+
     logger.info("Application initialized successfully")
 
     yield

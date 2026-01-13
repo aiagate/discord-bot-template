@@ -6,6 +6,7 @@ from enum import Enum, auto
 from typing import Any, overload
 
 from app.core.result import Result
+from app.domain.aggregates.chat_history import ChatMessage
 
 
 class RepositoryErrorType(Enum):
@@ -71,6 +72,22 @@ class IRepositoryWithId[T, K](IRepository[T], ABC):
     @abstractmethod
     async def get_by_id(self, id: K) -> Result[T, RepositoryError]:
         """Get entity by ID."""
+        pass
+
+
+class IChatHistoryRepository(ABC):
+    """Repository interface for chat history."""
+
+    @abstractmethod
+    async def add(self, message: ChatMessage) -> Result[None, RepositoryError]:
+        """Add new chat message."""
+        pass
+
+    @abstractmethod
+    async def get_recent_history(
+        self, limit: int = 10
+    ) -> Result[list[ChatMessage], RepositoryError]:
+        """Get recent chat history."""
         pass
 
 
@@ -141,4 +158,10 @@ class IUnitOfWork(ABC):
     @abstractmethod
     async def __aexit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
         """Exit async context manager with auto-commit/rollback."""
+        pass
+
+    @property
+    @abstractmethod
+    def chat_history(self) -> IChatHistoryRepository:
+        """Get chat history repository."""
         pass

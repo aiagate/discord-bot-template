@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.core.result import Err, Ok, Result
 from app.domain.repositories import (
+    IChatHistoryRepository,
     IRepository,
     IRepositoryWithId,
     IUnitOfWork,
@@ -95,3 +96,17 @@ class SQLAlchemyUnitOfWork(IUnitOfWork):
             await self._session.__aexit__(exc_type, exc_val, exc_tb)
             self._session = None
             self._repositories.clear()
+
+    @property
+    def chat_history(self) -> IChatHistoryRepository:
+        """Get chat history repository."""
+        if self._session is None:
+            raise RuntimeError("UnitOfWork session not initialized.")
+
+        # Here we don't use the generic caching mechanism because ChatHistoryRepository
+        # is a specific implementation, not a generic one. We could cache it too if we want.
+        from app.infrastructure.repositories.chat_history_repository import (
+            ChatHistoryRepository,
+        )
+
+        return ChatHistoryRepository(self._session)

@@ -6,8 +6,9 @@ from pathlib import Path
 import discord
 from discord.ext import commands
 from dotenv import load_dotenv
+from injector import Injector
 
-from app.bot.cogs import memberships_cog, teams_cog, users_cog
+from app.bot.cogs import chat_cog, memberships_cog, teams_cog, users_cog
 
 
 class MyBot(commands.Bot):
@@ -18,11 +19,17 @@ class MyBot(commands.Bot):
         )
 
     async def setup_hook(self) -> None:
-        await self._init_database()
+        injector = await self._setup_dependencies()
         await self.load_cogs()
 
-    async def _init_database(self) -> None:
-        """Initialize database connection and create tables."""
+        # Initialize AI Agent (Caching etc.)
+        from app.domain.interfaces.ai_service import IAIService
+
+        ai_service = injector.get(IAIService)
+        await ai_service.initialize_ai_agent()
+
+    async def _setup_dependencies(self) -> "Injector":
+        """Initialize database and dependencies."""
         from injector import Injector
 
         from app import container
@@ -36,7 +43,10 @@ class MyBot(commands.Bot):
         injector = Injector([container.configure])
         Mediator.initialize(injector)
 
+        return injector
+
     async def load_cogs(self) -> None:
+        await self.load_extension(chat_cog.__name__)
         await self.load_extension(teams_cog.__name__)
         await self.load_extension(users_cog.__name__)
         await self.load_extension(memberships_cog.__name__)
