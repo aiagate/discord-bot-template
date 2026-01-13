@@ -6,12 +6,20 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.core.result import Err, Ok, Result
-from app.domain.repositories import (
+from app.domain.aggregates.chat_history import ChatMessage
+from app.domain.aggregates.command import Command
+from app.domain.aggregates.system_instruction import SystemInstruction
+from app.domain.repositories.chat_history_repository import IChatHistoryRepository
+from app.domain.repositories.command_repository import ICommandRepository
+from app.domain.repositories.interfaces import (
     IRepository,
     IRepositoryWithId,
     IUnitOfWork,
     RepositoryError,
     RepositoryErrorType,
+)
+from app.domain.repositories.system_instruction_repository import (
+    ISystemInstructionRepository,
 )
 from app.infrastructure.repositories.generic_repository import GenericRepository
 
@@ -25,6 +33,19 @@ class SQLAlchemyUnitOfWork(IUnitOfWork):
         self._repositories: dict[tuple[type, ...], Any] = {}
 
     @overload
+    def GetRepository(  # pyright: ignore[reportOverlappingOverload]
+        self, entity_type: type[ChatMessage]
+    ) -> IChatHistoryRepository: ...
+
+    @overload
+    def GetRepository(self, entity_type: type[Command]) -> ICommandRepository: ...
+
+    @overload
+    def GetRepository(
+        self, entity_type: type[SystemInstruction]
+    ) -> ISystemInstructionRepository: ...
+
+    @overload
     def GetRepository[T](self, entity_type: type[T]) -> IRepository[T]: ...
 
     @overload
@@ -34,10 +55,22 @@ class SQLAlchemyUnitOfWork(IUnitOfWork):
 
     def GetRepository[T, K](
         self, entity_type: type[T], key_type: type[K] | None = None
-    ) -> IRepository[T] | IRepositoryWithId[T, K]:
+    ) -> (
+        IRepository[T]
+        | IRepositoryWithId[T, K]
+        | "IChatHistoryRepository"
+        | ICommandRepository
+        | "ISystemInstructionRepository"
+        # The return type annotation here is tricky with circular deps and conditional imports.
+        # We can use Any or a string forward reference if types are available at runtime or strict checking matches.
+        | Any
+    ):
         """Get repository for entity type.
 
         Overloaded method:
+        - GetRepository(ChatMessage) -> IChatHistoryRepository
+        - GetRepository(Command) -> ICommandRepository
+        - GetRepository(SystemInstruction) -> ISystemInstructionRepository
         - GetRepository(User) -> IRepository[User] (save only)
         - GetRepository(User, UserId) -> IRepositoryWithId[User, UserId] (all ops)
         """
@@ -45,6 +78,28 @@ class SQLAlchemyUnitOfWork(IUnitOfWork):
             raise RuntimeError(
                 "UnitOfWork session not initialized. Use 'async with' context."
             )
+
+        # Handle specialized repositories
+        if entity_type is ChatMessage:
+            from app.infrastructure.repositories.chat_history_repository import (
+                ChatHistoryRepository,
+            )
+
+            return ChatHistoryRepository(self._session)
+
+        if entity_type is Command:
+            from app.infrastructure.repositories.command_repository import (
+                SQLAlchemyCommandRepository,
+            )
+
+            return SQLAlchemyCommandRepository(self._session)
+
+        if entity_type is SystemInstruction:
+            from app.infrastructure.repositories.system_instruction_repository import (
+                SqlAlchemySystemInstructionRepository,
+            )
+
+            return SqlAlchemySystemInstructionRepository(self._session)
 
         # Cache key includes key_type if provided
         cache_key = (entity_type, key_type) if key_type else (entity_type,)

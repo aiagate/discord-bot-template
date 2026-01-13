@@ -10,6 +10,30 @@
       "envFile": "${workspaceFolder}/.env.local"
     },
     {
+      "name": "Debug Worker",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "app.worker.__main__",
+      "console": "integratedTerminal",
+      "envFile": "${workspaceFolder}/.env.local"
+    },
+    {
+      "name": "Run Bot",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "app.bot.__main__",
+      "console": "integratedTerminal",
+      "envFile": "${workspaceFolder}/.env.local"
+    },
+    {
+      "name": "Run Worker",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "app.worker.__main__",
+      "console": "integratedTerminal",
+      "envFile": "${workspaceFolder}/.env.local"
+    },
+    {
       "name": "Debug API",
       "type": "debugpy",
       "request": "launch",
@@ -20,10 +44,18 @@
   ],
   "compounds": [
     {
-      "name": "Debug Both",
+      "name": "Debug All",
       "configurations": [
         "Debug Bot",
-        "Debug API"
+        "Debug Worker",
+        "Debug API",
+      ]
+    },
+    {
+      "name": "Run AI",
+      "configurations": [
+        "Debug Bot",
+        "Debug Worker",
       ]
     }
   ]

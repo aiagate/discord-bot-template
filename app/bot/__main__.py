@@ -8,7 +8,7 @@ from discord.ext import commands
 from dotenv import load_dotenv
 from injector import Injector
 
-from app.bot.cogs import memberships_cog, teams_cog, users_cog
+from app.bot.cogs import chat_cog, memberships_cog, teams_cog, users_cog
 
 
 class MyBot(commands.Bot):
@@ -19,24 +19,56 @@ class MyBot(commands.Bot):
         )
 
     async def setup_hook(self) -> None:
-        await self._init_database()
+        injector = await self._setup_dependencies()
         await self.load_cogs()
 
-    async def _init_database(self) -> None:
-        """Initialize database connection and create tables."""
+        # Initialize AI Agent (Caching etc.)
+        from app.domain.interfaces.ai_service import IAIService
+
+        ai_service = injector.get(IAIService)
+        await ai_service.initialize_ai_agent()
+
+        self.bg_tasks = set()
+
+        # Initialize Event Bus
+        from app.bot.cogs.brain_cog import BrainCog
+        from app.domain.interfaces.event_bus import IEventBus
+
+        event_bus = injector.get(IEventBus)
+
+        # Start Event Bus task
+        t_bus = self.loop.create_task(event_bus.start())
+        self.bg_tasks.add(t_bus)
+        t_bus.add_done_callback(self.bg_tasks.discard)
+
+        # Load BrainCog with EventBus
+        await self.add_cog(BrainCog(self, event_bus))
+
+    async def _setup_dependencies(self) -> "Injector":
+        """Initialize database and dependencies."""
 
         from app import container
         from app.core.mediator import Mediator
         from app.infrastructure.database import init_db
 
-        db_url = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///./bot.db")
+        db_url = os.getenv("DATABASE_URL")
+        # Ensure we have a DB URL, can fallback to sqlite for local dev if not strictly postgres for bot part,
+        # but implementation plan requires postgres.
+        if db_url is None:
+            # Fallback or error? Plan says "Requires running Postgres".
+            # Assuming environment is set up.
+            raise ValueError("DATABASE_URL environment variable is not set")
+
         init_db(db_url, echo=True)
 
         # Initialize Mediator with dependency injection container
         injector = Injector([container.configure])
         Mediator.initialize(injector)
 
+        return injector
+
     async def load_cogs(self) -> None:
+        await self.load_extension(chat_cog.__name__)
         await self.load_extension(teams_cog.__name__)
         await self.load_extension(users_cog.__name__)
         await self.load_extension(memberships_cog.__name__)

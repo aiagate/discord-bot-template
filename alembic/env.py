@@ -1,9 +1,8 @@
-"""Alembic environment configuration for async SQLModel migrations."""
-
 import asyncio
 import os
 from logging.config import fileConfig
 
+from dotenv import load_dotenv
 from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
@@ -13,16 +12,22 @@ from alembic import context
 
 # Import all ORM models here for autogenerate to discover them
 from app.infrastructure.orm_models import (
+    ChatMessageORM,  # pyright: ignore[reportUnusedImport] # noqa: F401
+    SystemInstructionORM,  # pyright: ignore[reportUnusedImport] # noqa: F401
     TeamMembershipORM,  # pyright: ignore[reportUnusedImport] # noqa: F401
     TeamORM,  # pyright: ignore[reportUnusedImport] # noqa: F401
     UserORM,  # pyright: ignore[reportUnusedImport] # noqa: F401
 )
 
+load_dotenv()
+
 # this is the Alembic Config object
 config = context.config
 
 # Override sqlalchemy.url with environment variable if available
-database_url = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///./bot.db")
+database_url = os.getenv(
+    "DATABASE_URL", "postgresql+asyncpg://user:password@localhost:5432/event_db"
+)
 config.set_main_option("sqlalchemy.url", database_url)
 
 # Interpret the config file for Python logging
