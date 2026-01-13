@@ -22,7 +22,7 @@
 │  Application Layer                      │  ユースケース
 │  (Use Cases, Mediator)                  │  - ビジネスフロー制御
 │  - app/usecases/                        │  - DTOでの入出力
-│  - app/mediator.py                      │  - Result型でのエラーハンドリング
+│  - app/core/mediator.py                 │  - Result型でのエラーハンドリング
 ├─────────────────────────────────────────┤
 │  Domain Layer                           │  ビジネスルール
 │  (Aggregates, Entities, Value Objects)  │  - 純粋なPythonオブジェクト
@@ -353,7 +353,7 @@ async def teams_create(self, ctx: commands.Context[commands.Bot], name: str) -> 
 
 ##### 2.2 Mediator Pattern（メディエーターパターン）
 
-`app/mediator.py`:
+`app/core/mediator.py`:
 
 ```python
 class Mediator:
@@ -785,7 +785,7 @@ class Guild:
     name: str
 ```
 
-2. **ORMモデルを作成**
+1. **ORMモデルを作成**
 
 ```python
 # app/infrastructure/orm_models/guild_orm.py
@@ -795,7 +795,7 @@ class GuildORM(SQLModel, table=True):
     name: str
 ```
 
-3. **マッピングを登録**
+1. **マッピングを登録**
 
 ```python
 # app/infrastructure/orm_registry.py
@@ -811,14 +811,14 @@ def init_orm_mappings() -> None:
 
 `init_orm_mappings` はアプリ起動時に `app/container.py` から自動で呼び出されるため、ここの追加だけでマッピングは完了します。
 
-4. **ユースケースを作成**
+1. **ユースケースを作成**
 
 ```python
 # app/usecases/guilds/get_guild.py
 # ... GetGuildQuery, GetGuildHandler などを実装
 ```
 
-5. **Cogを作成**
+1. **Cogを作成**
 
 ```python
 # app/cogs/guilds_cog.py
