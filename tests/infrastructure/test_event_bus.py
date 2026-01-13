@@ -3,11 +3,12 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from app.domain.interfaces.event_bus import Event
 from app.infrastructure.messaging.postgres_event_bus import PostgresEventBus
 
 
 @pytest.fixture
-def mock_pool():
+def mock_pool() -> tuple[MagicMock, AsyncMock]:
     pool = MagicMock()
 
     # pool.close() is awaited
@@ -30,10 +31,10 @@ def mock_pool():
 
 
 @pytest.mark.asyncio
-async def test_subscribe_adds_handler():
+async def test_subscribe_adds_handler() -> None:
     bus = PostgresEventBus()
 
-    async def handler(event):
+    async def handler(event: Event) -> None:
         pass
 
     bus.subscribe("test_topic", handler)
@@ -42,7 +43,9 @@ async def test_subscribe_adds_handler():
 
 
 @pytest.mark.asyncio
-async def test_publish_inserts_and_notifies(mock_pool):
+async def test_publish_inserts_and_notifies(
+    mock_pool: tuple[MagicMock, AsyncMock],
+) -> None:
     pool, conn = mock_pool
     bus = PostgresEventBus()
     bus._pool = pool
@@ -65,11 +68,11 @@ async def test_publish_inserts_and_notifies(mock_pool):
 
 
 @pytest.mark.asyncio
-async def test_process_notification_calls_handler():
+async def test_process_notification_calls_handler() -> None:
     bus = PostgresEventBus()
     received_event = None
 
-    async def handler(e):
+    async def handler(e: Event) -> None:
         nonlocal received_event
         received_event = e
 
@@ -83,7 +86,9 @@ async def test_process_notification_calls_handler():
 
 
 @pytest.mark.asyncio
-async def test_start_creates_pool_and_listener(mock_pool):
+async def test_start_creates_pool_and_listener(
+    mock_pool: tuple[MagicMock, AsyncMock],
+) -> None:
     # Verify start logic
     pool_mock, conn_mock = mock_pool
     bus = PostgresEventBus()
@@ -102,7 +107,7 @@ async def test_start_creates_pool_and_listener(mock_pool):
         mock_create_pool.return_value = pool_mock
         mock_connect.return_value = conn_mock  # listener connection
 
-        async def cancel_later():
+        async def cancel_later() -> None:
             await asyncio.sleep(0.1)
             bus._running = False
 

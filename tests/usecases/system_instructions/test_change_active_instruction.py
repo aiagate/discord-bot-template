@@ -71,7 +71,7 @@ async def test_change_active_instruction_not_found(uow: IUnitOfWork):
     result = await handler.execute(random_id)
 
     assert is_err(result)
-    assert "not found" in result.error.message
+    assert "not found" in str(result.error)
 
 
 @pytest.mark.anyio
@@ -97,4 +97,4 @@ async def test_change_active_instruction_repo_error(uow: IUnitOfWork):
     result = await handler.execute(random_id)
 
     assert is_err(result)
-    assert "DB Connection Fail" in result.error.message
+    assert "DB Connection Fail" in str(result.error)

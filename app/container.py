@@ -3,7 +3,6 @@
 import injector
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from app.core.interfaces.notification_listener import INotificationListener
 from app.domain.interfaces.ai_service import IAIService
 from app.domain.interfaces.event_bus import IEventBus
 from app.domain.repositories import IUnitOfWork
@@ -64,17 +63,6 @@ class AIModule(injector.Module):
 
 class MessagingModule(injector.Module):
     """Module for messaging-related dependencies."""
-
-    @injector.provider
-    def provide_notification_listener(self) -> INotificationListener:
-        """Provide notification listener implementation."""
-        from app.infrastructure.messaging.postgres_listener import (
-            PostgresNotificationListener,
-        )
-
-        # Transient scope (default) ensures we get a fresh listener if requested multiple times,
-        # which is safer for connection management if we had multiple consumers.
-        return PostgresNotificationListener()
 
     @injector.provider
     @injector.singleton

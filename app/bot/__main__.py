@@ -28,33 +28,7 @@ class MyBot(commands.Bot):
         ai_service = injector.get(IAIService)
         await ai_service.initialize_ai_agent()
 
-        # Initialize Command Processor (Polling from Outbox)
-        from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
-
-        from app.bot.command_processor import command_processor
-        from app.core.interfaces.notification_listener import INotificationListener
-        from app.domain.repositories.interfaces import IUnitOfWork
-        from app.infrastructure.unit_of_work import SQLAlchemyUnitOfWork
-
-        # Get session factory for processor
-        session_factory = injector.get(async_sessionmaker[AsyncSession])  # type: ignore
-        listener = injector.get(INotificationListener)
-
-        # Create UoW factory
-        def uow_factory() -> IUnitOfWork:
-            return SQLAlchemyUnitOfWork(session_factory)
-
         self.bg_tasks = set()
-
-        # Start only the Command Processor (Interface)
-        t_processor = self.loop.create_task(
-            command_processor(self, uow_factory, listener)
-        )
-        self.bg_tasks.add(t_processor)
-        t_processor.add_done_callback(self.bg_tasks.discard)
-
-        # Sync application commands
-        await self.tree.sync()
 
         # Initialize Event Bus
         from app.bot.cogs.brain_cog import BrainCog

@@ -8,7 +8,6 @@ from injector import Injector
 from app import container
 from app.core.mediator import Mediator
 from app.infrastructure.database import init_db
-from app.worker.consumer import event_consumer
 from app.worker.producer import heartbeat_producer
 
 # Configure logging
@@ -42,15 +41,16 @@ async def main() -> None:
     ai_service = injector.get(IAIService)
     await ai_service.initialize_ai_agent()
 
-    # 3. Get Session Factory
-    from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+    # 3. Get EventBus
+    from app.domain.interfaces.event_bus import IEventBus
+    from app.worker.consumer import run_worker_consumer
 
-    session_factory = injector.get(async_sessionmaker[AsyncSession])  # type: ignore
+    bus = injector.get(IEventBus)
 
     # 4. Start Background Tasks
     async with asyncio.TaskGroup() as tg:
-        tg.create_task(heartbeat_producer(session_factory, interval_seconds=1))
-        tg.create_task(event_consumer(session_factory))
+        tg.create_task(heartbeat_producer(bus, interval_seconds=10))
+        tg.create_task(run_worker_consumer(injector))
 
 
 if __name__ == "__main__":

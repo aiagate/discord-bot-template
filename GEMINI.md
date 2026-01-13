@@ -1,5 +1,6 @@
 # Gemini Code Assistant Context
 
+常に日本語でやり取りを実施してください
 This document provides a comprehensive overview of the `discord-bot-template` project to guide the Gemini code assistant.
 
 ## Project Overview
