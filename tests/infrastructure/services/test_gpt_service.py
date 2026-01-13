@@ -17,9 +17,8 @@ class TestGptService:
             "app.infrastructure.services.gpt_service.AsyncOpenAI", autospec=True
         )
         # Setup async accessors
-        mock_client.return_value.chat = MagicMock()
-        mock_client.return_value.chat.completions = MagicMock()
-        mock_client.return_value.chat.completions.create = AsyncMock()
+        mock_client.return_value.responses = MagicMock()
+        mock_client.return_value.responses.create = AsyncMock()
         return mock_client
 
     @pytest.mark.asyncio
@@ -31,12 +30,9 @@ class TestGptService:
         service = GptService()
         service._client = mock_openai_client.return_value
 
-        mock_completion = MagicMock()
-        mock_choice = MagicMock()
-        mock_choice.message.content = "Response Content"
-        mock_completion.choices = [mock_choice]
-
-        service._client.chat.completions.create.return_value = mock_completion
+        mock_response = MagicMock()
+        mock_response.output_text = "Response Content"
+        service._client.responses.create.return_value = mock_response
 
         history = [
             ChatMessage.create(
@@ -53,22 +49,17 @@ class TestGptService:
         assert isinstance(result, Ok)
         assert result.value == "Response Content"
 
-        service._client.chat.completions.create.assert_called_once()
-        call_args = service._client.chat.completions.create.call_args
-        assert call_args.kwargs["model"] == "gpt-4o"
-        messages = call_args.kwargs["messages"]
+        service._client.responses.create.assert_called_once()
+        call_args = service._client.responses.create.call_args
+        assert call_args.kwargs["model"] == "gpt-4o-mini"
+        assert call_args.kwargs["instructions"] == "You are a helpful assistant."
+        assert call_args.kwargs["store"] is False
 
-        # Verify system instruction is present
-        assert messages[0]["role"] == "system"
-        # assert messages[0]["content"] == service.SYSTEM_INSTRUCTION # Removed constant usage
-
-        # Verify history is included
-        assert messages[1]["role"] == "user"
-        assert "Hello" in messages[1]["content"]
-
-        # Verify prompt is included
-        assert messages[-1]["role"] == "user"
-        assert messages[-1]["content"] == "prompt"
+        input_msgs = call_args.kwargs["input"]
+        # History + Prompt
+        assert len(input_msgs) == 2
+        assert input_msgs[0]["content"] == "Hello"
+        assert input_msgs[1]["content"] == "prompt"
 
     @pytest.mark.asyncio
     async def test_generate_content_api_error(
@@ -79,7 +70,7 @@ class TestGptService:
         service = GptService()
         service._client = mock_openai_client.return_value
 
-        service._client.chat.completions.create.side_effect = Exception("API Error")
+        service._client.responses.create.side_effect = Exception("API Error")
 
         # Act
         result = await service.generate_content("prompt", [])

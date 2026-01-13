@@ -3,13 +3,13 @@ from datetime import UTC, datetime
 
 from injector import inject
 
+from app.core.mediator import Request, RequestHandler
 from app.core.result import Err, Ok, Result, is_err
 from app.domain.aggregates.chat_history import ChatMessage, ChatRole
 from app.domain.aggregates.system_instruction import SystemInstruction
 from app.domain.interfaces.ai_service import IAIService
 from app.domain.repositories.interfaces import IUnitOfWork
 from app.domain.value_objects import SentAt
-from app.mediator import Request, RequestHandler
 from app.usecases.result import ErrorType, UseCaseError
 
 

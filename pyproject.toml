@@ -5,8 +5,8 @@ description = "Clean Architecture Discord Bot Template"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
-    "aiosqlite>=0.21.0",
     "alembic>=1.17.2",
+    "asyncpg>=0.29.0",
     "discord-py>=2.5.2",
     "fastapi>=0.124.4",
     "google-genai>=1.56.0",
@@ -25,6 +25,7 @@ start-api = "app.api.__main__:start"
 
 [dependency-groups]
 dev = [
+    "aiosqlite>=0.21.0",
     "anyio>=4.11.0",
     "freezegun>=1.5.5",
     "pre-commit>=4.5.0",

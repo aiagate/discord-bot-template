@@ -3,6 +3,7 @@
 import injector
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from app.core.interfaces.notification_listener import INotificationListener
 from app.domain.interfaces.ai_service import IAIService
 from app.domain.repositories import IUnitOfWork
 from app.infrastructure.orm_registry import init_orm_mappings
@@ -37,6 +38,7 @@ def configure(binder: injector.Binder) -> None:
 
     binder.install(DatabaseModule())
     binder.install(AIModule())
+    binder.install(MessagingModule())
 
 
 class AIModule(injector.Module):
@@ -46,16 +48,29 @@ class AIModule(injector.Module):
     @injector.singleton
     def provide_ai_service(self) -> IAIService:
         """Provide AI service implementation."""
-        """
-        from app.infrastructure.services.gemini_service import GeminiService
+        # from app.infrastructure.services.gemini_service import GeminiService
 
-        return GeminiService()
+        # return GeminiService()
 
-        from app.infrastructure.services.gpt_service import GptService
+        # from app.infrastructure.services.gpt_service import GptService
 
-        return GptService()
-        """
+        # return GptService()
+
         from app.infrastructure.services.mock_ai_service import MockAIService
 
         return MockAIService()
-        # """
+
+
+class MessagingModule(injector.Module):
+    """Module for messaging-related dependencies."""
+
+    @injector.provider
+    def provide_notification_listener(self) -> INotificationListener:
+        """Provide notification listener implementation."""
+        from app.infrastructure.messaging.postgres_listener import (
+            PostgresNotificationListener,
+        )
+
+        # Transient scope (default) ensures we get a fresh listener if requested multiple times,
+        # which is safer for connection management if we had multiple consumers.
+        return PostgresNotificationListener()

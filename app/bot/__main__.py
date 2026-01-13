@@ -23,29 +23,35 @@ class MyBot(commands.Bot):
         await self.load_cogs()
 
         # Initialize AI Agent (Caching etc.)
-        import asyncio
-
-        from app.core.events import AppEvent
         from app.domain.interfaces.ai_service import IAIService
-        from app.worker.consumer import event_consumer
-        from app.worker.producer import heartbeat_producer
 
         ai_service = injector.get(IAIService)
         await ai_service.initialize_ai_agent()
 
-        # Initialize Event System
-        self.event_queue: asyncio.Queue[AppEvent] = asyncio.Queue()
-        # Keep references to background tasks to avoid GC
+        # Initialize Command Processor (Polling from Outbox)
+        from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+
+        from app.bot.command_processor import command_processor
+        from app.core.interfaces.notification_listener import INotificationListener
+        from app.domain.repositories.interfaces import IUnitOfWork
+        from app.infrastructure.unit_of_work import SQLAlchemyUnitOfWork
+
+        # Get session factory for processor
+        session_factory = injector.get(async_sessionmaker[AsyncSession])  # type: ignore
+        listener = injector.get(INotificationListener)
+
+        # Create UoW factory
+        def uow_factory() -> IUnitOfWork:
+            return SQLAlchemyUnitOfWork(session_factory)
+
         self.bg_tasks = set()
 
-        t_producer = self.loop.create_task(
-            heartbeat_producer(self.event_queue, interval_seconds=1)
+        # Start only the Command Processor (Interface)
+        t_processor = self.loop.create_task(
+            command_processor(self, uow_factory, listener)
         )
-        t_consumer = self.loop.create_task(event_consumer(self.event_queue, self))
-        self.bg_tasks.add(t_producer)
-        self.bg_tasks.add(t_consumer)
-        t_producer.add_done_callback(self.bg_tasks.discard)
-        t_consumer.add_done_callback(self.bg_tasks.discard)
+        self.bg_tasks.add(t_processor)
+        t_processor.add_done_callback(self.bg_tasks.discard)
 
         # Sync application commands
         await self.tree.sync()
@@ -55,10 +61,17 @@ class MyBot(commands.Bot):
         from injector import Injector
 
         from app import container
+        from app.core.mediator import Mediator
         from app.infrastructure.database import init_db
-        from app.mediator import Mediator
 
-        db_url = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///./bot.db")
+        db_url = os.getenv("DATABASE_URL")
+        # Ensure we have a DB URL, can fallback to sqlite for local dev if not strictly postgres for bot part,
+        # but implementation plan requires postgres.
+        if db_url is None:
+            # Fallback or error? Plan says "Requires running Postgres".
+            # Assuming environment is set up.
+            raise ValueError("DATABASE_URL environment variable is not set")
+
         init_db(db_url, echo=True)
 
         # Initialize Mediator with dependency injection container

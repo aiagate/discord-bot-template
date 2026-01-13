@@ -8,8 +8,8 @@ from injector import Injector
 
 from app import container
 from app.api.routers import teams, users
+from app.core.mediator import Mediator
 from app.infrastructure.database import init_db
-from app.mediator import Mediator
 
 logger = logging.getLogger(__name__)
 

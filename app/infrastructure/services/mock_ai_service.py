@@ -18,7 +18,11 @@ class MockAIService(IAIService):
         system_instruction: str | None = None,
     ) -> Result[str, AIServiceError]:
         """Generate mock content."""
-        logger.debug(f"MockAIService context: prompt={prompt}, history={history}")
+        logger.debug(f"MockAIService context: prompt={prompt}")
+        for message in history:
+            logger.debug(
+                f"MockAIService message: {message.role} {message.content.replace('\n', '\\n')} {message.sent_at}"
+            )
         return Ok("This is a mock response from MockAIService.")
 
     async def initialize_ai_agent(self) -> None:

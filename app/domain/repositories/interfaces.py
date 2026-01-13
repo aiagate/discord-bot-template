@@ -7,10 +7,12 @@ from typing import TYPE_CHECKING, Any, overload
 
 from app.core.result import Result
 from app.domain.aggregates.chat_history import ChatMessage
+from app.domain.aggregates.command import Command
 from app.domain.aggregates.system_instruction import SystemInstruction
 
 if TYPE_CHECKING:
     from app.domain.repositories.chat_history_repository import IChatHistoryRepository
+    from app.domain.repositories.command_repository import ICommandRepository
     from app.domain.repositories.system_instruction_repository import (
         ISystemInstructionRepository,
     )
@@ -91,6 +93,11 @@ class IUnitOfWork(ABC):
         ...
 
     @overload
+    def GetRepository(self, entity_type: type[Command]) -> "ICommandRepository":
+        """Get repository for Command."""
+        ...
+
+    @overload
     def GetRepository(
         self, entity_type: type[SystemInstruction]
     ) -> "ISystemInstructionRepository":
@@ -131,12 +138,14 @@ class IUnitOfWork(ABC):
         IRepository[T]
         | IRepositoryWithId[T, K]
         | "IChatHistoryRepository"
+        | "ICommandRepository"
         | "ISystemInstructionRepository"
     ):
         """Get repository for entity type.
 
         This method is overloaded:
         - GetRepository(ChatMessage) -> IChatHistoryRepository
+        - GetRepository(Command) -> ICommandRepository
         - GetRepository(SystemInstruction) -> ISystemInstructionRepository
         - GetRepository(User) -> IRepository[User] (add, delete)
         - GetRepository(User, UserId) -> IRepositoryWithId[User, UserId] (add, delete, get_by_id)

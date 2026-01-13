@@ -5,7 +5,7 @@
 from discord.ext import commands
 
 from app.bot.cogs.base_cog import BaseCog
-from app.mediator import Mediator
+from app.core.mediator import Mediator
 from app.usecases.chat.generate_content import GenerateContentQuery
 from app.usecases.chat.generate_content_without_lean import (
     GenerateContentWithoutLeanQuery,

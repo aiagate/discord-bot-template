@@ -146,10 +146,10 @@ class TestGeminiService:
         mock_client_instance.aio.chats.create.return_value = mock_chat
 
         # Act
-        await service.generate_content("prompt", [])
+        await service.generate_content("prompt", [], system_instruction="You are a bot")
 
         # Assert
         mock_client_instance.aio.chats.create.assert_called_once()
         config = mock_client_instance.aio.chats.create.call_args.kwargs["config"]
         assert not hasattr(config, "cached_content") or config.cached_content is None
-        assert config.system_instruction is not None
+        assert config.system_instruction == "You are a bot"
