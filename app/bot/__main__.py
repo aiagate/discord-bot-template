@@ -6,6 +6,7 @@ from pathlib import Path
 import discord
 from discord.ext import commands
 from dotenv import load_dotenv
+from injector import Injector
 
 from app.bot.cogs import memberships_cog, teams_cog, users_cog
 
@@ -23,11 +24,10 @@ class MyBot(commands.Bot):
 
     async def _init_database(self) -> None:
         """Initialize database connection and create tables."""
-        from injector import Injector
 
         from app import container
+        from app.core.mediator import Mediator
         from app.infrastructure.database import init_db
-        from app.mediator import Mediator
 
         db_url = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///./bot.db")
         init_db(db_url, echo=True)

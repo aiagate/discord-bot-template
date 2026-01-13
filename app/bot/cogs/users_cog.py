@@ -5,7 +5,7 @@
 from discord.ext import commands
 
 from app.bot.cogs.base_cog import BaseCog
-from app.mediator import Mediator
+from app.core.mediator import Mediator
 from app.usecases.users.create_user import CreateUserCommand
 from app.usecases.users.get_user import GetUserQuery
 
@@ -13,7 +13,7 @@ from app.usecases.users.get_user import GetUserQuery
 class UsersCog(BaseCog, name="Users"):
     """Discord commands for user management."""
 
-    @commands.group(name="users")
+    @commands.hybrid_group(name="users")
     async def users(self, ctx: commands.Context[commands.Bot]) -> None:
         """User management commands."""
         if ctx.invoked_subcommand is None:

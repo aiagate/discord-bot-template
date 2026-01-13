@@ -5,7 +5,7 @@
 from discord.ext import commands
 
 from app.bot.cogs.base_cog import BaseCog
-from app.mediator import Mediator
+from app.core.mediator import Mediator
 from app.usecases.memberships.approve_join_request import ApproveJoinRequestCommand
 from app.usecases.memberships.change_role import ChangeRoleCommand
 from app.usecases.memberships.leave_team import LeaveTeamCommand
@@ -14,7 +14,7 @@ from app.usecases.memberships.leave_team import LeaveTeamCommand
 class MembershipsCog(BaseCog, name="Memberships"):
     """Discord commands for membership management."""
 
-    @commands.group(name="memberships")
+    @commands.hybrid_group(name="memberships")
     async def memberships(self, ctx: commands.Context[commands.Bot]) -> None:
         """Membership management commands."""
         if ctx.invoked_subcommand is None:

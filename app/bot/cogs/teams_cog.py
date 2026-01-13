@@ -5,7 +5,7 @@
 from discord.ext import commands
 
 from app.bot.cogs.base_cog import BaseCog
-from app.mediator import Mediator
+from app.core.mediator import Mediator
 from app.usecases.memberships.join_team import JoinTeamCommand
 from app.usecases.memberships.request_join_team import RequestJoinTeamCommand
 from app.usecases.teams.create_team import CreateTeamCommand
@@ -16,7 +16,7 @@ from app.usecases.teams.update_team import UpdateTeamCommand
 class TeamsCog(BaseCog, name="Teams"):
     """Discord commands for team management."""
 
-    @commands.group(name="teams")
+    @commands.hybrid_group(name="teams")
     async def teams(self, ctx: commands.Context[commands.Bot]) -> None:
         """Team management commands."""
         if ctx.invoked_subcommand is None:
