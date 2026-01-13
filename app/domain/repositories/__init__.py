@@ -1,7 +1,7 @@
 """Repository interfaces for domain layer."""
 
+from app.domain.repositories.chat_history_repository import IChatHistoryRepository
 from app.domain.repositories.interfaces import (
-    IChatHistoryRepository,
     IRepository,
     IRepositoryWithId,
     IUnitOfWork,

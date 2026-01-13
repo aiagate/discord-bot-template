@@ -16,7 +16,7 @@ from app.usecases.teams.update_team import UpdateTeamCommand
 class TeamsCog(BaseCog, name="Teams"):
     """Discord commands for team management."""
 
-    @commands.group(name="teams")
+    @commands.hybrid_group(name="teams")
     async def teams(self, ctx: commands.Context[commands.Bot]) -> None:
         """Team management commands."""
         if ctx.invoked_subcommand is None:

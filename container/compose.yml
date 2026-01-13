@@ -1,0 +1,13 @@
+services:
+
+  db:
+    image: postgres
+    restart: always
+    shm_size: 128mb
+    volumes:
+     - db_vol:/var/lib/postgresql/data
+    environment:
+      POSTGRES_PASSWORD: example
+
+volumes:
+  db_vol:

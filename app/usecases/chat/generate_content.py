@@ -5,6 +5,7 @@ from injector import inject
 
 from app.core.result import Err, Ok, Result, is_err
 from app.domain.aggregates.chat_history import ChatMessage, ChatRole
+from app.domain.aggregates.system_instruction import SystemInstruction
 from app.domain.interfaces.ai_service import IAIService
 from app.domain.repositories.interfaces import IUnitOfWork
 from app.domain.value_objects import SentAt
@@ -38,9 +39,9 @@ class GenerateContentHandler(
 
         # 1. Get history and save user message (Atomic operation)
         async with self._uow:
-            histories_result = await self._uow.chat_history.get_recent_history(
-                limit=100
-            )
+            histories_result = await self._uow.GetRepository(
+                ChatMessage
+            ).get_recent_history(limit=100)
             if is_err(histories_result):
                 return Err(
                     UseCaseError(
@@ -51,7 +52,25 @@ class GenerateContentHandler(
             histories = histories_result.unwrap()
 
             # 2. Call AI Service (External call, no DB transaction)
-            result = await self._ai_service.generate_content(request.prompt, histories)
+            # Fetch active system instruction
+            instruction_result = await self._uow.GetRepository(
+                SystemInstruction
+            ).find_active_by_provider(self._ai_service.provider)
+            if is_err(instruction_result):
+                return Err(
+                    UseCaseError(
+                        type=ErrorType.UNEXPECTED,
+                        message=f"Failed to fetch system instruction: {instruction_result.error}",
+                    )
+                )
+            active_instruction = instruction_result.unwrap()
+            instruction_text = (
+                active_instruction.instruction if active_instruction else None
+            )
+
+            result = await self._ai_service.generate_content(
+                request.prompt, histories, system_instruction=instruction_text
+            )
             if is_err(result):
                 return Err(
                     UseCaseError(
@@ -69,7 +88,7 @@ class GenerateContentHandler(
                     "SentAt creation failed"
                 ),
             )
-            await self._uow.chat_history.add(user_msg)
+            await self._uow.GetRepository(ChatMessage).add(user_msg)
 
             # 3. Save chat history
             model_msg = ChatMessage.create(
@@ -79,7 +98,7 @@ class GenerateContentHandler(
                     "SentAt creation failed"
                 ),
             )
-            await self._uow.chat_history.add(model_msg)
+            await self._uow.GetRepository(ChatMessage).add(model_msg)
             await self._uow.commit()
 
             return Ok(content)

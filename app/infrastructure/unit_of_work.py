@@ -6,13 +6,18 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.core.result import Err, Ok, Result
-from app.domain.repositories import (
-    IChatHistoryRepository,
+from app.domain.aggregates.chat_history import ChatMessage
+from app.domain.aggregates.system_instruction import SystemInstruction
+from app.domain.repositories.chat_history_repository import IChatHistoryRepository
+from app.domain.repositories.interfaces import (
     IRepository,
     IRepositoryWithId,
     IUnitOfWork,
     RepositoryError,
     RepositoryErrorType,
+)
+from app.domain.repositories.system_instruction_repository import (
+    ISystemInstructionRepository,
 )
 from app.infrastructure.repositories.generic_repository import GenericRepository
 
@@ -26,6 +31,16 @@ class SQLAlchemyUnitOfWork(IUnitOfWork):
         self._repositories: dict[tuple[type, ...], Any] = {}
 
     @overload
+    def GetRepository(  # pyright: ignore[reportOverlappingOverload]
+        self, entity_type: type[ChatMessage]
+    ) -> IChatHistoryRepository: ...
+
+    @overload
+    def GetRepository(
+        self, entity_type: type[SystemInstruction]
+    ) -> ISystemInstructionRepository: ...
+
+    @overload
     def GetRepository[T](self, entity_type: type[T]) -> IRepository[T]: ...
 
     @overload
@@ -35,10 +50,17 @@ class SQLAlchemyUnitOfWork(IUnitOfWork):
 
     def GetRepository[T, K](
         self, entity_type: type[T], key_type: type[K] | None = None
-    ) -> IRepository[T] | IRepositoryWithId[T, K]:
+    ) -> (
+        IRepository[T]
+        | IRepositoryWithId[T, K]
+        | IChatHistoryRepository
+        | ISystemInstructionRepository
+    ):
         """Get repository for entity type.
 
         Overloaded method:
+        - GetRepository(ChatMessage) -> IChatHistoryRepository
+        - GetRepository(SystemInstruction) -> ISystemInstructionRepository
         - GetRepository(User) -> IRepository[User] (save only)
         - GetRepository(User, UserId) -> IRepositoryWithId[User, UserId] (all ops)
         """
@@ -46,6 +68,21 @@ class SQLAlchemyUnitOfWork(IUnitOfWork):
             raise RuntimeError(
                 "UnitOfWork session not initialized. Use 'async with' context."
             )
+
+        # Handle specialized repositories
+        if entity_type is ChatMessage:
+            from app.infrastructure.repositories.chat_history_repository import (
+                ChatHistoryRepository,
+            )
+
+            return ChatHistoryRepository(self._session)
+
+        if entity_type is SystemInstruction:
+            from app.infrastructure.repositories.system_instruction_repository import (
+                SqlAlchemySystemInstructionRepository,
+            )
+
+            return SqlAlchemySystemInstructionRepository(self._session)
 
         # Cache key includes key_type if provided
         cache_key = (entity_type, key_type) if key_type else (entity_type,)
@@ -96,17 +133,3 @@ class SQLAlchemyUnitOfWork(IUnitOfWork):
             await self._session.__aexit__(exc_type, exc_val, exc_tb)
             self._session = None
             self._repositories.clear()
-
-    @property
-    def chat_history(self) -> IChatHistoryRepository:
-        """Get chat history repository."""
-        if self._session is None:
-            raise RuntimeError("UnitOfWork session not initialized.")
-
-        # Here we don't use the generic caching mechanism because ChatHistoryRepository
-        # is a specific implementation, not a generic one. We could cache it too if we want.
-        from app.infrastructure.repositories.chat_history_repository import (
-            ChatHistoryRepository,
-        )
-
-        return ChatHistoryRepository(self._session)

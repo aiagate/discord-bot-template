@@ -13,7 +13,7 @@ from app.usecases.users.get_user import GetUserQuery
 class UsersCog(BaseCog, name="Users"):
     """Discord commands for user management."""
 
-    @commands.group(name="users")
+    @commands.hybrid_group(name="users")
     async def users(self, ctx: commands.Context[commands.Bot]) -> None:
         """User management commands."""
         if ctx.invoked_subcommand is None:

@@ -3,10 +3,17 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum, auto
-from typing import Any, overload
+from typing import TYPE_CHECKING, Any, overload
 
 from app.core.result import Result
 from app.domain.aggregates.chat_history import ChatMessage
+from app.domain.aggregates.system_instruction import SystemInstruction
+
+if TYPE_CHECKING:
+    from app.domain.repositories.chat_history_repository import IChatHistoryRepository
+    from app.domain.repositories.system_instruction_repository import (
+        ISystemInstructionRepository,
+    )
 
 
 class RepositoryErrorType(Enum):
@@ -75,24 +82,20 @@ class IRepositoryWithId[T, K](IRepository[T], ABC):
         pass
 
 
-class IChatHistoryRepository(ABC):
-    """Repository interface for chat history."""
-
-    @abstractmethod
-    async def add(self, message: ChatMessage) -> Result[None, RepositoryError]:
-        """Add new chat message."""
-        pass
-
-    @abstractmethod
-    async def get_recent_history(
-        self, limit: int = 10
-    ) -> Result[list[ChatMessage], RepositoryError]:
-        """Get recent chat history."""
-        pass
-
-
 class IUnitOfWork(ABC):
     """Unit of Work interface for transaction management."""
+
+    @overload
+    def GetRepository(self, entity_type: type[ChatMessage]) -> "IChatHistoryRepository":  # pyright: ignore[reportOverlappingOverload]
+        """Get repository for ChatHistory."""
+        ...
+
+    @overload
+    def GetRepository(
+        self, entity_type: type[SystemInstruction]
+    ) -> "ISystemInstructionRepository":
+        """Get repository for SystemInstruction."""
+        ...
 
     @overload
     def GetRepository[T](self, entity_type: type[T]) -> IRepository[T]:
@@ -124,10 +127,17 @@ class IUnitOfWork(ABC):
     @abstractmethod
     def GetRepository[T, K](
         self, entity_type: type[T], key_type: type[K] | None = None
-    ) -> IRepository[T] | IRepositoryWithId[T, K]:
+    ) -> (
+        IRepository[T]
+        | IRepositoryWithId[T, K]
+        | "IChatHistoryRepository"
+        | "ISystemInstructionRepository"
+    ):
         """Get repository for entity type.
 
         This method is overloaded:
+        - GetRepository(ChatMessage) -> IChatHistoryRepository
+        - GetRepository(SystemInstruction) -> ISystemInstructionRepository
         - GetRepository(User) -> IRepository[User] (add, delete)
         - GetRepository(User, UserId) -> IRepositoryWithId[User, UserId] (add, delete, get_by_id)
 
@@ -158,10 +168,4 @@ class IUnitOfWork(ABC):
     @abstractmethod
     async def __aexit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
         """Exit async context manager with auto-commit/rollback."""
-        pass
-
-    @property
-    @abstractmethod
-    def chat_history(self) -> IChatHistoryRepository:
-        """Get chat history repository."""
         pass

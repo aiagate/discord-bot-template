@@ -50,8 +50,12 @@ class AIModule(injector.Module):
         from app.infrastructure.services.gemini_service import GeminiService
 
         return GeminiService()
-        """
+
         from app.infrastructure.services.gpt_service import GptService
 
         return GptService()
+        """
+        from app.infrastructure.services.mock_ai_service import MockAIService
+
+        return MockAIService()
         # """

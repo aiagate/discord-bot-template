@@ -60,7 +60,7 @@ class TestGptService:
 
         # Verify system instruction is present
         assert messages[0]["role"] == "system"
-        assert messages[0]["content"] == service.SYSTEM_INSTRUCTION
+        # assert messages[0]["content"] == service.SYSTEM_INSTRUCTION # Removed constant usage
 
         # Verify history is included
         assert messages[1]["role"] == "user"

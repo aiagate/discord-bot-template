@@ -23,10 +23,32 @@ class MyBot(commands.Bot):
         await self.load_cogs()
 
         # Initialize AI Agent (Caching etc.)
+        import asyncio
+
+        from app.core.events import AppEvent
         from app.domain.interfaces.ai_service import IAIService
+        from app.worker.consumer import event_consumer
+        from app.worker.producer import heartbeat_producer
 
         ai_service = injector.get(IAIService)
         await ai_service.initialize_ai_agent()
+
+        # Initialize Event System
+        self.event_queue: asyncio.Queue[AppEvent] = asyncio.Queue()
+        # Keep references to background tasks to avoid GC
+        self.bg_tasks = set()
+
+        t_producer = self.loop.create_task(
+            heartbeat_producer(self.event_queue, interval_seconds=1)
+        )
+        t_consumer = self.loop.create_task(event_consumer(self.event_queue, self))
+        self.bg_tasks.add(t_producer)
+        self.bg_tasks.add(t_consumer)
+        t_producer.add_done_callback(self.bg_tasks.discard)
+        t_consumer.add_done_callback(self.bg_tasks.discard)
+
+        # Sync application commands
+        await self.tree.sync()
 
     async def _setup_dependencies(self) -> "Injector":
         """Initialize database and dependencies."""

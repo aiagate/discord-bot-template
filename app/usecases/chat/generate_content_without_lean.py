@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from injector import inject
 
 from app.core.result import Err, Ok, Result, is_err
+from app.domain.aggregates.chat_history import ChatMessage
 from app.domain.interfaces.ai_service import IAIService
 from app.domain.repositories.interfaces import IUnitOfWork
 from app.mediator import Request, RequestHandler
@@ -37,9 +38,9 @@ class GenerateContentWithoutLeanHandler(
 
         # 1. Get history and save user message (Atomic operation)
         async with self._uow:
-            histories_result = await self._uow.chat_history.get_recent_history(
-                limit=100
-            )
+            histories_result = await self._uow.GetRepository(
+                ChatMessage
+            ).get_recent_history(limit=100)
             if is_err(histories_result):
                 return Err(
                     UseCaseError(

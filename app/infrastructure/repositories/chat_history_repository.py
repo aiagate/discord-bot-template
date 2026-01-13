@@ -3,8 +3,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.result import Err, Ok, Result
 from app.domain.aggregates.chat_history import ChatMessage
+from app.domain.repositories.chat_history_repository import IChatHistoryRepository
 from app.domain.repositories.interfaces import (
-    IChatHistoryRepository,
     RepositoryError,
     RepositoryErrorType,
 )

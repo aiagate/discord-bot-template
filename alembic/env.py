@@ -14,6 +14,7 @@ from alembic import context
 # Import all ORM models here for autogenerate to discover them
 from app.infrastructure.orm_models import (
     ChatMessageORM,  # pyright: ignore[reportUnusedImport] # noqa: F401
+    SystemInstructionORM,  # pyright: ignore[reportUnusedImport] # noqa: F401
     TeamMembershipORM,  # pyright: ignore[reportUnusedImport] # noqa: F401
     TeamORM,  # pyright: ignore[reportUnusedImport] # noqa: F401
     UserORM,  # pyright: ignore[reportUnusedImport] # noqa: F401
