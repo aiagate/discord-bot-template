@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.core.interfaces.notification_listener import INotificationListener
 from app.domain.interfaces.ai_service import IAIService
+from app.domain.interfaces.event_bus import IEventBus
 from app.domain.repositories import IUnitOfWork
 from app.infrastructure.orm_registry import init_orm_mappings
 from app.infrastructure.unit_of_work import SQLAlchemyUnitOfWork
@@ -74,3 +75,11 @@ class MessagingModule(injector.Module):
         # Transient scope (default) ensures we get a fresh listener if requested multiple times,
         # which is safer for connection management if we had multiple consumers.
         return PostgresNotificationListener()
+
+    @injector.provider
+    @injector.singleton
+    def provide_event_bus(self) -> IEventBus:
+        """Provide Event Bus implementation."""
+        from app.infrastructure.messaging.postgres_event_bus import PostgresEventBus
+
+        return PostgresEventBus()

@@ -56,6 +56,20 @@ class MyBot(commands.Bot):
         # Sync application commands
         await self.tree.sync()
 
+        # Initialize Event Bus
+        from app.bot.cogs.brain_cog import BrainCog
+        from app.domain.interfaces.event_bus import IEventBus
+
+        event_bus = injector.get(IEventBus)
+
+        # Start Event Bus task
+        t_bus = self.loop.create_task(event_bus.start())
+        self.bg_tasks.add(t_bus)
+        t_bus.add_done_callback(self.bg_tasks.discard)
+
+        # Load BrainCog with EventBus
+        await self.add_cog(BrainCog(self, event_bus))
+
     async def _setup_dependencies(self) -> "Injector":
         """Initialize database and dependencies."""
         from injector import Injector
