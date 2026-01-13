@@ -8,21 +8,56 @@
 
 ## アーキテクチャ概要
 
-このプロジェクトは **クリーンアーキテクチャ（Clean Architecture）** に基づいて設計されています。
+このプロジェクトは、**クリーンアーキテクチャ (Clean Architecture)** をベースにしつつ、**CQRS (Command Query Responsibility Segregation)** と **Event-Driven Architecture (EDA)** の要素を取り入れたハイブリッドアーキテクチャを採用しています。
 
-### レイヤー構造
+主な目的は、Discordのインターフェース処理 (Bot Process) と、重いビジネスロジック (Worker Process) を物理的に分離し、スケーラビリティと保守性を向上させることです。
 
+### システムコンテキスト
+
+```text
+┌──────────────────┐      ┌──────────────────┐      ┌──────────────────┐
+│   Discord API    │ <--> │   Bot Process    │ <--> │    PostgreSQL    │
+└──────────────────┘      │ (Interface Layer)│      │   (Event Bus)    │
+                          └──────────────────┘      └─────────┬────────┘
+                                   ^                          │
+                                   │ Commands (Outbox)        │ Events (Queue)
+                                   │                          │
+                                   v                          v
+                          ┌──────────────────┐      ┌──────────────────┐
+                          │    PostgreSQL    │ <--> │  Worker Process  │
+                          │ (Domain Data)    │      │ (Business Logic) │
+                          └──────────────────┘      └──────────────────┘
 ```
+
+1. **Bot Process (Interface Layer)**:
+    * ユーザーからの入力を受け付け、即時レスポンス（「処理を受け付けました」等）を返します。
+    * コマンドを **Command Outbox** (PostgreSQL) に保存します。
+    * ビジネスロジックは持ちません。
+
+2. **Worker Process (Application & Domain Layers)**:
+    * Command Outboxをポーリング、またはイベントを検知して起動します。
+    * ユースケースを実行し、ビジネスルールを適用します。
+    * 結果をイベントとして発行、またはデータを更新します。
+
+3. **PostgreSQL (Global State & Messaging)**:
+    * ドメインデータの永続化ストア。
+    * プロセス間通信 (IPC) のための信頼性の高いメッセージブローカー (Event Bus / Outbox)。
+
+### レイヤー構造 (Worker Process)
+
+Worker Process内部は、厳格なクリーンアーキテクチャに従います。
+
+```text
 ┌─────────────────────────────────────────┐
-│  Presentation Layer                     │  外部インターフェース
-│  (Discord Bot, Cogs)                    │  - ユーザーからの入力受付
-│  - app/__main__.py                      │  - 出力のフォーマット
-│  - app/cogs/*.py                        │
+│  Presentation Layer / Entry Point       │  イベント/コマンド処理
+│  (Worker Main, Consumers)               │  - イベントの検知
+│  - app/worker/__main__.py               │  - ユースケースへのディスパッチ
+│  - app/worker/consumer.py               │
 ├─────────────────────────────────────────┤
 │  Application Layer                      │  ユースケース
 │  (Use Cases, Mediator)                  │  - ビジネスフロー制御
 │  - app/usecases/                        │  - DTOでの入出力
-│  - app/mediator.py                      │  - Result型でのエラーハンドリング
+│  - app/core/mediator.py                 │  - Result型でのエラーハンドリング
 ├─────────────────────────────────────────┤
 │  Domain Layer                           │  ビジネスルール
 │  (Aggregates, Entities, Value Objects)  │  - 純粋なPythonオブジェクト
@@ -32,9 +67,8 @@
 │  Infrastructure Layer                   │  技術的詳細
 │  (Database, ORM, External Services)     │  - データベースアクセス
 │  - app/infrastructure/database.py       │  - 外部API呼び出し
-│  - app/infrastructure/orm_models/       │  - ファイルシステムアクセス
+│  - app/infrastructure/orm_models/       │  - Event Busの実装
 │  - app/infrastructure/repositories/     │
-│  - app/infrastructure/unit_of_work.py   │
 │  - app/container.py (DI)                │
 └─────────────────────────────────────────┘
 ```
@@ -42,7 +76,7 @@
 ### 依存関係の方向
 
 ```
-Presentation ──▶ Application ──▶ Domain ◀── Infrastructure
+Entry Point ──▶ Application ──▶ Domain ◀── Infrastructure
                                     ▲
                                     │
                             依存性の逆転原理
@@ -51,10 +85,10 @@ Presentation ──▶ Application ──▶ Domain ◀── Infrastructure
 
 **重要な原則**:
 
-- 上位層は下位層に依存可能
-- **下位層は上位層に依存してはならない**
-- **ドメイン層は最も独立しており、他のどの層にも依存しない**
-- インフラ層はドメイン層のインターフェースに依存（依存性逆転）
+* 上位層は下位層に依存可能
+* **下位層は上位層に依存してはならない**
+* **ドメイン層は最も独立しており、他のどの層にも依存しない**
+* インフラ層はドメイン層のインターフェースに依存（依存性逆転）
 
 ---
 
@@ -66,10 +100,10 @@ Presentation ──▶ Application ──▶ Domain ◀── Infrastructure
 
 **特徴**:
 
-- 純粋なPythonコード（dataclass、関数）
-- フレームワーク非依存
-- データベース、Web、UIに関する知識を持たない
-- 他のどのレイヤーにも依存しない
+* 純粋なPythonコード（dataclass、関数）
+* フレームワーク非依存
+* データベース、Web、UIに関する知識を持たない
+* 他のどのレイヤーにも依存しない
 
 #### 構成要素
 
@@ -101,9 +135,9 @@ class User:
 
 **ポイント**:
 
-- ビジネスルールを `__post_init__` で検証
-- **Value Objects** (`UserId`, `Email`) を使用して型安全性を向上
-- リッチドメインモデル（データだけでなく振る舞いを持つ）
+* ビジネスルールを `__post_init__` で検証
+* **Value Objects** (`UserId`, `Email`) を使用して型安全性を向上
+* リッチドメインモデル（データだけでなく振る舞いを持つ）
 
 ##### 1.2 Repository Interfaces（リポジトリインターフェース）
 
@@ -135,9 +169,9 @@ class IRepositoryWithId[T, K](IRepository[T], ABC):
 
 **ポイント**:
 
-- ドメイン層でインターフェースを定義
-- 実装はインフラ層が担当（依存性逆転）
-- Result型で型安全なエラーハンドリング
+* ドメイン層でインターフェースを定義
+* 実装はインフラ層が担当（依存性逆転）
+* Result型で型安全なエラーハンドリング
 
 **設計判断: Protocol から ABC への移行**:
 
@@ -147,10 +181,10 @@ class IRepositoryWithId[T, K](IRepository[T], ABC):
 
 `ABC` ベースの明示的継承により、以下の利点が得られます:
 
-- 型安全性の向上（クラス定義時にエラー検出）
-- IDEサポートの改善（自動補完、リファクタリング）
-- 開発者の意図の明確化
-- インターフェースと実装の乖離防止
+* 型安全性の向上（クラス定義時にエラー検出）
+* IDEサポートの改善（自動補完、リファクタリング）
+* 開発者の意図の明確化
+* インターフェースと実装の乖離防止
 
 なお、`IValueObject` などのドメイン層インターフェースは、ランタイム型チェックが
 必要なため、引き続き `Protocol` を使用します。
@@ -175,9 +209,9 @@ Result = Ok[T] | Err[E]
 
 **ポイント**:
 
-- Rust の Result型にインスパイア
-- 例外ではなく値でエラーを表現
-- `map`, `and_then`, `unwrap` などのメソッドチェーンで安全な処理を実現
+* Rust の Result型にインスパイア
+* 例外ではなく値でエラーを表現
+* `map`, `and_then`, `unwrap` などのメソッドチェーンで安全な処理を実現
 
 **使用例**:
 
@@ -199,9 +233,9 @@ message = await (
 
 **特徴**:
 
-- ドメインオブジェクトを操作してビジネスフローを実現
-- DTOで入出力を定義
-- トランザクション境界の管理（Unit of Work）
+* ドメインオブジェクトを操作してビジネスフローを実現
+* DTOで入出力を定義
+* トランザクション境界の管理（Unit of Work）
 
 #### 構成要素
 
@@ -215,9 +249,9 @@ message = await (
 
 **重要な設計原則**: Create系のユースケースは作成したエンティティのIDのみを返し、詳細情報の取得はGet系のユースケースに委譲します。これにより以下のSOLID原則がより厳密に守られます：
 
-- **単一責任の原則（SRP）**: Createは「エンティティの作成」、Getは「エンティティの詳細取得」という明確な単一責任を持つ
-- **開放閉鎖の原則（OCP）**: 表示ロジックをGetに一元化することで、表示形式の変更時に既存のCreateコードを変更する必要がない
-- **インターフェース分離の原則（ISP）**: Createは最小限の情報（ID）のみを返し、クライアントに不要な情報を公開しない
+* **単一責任の原則（SRP）**: Createは「エンティティの作成」、Getは「エンティティの詳細取得」という明確な単一責任を持つ
+* **開放閉鎖の原則（OCP）**: 表示ロジックをGetに一元化することで、表示形式の変更時に既存のCreateコードを変更する必要がない
+* **インターフェース分離の原則（ISP）**: Createは最小限の情報（ID）のみを返し、クライアントに不要な情報を公開しない
 
 `app/usecases/users/get_user.py`:
 
@@ -267,11 +301,11 @@ class GetUserHandler(RequestHandler[GetUserQuery, Result[GetUserResult, UseCaseE
 
 **ポイント**:
 
-- **CQRS パターン**: Query（読み取り）と Command（書き込み）を分離
-- **DTO（Data Transfer Object）**: プレゼンテーション層との境界
-- **依存性注入**: `@inject` デコレータで IUnitOfWork を注入
-- **トランザクション**: `async with self._uow` でトランザクション管理
-- **入力バリデーション**: Handler内で文字列をValue Objectに変換し、不正な値を弾く
+* **CQRS パターン**: Query（読み取り）と Command（書き込み）を分離
+* **DTO（Data Transfer Object）**: プレゼンテーション層との境界
+* **依存性注入**: `@inject` デコレータで IUnitOfWork を注入
+* **トランザクション**: `async with self._uow` でトランザクション管理
+* **入力バリデーション**: Handler内で文字列をValue Objectに変換し、不正な値を弾く
 
 `app/usecases/users/create_user.py` (Command例):
 
@@ -346,14 +380,14 @@ async def teams_create(self, ctx: commands.Context[commands.Bot], name: str) -> 
 
 この設計により：
 
-- Createは「作成してIDを返す」という単一責任に専念
-- Getは「詳細情報の取得と形式化」という単一責任に専念
-- 結果の表示形式を変更する場合、Getの実装のみを変更すればよい（OCP）
-- `and_then`でフローが明確になり、ネストが深くならない
+* Createは「作成してIDを返す」という単一責任に専念
+* Getは「詳細情報の取得と形式化」という単一責任に専念
+* 結果の表示形式を変更する場合、Getの実装のみを変更すればよい（OCP）
+* `and_then`でフローが明確になり、ネストが深くならない
 
 ##### 2.2 Mediator Pattern（メディエーターパターン）
 
-`app/mediator.py`:
+`app/core/mediator.py`:
 
 ```python
 class Mediator:
@@ -370,9 +404,9 @@ class Mediator:
 
 **利点**:
 
-- プレゼンテーション層とアプリケーション層の疎結合
-- ハンドラーの自動登録（メタクラス使用）
-- 一貫したリクエスト/レスポンスパターン
+* プレゼンテーション層とアプリケーション層の疎結合
+* ハンドラーの自動登録（メタクラス使用）
+* 一貫したリクエスト/レスポンスパターン
 
 **使用例**:
 
@@ -397,10 +431,10 @@ class UserDTO:
 
 **ポイント**:
 
-- イミュータブル（`frozen=True`）
-- ドメイン集約とは別物（表示用）
-- プレゼンテーション層に公開する情報はプリミティブ型（`str`, `int`など）
-- Value Objectは `to_primitive()` で変換されて格納される
+* イミュータブル（`frozen=True`）
+* ドメイン集約とは別物（表示用）
+* プレゼンテーション層に公開する情報はプリミティブ型（`str`, `int`など）
+* Value Objectは `to_primitive()` で変換されて格納される
 
 ---
 
@@ -410,9 +444,9 @@ class UserDTO:
 
 **特徴**:
 
-- ドメイン層のインターフェースを実装
-- ORM、データベース接続、外部サービスとの通信
-- ドメイン集約とORMモデルの変換
+* ドメイン層のインターフェースを実装
+* ORM、データベース接続、外部サービスとの通信
+* ドメイン集約とORMモデルの変換
 
 #### 構成要素
 
@@ -442,9 +476,9 @@ class UserORM(SQLModel, table=True):
 
 **ポイント**:
 
-- **ドメイン集約とは完全に分離**
-- データベーステーブルの表現
-- IDはULIDのため `str` 型、タイムスタンプは `datetime` 型
+* **ドメイン集約とは完全に分離**
+* データベーステーブルの表現
+* IDはULIDのため `str` 型、タイムスタンプは `datetime` 型
 
 ##### 3.2 Generic Repository
 
@@ -480,9 +514,9 @@ class GenericRepository[T, K](IRepositoryWithId[T, K]):
 
 **ポイント**:
 
-- 型安全な汎用実装（Generics使用）
-- ORM ↔ Domain の変換を `ORMMappingRegistry` に委譲
-- Result型でエラーハンドリング
+* 型安全な汎用実装（Generics使用）
+* ORM ↔ Domain の変換を `ORMMappingRegistry` に委譲
+* Result型でエラーハンドリング
 
 ##### 3.3 ORM Mapping Registry
 
@@ -500,11 +534,11 @@ class GenericRepository[T, K](IRepositoryWithId[T, K]):
 
 **利点**:
 
-- **型安全**: 型アノテーションベースで自動変換
-- **保守性向上**: 新しいValue Objectを追加しても変換コード不要
-- **依存性逆転**: ドメイン層がインフラ層に依存しない
-- **DRY原則**: 変換ロジックの重複を排除
-- **一元管理**: 全てのマッピングを `orm_registry.py` で集中管理
+* **型安全**: 型アノテーションベースで自動変換
+* **保守性向上**: 新しいValue Objectを追加しても変換コード不要
+* **依存性逆転**: ドメイン層がインフラ層に依存しない
+* **DRY原則**: 変換ロジックの重複を排除
+* **一元管理**: 全てのマッピングを `orm_registry.py` で集中管理
 
 ##### 3.4 Unit of Work Pattern
 
@@ -535,9 +569,9 @@ class SQLAlchemyUnitOfWork(IUnitOfWork):
 
 **ポイント**:
 
-- **トランザクション境界の明確化**
-- リポジトリのキャッシュ（同一トランザクション内で再利用）
-- 自動コミット/ロールバック（コンテキストマネージャー）
+* **トランザクション境界の明確化**
+* リポジトリのキャッシュ（同一トランザクション内で再利用）
+* 自動コミット/ロールバック（コンテキストマネージャー）
 
 ##### 3.5 Dependency Injection Container
 
@@ -563,9 +597,9 @@ class AppModule(Module):
 
 **ポイント**:
 
-- `injector` ライブラリを使用
-- `init_orm_mappings()` をコンテナ設定時に呼び出し、マッピングを保証
-- テスト時のモック注入が容易
+* `injector` ライブラリを使用
+* `init_orm_mappings()` をコンテナ設定時に呼び出し、マッピングを保証
+* テスト時のモック注入が容易
 
 ---
 
@@ -575,9 +609,9 @@ class AppModule(Module):
 
 **特徴**:
 
-- Discord Bot のコマンド実装
-- 入力の受付とバリデーション
-- 出力のフォーマット
+* Discord Bot のコマンド実装
+* 入力の受付とバリデーション
+* 出力のフォーマット
 
 #### 構成要素
 
@@ -635,10 +669,10 @@ class UsersCog(commands.Cog):
 
 **ポイント**:
 
-- Mediator経由でユースケースを呼び出し
-- Result型でエラーハンドリング
-- Discord用のメッセージフォーマット
-- IDは文字列として受け取る
+* Mediator経由でユースケースを呼び出し
+* Result型でエラーハンドリング
+* Discord用のメッセージフォーマット
+* IDは文字列として受け取る
 
 ---
 
@@ -646,11 +680,13 @@ class UsersCog(commands.Cog):
 
 ### Query（読み取り）のフロー
 
+Queryは、Bot Processが直接データベース（参照用）にアクセスして処理する場合と、Workerに依頼する場合がありますが、単純なデータ取得はBot側で完結させることも可能です（現在は共通化のためWorker経由、または直接参照のハイブリット構成が考えられます）。以下はWorkerを経由する標準的なフローです。
+
 ```
 1. User: !users get 01H...
-   ↓
-2. UsersCog: GetUserQuery(user_id="01H...")
-   ↓
+   ↓ (Bot Process)
+2. UsersCog: GetUserQuery(user_id="01H...") -> Workerへ送信 (Event Bus/RPC)
+   ↓ (Worker Process)
 3. Mediator -> GetUserHandler
    ↓ UserId.from_primitive("01H...")
 4. UoW -> GenericRepository.get_by_id(UserId(...))
@@ -658,35 +694,42 @@ class UsersCog(commands.Cog):
 5. Database -> UserORM
    ↓ ORMMappingRegistry.from_orm()
 6. User (Domain) -> UserDTO
-   ↓ Ok(GetUserResult(UserDTO))
-7. UsersCog: formats message
    ↓
-8. User: receives message
+7. Worker: 結果を返す (Event Bus)
+   ↓ (Bot Process)
+8. UsersCog: 結果を受け取りメッセージをフォーマット
+   ↓
+9. User: メッセージを受信
 ```
 
 ### Command（書き込み）のフロー
 
+Commandは、Bot ProcessがOutboxにコマンドを書き込み、Worker Processがそれを処理します。
+
 ```
 1. User: !teams create "My Team"
+   ↓ (Bot Process)
+2. TeamsCog: CreateTeamCommand(name="My Team") を作成
    ↓
-2. TeamsCog: CreateTeamCommand(name="My Team")
+3. CommandProcessor: コマンドをOutbox (Database) に保存 (INSERT INTO commands ...)
    ↓
-3. Mediator -> CreateTeamHandler -> Team(id=TeamId.generate(), ...)
+4. (Worker Process)
+   Worker: Outboxをポーリングし、新しいコマンドを検知
+   ↓
+5. Mediator -> CreateTeamHandler -> Team(id=TeamId.generate(), ...)
    ↓ UoW -> GenericRepository.add()
-4. ORMMappingRegistry.to_orm() -> TeamORM
-   ↓ INSERT ...
-5. Database commits
-   ↓ Ok(CreateTeamResult(team_id="01H..."))
-6. TeamsCog: .and_then() is called
-   ↓ GetTeamQuery(team_id="01H...")
-7. (Queryフローと同様の処理)
-   ↓ Ok(GetTeamResult(TeamDTO))
-8. TeamsCog: .map() formats message
+6. ORMMappingRegistry.to_orm() -> TeamORM
+   ↓ INSERT INTO teams ...
+7. Database commits
    ↓
-9. User: receives success message
+8. Worker: 処理完了イベント (TeamCreatedEvent) を発行 (Event Bus)
+   ↓ (Bot Process)
+9. Bot: TeamCreatedEvent を受信
+   ↓
+10. BrainCog (Listener): 結果に基づきユーザーに返信
 ```
 
-**重要**: Create操作は作成したエンティティのIDのみを返します。詳細情報の取得は必ずGet操作を経由することで、表示ロジックが一元化され、SOLID原則（特にSRPとOCP）が守られます。`and_then` を使ったフローにより、この処理が簡潔に表現されます。
+**重要**: この非同期アーキテクチャにより、Bot Processは重い処理でブロックされることなく、常にユーザーの入力に応答可能な状態を維持できます。また、CommandとQueryの責任が明確に分離 (CQRS) されます。
 
 ---
 
@@ -734,40 +777,9 @@ async def test_get_user_handler(uow: IUnitOfWork) -> None:
 
 **特徴**:
 
-- テストには `@pytest.mark.asyncio` を使用
-- データベースを含む
-- トランザクション動作の検証
-
----
-
-## 依存関係管理
-
-### プロダクション依存関係
-
-```toml
-[project.dependencies]
-aiosqlite = ">=0.21.0"
-alembic = ">=1.17.2"
-discord-py = ">=2.5.2"
-injector = ">=0.22.0"
-python-dotenv = ">=1.2.1"
-python-ulid = ">=3.1.0"   # ULID生成
-sqlmodel = ">=0.0.24"
-```
-
-### 開発依存関係
-
-```toml
-[dependency-groups.dev]
-# anyio は pytest-asyncio の依存関係として導入されます
-pre-commit = ">=4.5.0"
-pyright = ">=1.1.407"
-pytest = ">=8.3.5"
-pytest-asyncio = ">=1.3.0" # 非同期テストランナー
-pytest-cov = ">=7.0.0"
-pytest-mock = ">=3.14.0"
-ruff = ">=0.14.6"
-```
+* テストには `@pytest.mark.asyncio` を使用
+* データベースを含む
+* トランザクション動作の検証
 
 ---
 
@@ -785,7 +797,7 @@ class Guild:
     name: str
 ```
 
-2. **ORMモデルを作成**
+1. **ORMモデルを作成**
 
 ```python
 # app/infrastructure/orm_models/guild_orm.py
@@ -795,7 +807,7 @@ class GuildORM(SQLModel, table=True):
     name: str
 ```
 
-3. **マッピングを登録**
+1. **マッピングを登録**
 
 ```python
 # app/infrastructure/orm_registry.py
@@ -811,14 +823,14 @@ def init_orm_mappings() -> None:
 
 `init_orm_mappings` はアプリ起動時に `app/container.py` から自動で呼び出されるため、ここの追加だけでマッピングは完了します。
 
-4. **ユースケースを作成**
+1. **ユースケースを作成**
 
 ```python
 # app/usecases/guilds/get_guild.py
 # ... GetGuildQuery, GetGuildHandler などを実装
 ```
 
-5. **Cogを作成**
+1. **Cogを作成**
 
 ```python
 # app/cogs/guilds_cog.py
@@ -837,16 +849,10 @@ uv run alembic upgrade head
 
 ---
 
-## 📚 参考資料
+## 参考資料
 
-- [Clean Architecture (Robert C. Martin)](https://blog.cleancoder.com/uncle-bob/2012/08/13/the-clean-architecture.html)
-- [Domain-Driven Design](https://www.domainlanguage.com/ddd/)
-- [CQRS Pattern](https://martinfowler.com/bliki/CQRS.html)
-- [Repository Pattern](https://martinfowler.com/eaaCatalog/repository.html)
-- [Unit of Work Pattern](https://martinfowler.com/eaaCatalog/unitOfWork.html)
-
----
-
-**ドキュメント作成者**: Claude Code
-**作成日**: 2025-11-26
-**バージョン**: 1.0
+* [Clean Architecture (Robert C. Martin)](https://blog.cleancoder.com/uncle-bob/2012/08/13/the-clean-architecture.html)
+* [Domain-Driven Design](https://www.domainlanguage.com/ddd/)
+* [CQRS Pattern](https://martinfowler.com/bliki/CQRS.html)
+* [Repository Pattern](https://martinfowler.com/eaaCatalog/repository.html)
+* [Unit of Work Pattern](https://martinfowler.com/eaaCatalog/unitOfWork.html)

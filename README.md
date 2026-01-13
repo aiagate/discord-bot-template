@@ -6,63 +6,63 @@
 
 このプロジェクトは、Discord Botの開発を効率化するためのテンプレートです。
 非同期処理、依存性注入、クリーンアーキテクチャを採用し、拡張性と保守性を重視した設計になっています。
+Bot Interface (Discordとのやり取り) と Worker (ビジネスロジックの実行) を分離し、スケーラビリティを高めています。
 
 ## 特徴
 
-### 1. **非同期処理の活用**
+### 1. **アーキテクチャの分離 (Bot & Worker)**
+
+- **Bot Process**: Discord Gatewayとの通信、コマンドの受付、レスポンスの送信を担当。軽量に保たれます。
+- **Worker Process**: 重い処理やビジネスロジックの実行を担当。PostgreSQLベースのEvent Busを介してBotと連携します。
+
+### 2. **非同期処理の活用**
 
 - `asyncio`を使用して非同期処理を実現。
 - 高速かつ効率的な処理を可能にする設計。
 
-### 2. **依存性注入 (DI)**
+### 3. **依存性注入 (DI)**
 
 - `injector`ライブラリを使用して依存性注入を実現。
 - テスト容易性とモジュール間の疎結合を実現。
 
-### 3. **Mediatorパターンの採用**
+### 4. **Mediatorパターンの採用**
 
-- `mediator.py`でMediatorパターンを実装。
+- `app/core/mediator.py`でMediatorパターンを実装。
 - リクエストとハンドラーの分離により、コードの可読性と拡張性を向上。
 
-### 4. **クリーンアーキテクチャ**
+### 5. **クリーンアーキテクチャ**
 
 - ユースケース層 (`usecases/`) とドメイン層 (`domain/`) を明確に分離。
 - ビジネスロジックとインフラストラクチャの独立性を確保。
 - ドメイン層 (`domain/`) とインフラストラクチャ層 (`infrastructure/`) を完全分離。
 
-### 5. **データベース統合**
+### 6. **データベース統合**
 
+- **PostgreSQL**: 本番環境およびEvent Busのバックエンドとして推奨。
 - **SQLModel + Alembic**: 型安全なORM とマイグレーション管理。
-- **非同期データベース**: aiosqlite による非同期SQLite操作。
 - **クリーンアーキテクチャ準拠**: ORMモデルとドメイン集約を分離。
-- **自動マイグレーション**: Alembicによるスキーマバージョン管理。
 
-### 6. **コグ (Cog) によるコマンド管理**
+### 7. **Event Bus / Outbox パターン**
+
+- **PostgreSQL Event Bus**: プロセス間の信頼性の高いメッセージングを実現。
+- **Command Outbox**: WorkerからBotへの操作指示を確実に伝達。
+
+### 8. **コグ (Cog) によるコマンド管理**
 
 - `discord.ext.commands`のCogを使用してコマンドをモジュール化。
 - Botの機能を簡単に拡張可能。
 
-### 7. **FastAPI 統合 (Web API)**
+### 9. **FastAPI 統合 (Web API)**
 
 - Discord Botと並行して動作するREST API。
 - 共通のユースケースを再利用し、外部システムとの連携が可能。
 - Swagger UI によるインタラクティブなドキュメント。
 
-### 8. **型安全性**
+### 10. **型安全性とコード品質**
 
-- Pythonの型ヒントを活用し、静的解析ツールによるエラー検出を強化。
-
-### 9. **テスト環境の整備**
-
-- `pytest`と`pytest-asyncio`を使用したテスト環境を構築。
-- `pytest-cov`によるコードカバレッジ測定。
-- インメモリSQLiteを使用した高速なテスト実行。
-
-### 10. **コード品質管理**
-
-- `Ruff`: 高速なコードフォーマッターとリンター。
-- `Pyright`: 厳格な型チェック (strict モード)。
-- `pre-commit`: Git コミット前の自動チェック。
+- **Type Checking**: `Pyright` (strict mode) による厳格な型チェック。
+- **Linting & Formatting**: `Ruff` による高速なチェックと整形。
+- **Pre-commit**: コミット前の自動検証。
 
 ## ディレクトリ構成
 
@@ -75,23 +75,26 @@
 │   ├── bot/                       # Discord Bot層
 │   │   ├── __main__.py            # Botエントリーポイント (start-bot)
 │   │   └── cogs/                  # Cogモジュール
-│   ├── core/                      # アプリケーションコア (Resultクラスなど)
-│   ├── container.py               # DIコンテナ設定
-│   ├── mediator.py                # Mediatorパターンの実装
+│   ├── worker/                    # Worker層 (ビジネスロジック実行)
+│   │   ├── __main__.py            # Workerエントリーポイント (start-worker)
+│   │   ├── consumer.py            # イベントコンシューマー
+│   │   └── handlers.py            # イベントハンドラー
+│   ├── core/                      # アプリケーションコア
+│   │   ├── container.py           # DIコンテナ設定
+│   │   ├── mediator.py            # Mediatorパターンの実装
+│   │   └── result.py              # Result型定義
 │   ├── domain/                    # ドメイン層
-│   │   ├── aggregates/            # ドメイン集約 (user.py, team.py)
+│   │   ├── aggregates/            # ドメイン集約
 │   │   ├── interfaces/            # 抽象インターフェース
-│   │   ├── repositories/          # リポジトリインターフェース
 │   │   └── value_objects/         # 値オブジェクト
 │   ├── infrastructure/            # インフラストラクチャ層
 │   │   ├── database.py            # DB設定・セッション管理
-│   │   ├── orm_models/            # ORMモデル (user_orm.py, team_orm.py)
-│   │   └── repositories/          # リポジトリ実装
+│   │   ├── messaging/             # メッセージング (Event Bus)
+│   │   ├── orm_models/            # ORMモデル
+│   │   ├── repositories/          # リポジトリ実装
+│   │   └── services/              # 外部サービス実装
 │   └── usecases/                  # ユースケース層
-│       ├── users/                 # ユーザー関連ユースケース
-│       └── teams/                 # チーム関連ユースケース
 ├── alembic/                       # Alembicマイグレーション
-│   └── versions/                  # マイグレーションファイル
 ├── docs/                          # ドキュメント
 ├── tests/                         # テストコード
 ├── .pre-commit-config.yaml        # Pre-commit設定
@@ -102,8 +105,8 @@
 ## 必要な環境
 
 - Python 3.13 以上
+- PostgreSQL (推奨) または SQLite (開発用、ただしEvent Bus機能には制限あり)
 - パッケージ管理 [uv](https://github.com/astral-sh/uv)
-- 必要な依存関係は`pyproject.toml`に記載されています。
 
 ## セットアップ
 
@@ -131,39 +134,41 @@
    `.env.example`を`.env`または`.env.local`にコピーして編集:
 
    ```bash
-   # .env.local を作成
    cp .env.example .env.local
    ```
 
    `.env.local`の内容を編集:
 
    ```bash
-   # Discord Bot トークン（必須）
-   DISCORD_BOT_TOKEN=your_discord_bot_token_here
+   # Discord Bot トークン
+   DISCORD_BOT_TOKEN=your_token
 
-   # データベースURL（オプション、デフォルト: sqlite+aiosqlite:///./bot.db）
-   DATABASE_URL=sqlite+aiosqlite:///./bot.db
+   # データベースURL (PostgreSQL推奨)
+   # Event Busを使用する場合はPostgreSQLが必要です
+   DATABASE_URL=postgresql+asyncpg://user:password@localhost/dbname
    ```
 
 5. データベースマイグレーションを実行:
 
    ```bash
-   # マイグレーション適用
    uv run alembic upgrade head
-
-   # マイグレーション状態確認
-   uv run alembic current
    ```
 
 6. アプリケーションを起動:
 
-   Discord Botを起動:
+   Botプロセス (Interface):
 
    ```bash
    uv run start-bot
    ```
 
-   または、Web APIサーバーを起動:
+   Workerプロセス (Business Logic):
+
+   ```bash
+   uv run start-worker
+   ```
+
+   (オプション) APIサーバー:
 
    ```bash
    uv run start-api
@@ -185,89 +190,40 @@ uv run alembic downgrade -1
 
 # 現在のマイグレーション確認
 uv run alembic current
-
-# マイグレーション履歴表示
-uv run alembic history
 ```
-
-### データベース構造
-
-- **使用DB**: SQLite (開発時) / PostgreSQL (本番推奨)
-- **ORM**: SQLModel
-- **マイグレーション**: Alembic
-- **非同期対応**: aiosqlite / asyncpg
 
 ## テスト実行
 
 ```bash
-# 全テスト実行
-uv run pytest
-
-# カバレッジ付きで実行
-uv run pytest --cov=app --cov-report=term-missing
-
-# 特定のテストファイルのみ実行
-uv run pytest tests/infrastructure/test_repositories.py
-
-# 詳細な出力
-uv run pytest -v
-```
-
-## コード品質チェック
-
-```bash
-# フォーマット
-uv run ruff format .
-
-# リントチェック
-uv run ruff check .
-
-# リント自動修正
-uv run ruff check . --fix
-
-# 型チェック
-uv run pyright
-
-# 全チェック実行
-uv run ruff format . && \
-uv run ruff check . --fix && \
-uv run pyright && \
 uv run pytest
 ```
-
-## 利用可能なDiscordコマンド
-
-- `!users get <user_id>`: ユーザー情報を取得
-- `!users create <name> <email>`: 新規ユーザーを作成
-- `!teams get <team_id>`: チーム情報を取得
-- `!teams create <name>`: 新規チームを作成
 
 ## アーキテクチャ
 
-このテンプレートは以下のレイヤーで構成されています：
+このプロジェクトは、**クリーンアーキテクチャ (Clean Architecture)** の原則に基づき、さらに **CQRS (Command Query Responsibility Segregation)** と **Event-Driven Architecture** の要素を取り入れています。
+
+### システム構成
 
 ```text
-┌─────────────────────────────────────┐  ┌─────────────────────────────────────┐
-│    Presentation Layer (Web API)     │  │  Presentation Layer (Discord Bot)   │
-│           (FastAPI)                 │  │          (discord.py)               │
-└──────────────────┬──────────────────┘  └──────────────────┬──────────────────┘
-                   │                                        │
-┌──────────────────▼────────────────────────────────────────▼──────────────────┐
-│                        Application Layer (UseCases)                          │
-├──────────────────────────────────────────────────────────────────────────────┤
-│                         Domain Layer (Aggregates)                            │
-├──────────────────────────────────────────────────────────────────────────────┤
-│                     Infrastructure Layer (Repository)                        │
-└──────────────────────────────────────────────────────────────────────────────┘
+┌──────────────────┐      ┌──────────────────┐      ┌──────────────────┐
+│   Discord API    │ <--> │   Bot Process    │ <--> │    PostgreSQL    │
+└──────────────────┘      │ (Interface Layer)│      │   (Event Bus)    │
+                          └──────────────────┘      └─────────┬────────┘
+                                   ^                          │
+                                   │ Commands                 │ Events
+                                   │ (Outbox)                 │ (Queue)
+                                   │                          v
+                          ┌──────────────────┐      ┌──────────────────┐
+                          │    PostgreSQL    │ <--> │  Worker Process  │
+                          │ (Domain Data)    │      │ (Business Logic) │
+                          └──────────────────┘      └──────────────────┘
 ```
 
-### 依存関係の方向
+1. **Bot Process**: ユーザー入力を受け取り、コマンドとしてデータベース (Outbox) に保存します。また、処理結果を表示します。
+2. **Worker Process**: イベントやコマンドを検知し、実際のユースケースを実行します。
+3. **PostgreSQL**: データの永続化だけでなく、プロセス間の通信路 (Event Bus / Outbox) としても機能します。
 
-- 上位層から下位層への依存のみ許可
-- ドメイン層はインフラストラクチャに依存しない
-- リポジトリパターンで永続化を抽象化
-
-### 📚 詳細ドキュメント
+### 詳細ドキュメント
 
 プロジェクトの詳細なドキュメントは `docs/` ディレクトリにあります：
 

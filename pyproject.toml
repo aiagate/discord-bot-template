@@ -22,6 +22,7 @@ dependencies = [
 [project.scripts]
 start-bot = "app.bot.__main__:main"
 start-api = "app.api.__main__:start"
+start-worker = "app.worker.__main__:main"
 
 [dependency-groups]
 dev = [

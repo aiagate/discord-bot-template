@@ -1,8 +1,11 @@
+import inspect
+
 import discord
 from discord.ext import commands
 
 from app.core.mediator import Mediator
 from app.core.result import is_ok
+from app.domain.decorators import event_listener
 from app.domain.interfaces.event_bus import Event, IEventBus
 from app.usecases.messaging.process_sns_update import ProcessSnsUpdateCommand
 from app.usecases.messaging.publish_received_message import (
@@ -16,8 +19,10 @@ class BrainCog(commands.Cog):
         self.bus = bus
 
         # --- Event Subscription ---
-        self.bus.subscribe("sns.update", self.on_sns_update)
-        self.bus.subscribe("bot.speak", self.on_bot_speak)
+        for _, member in inspect.getmembers(self):
+            if hasattr(member, "_event_bus_topic"):
+                topic = member._event_bus_topic
+                self.bus.subscribe(topic, member)
 
     # --- 1. Discord -> EventBus (Ear) ---
     @commands.Cog.listener()
@@ -34,6 +39,7 @@ class BrainCog(commands.Cog):
         )
 
     # --- 2. EventBus -> Discord (Mouth) ---
+    @event_listener("sns.update")
     async def on_sns_update(self, event: Event) -> None:
         """Post to Discord when SNS update occurs."""
         channel_id = 1234567890  # Placeholder
@@ -47,6 +53,7 @@ class BrainCog(commands.Cog):
                 if dto.content:
                     await channel.send(dto.content)
 
+    @event_listener("bot.speak")
     async def on_bot_speak(self, event: Event) -> None:
         """Speak when Worker instructs to."""
         channel_id = event.payload.get("channel_id")
