@@ -75,9 +75,8 @@
 │   ├── bot/                       # Discord Bot層
 │   │   ├── __main__.py            # Botエントリーポイント (start-bot)
 │   │   └── cogs/                  # Cogモジュール
-│   ├── core/                      # アプリケーションコア (Resultクラスなど)
+│   ├── core/                      # アプリケーションコア (Result, Mediatorなど)
 │   ├── container.py               # DIコンテナ設定
-│   ├── mediator.py                # Mediatorパターンの実装
 │   ├── domain/                    # ドメイン層
 │   │   ├── aggregates/            # ドメイン集約 (user.py, team.py)
 │   │   ├── interfaces/            # 抽象インターフェース
@@ -195,7 +194,7 @@ uv run alembic history
 - **使用DB**: SQLite (開発時) / PostgreSQL (本番推奨)
 - **ORM**: SQLModel
 - **マイグレーション**: Alembic
-- **非同期対応**: aiosqlite / asyncpg
+- **非同期対応**: aiosqlite
 
 ## テスト実行
 
@@ -237,10 +236,24 @@ uv run pytest
 
 ## 利用可能なDiscordコマンド
 
+### ユーザー管理 (Users)
+
 - `!users get <user_id>`: ユーザー情報を取得
 - `!users create <name> <email>`: 新規ユーザーを作成
+
+### チーム管理 (Teams)
+
 - `!teams get <team_id>`: チーム情報を取得
 - `!teams create <name>`: 新規チームを作成
+- `!teams update <team_id> <new_name>`: チーム名を更新
+- `!teams join <team_id> <user_id>`: チームに参加 (即時)
+- `!teams request <team_id> <user_id>`: チーム参加リクエストを送信
+
+### メンバーシップ管理 (Memberships)
+
+- `!memberships approve <membership_id>`: 参加リクエストを承認
+- `!memberships leave <membership_id>`: チームから脱退
+- `!memberships role <membership_id> <role>`: メンバーのロールを変更
 
 ## アーキテクチャ
 
@@ -267,7 +280,7 @@ uv run pytest
 - ドメイン層はインフラストラクチャに依存しない
 - リポジトリパターンで永続化を抽象化
 
-### 📚 詳細ドキュメント
+### 詳細ドキュメント
 
 プロジェクトの詳細なドキュメントは `docs/` ディレクトリにあります：
 
