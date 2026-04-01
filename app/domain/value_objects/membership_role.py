@@ -18,6 +18,9 @@ class MembershipRole(str, Enum):
     def from_primitive(cls, value: str) -> Result[MembershipRole, ValueError]:
         """Create MembershipRole from string."""
         try:
-            return Ok(cls(value.upper()))
+            normalized = value.strip()
+            if not normalized:
+                return Err(ValueError("Membership role cannot be empty."))
+            return Ok(cls(normalized.upper()))
         except ValueError:
             return Err(ValueError(f"Invalid role: {value}"))

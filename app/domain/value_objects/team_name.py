@@ -54,12 +54,21 @@ class TeamName:
             return Err(
                 ValueError(f"Team name must not exceed {cls.MAX_LENGTH} characters.")
             )
-        # 前後の空白をチェック
-        if value != value.strip():
+        # Strip 前後の空白
+        normalized = value.strip()
+        if not normalized:
+            return Err(ValueError("Team name cannot be empty."))
+        if len(normalized) < cls.MIN_LENGTH:
             return Err(
-                ValueError("Team name cannot have leading or trailing whitespace.")
+                ValueError(
+                    f"Team name must be at least {cls.MIN_LENGTH} characters long."
+                )
             )
-        return Ok(cls(_value=value))
+        if len(normalized) > cls.MAX_LENGTH:
+            return Err(
+                ValueError(f"Team name must not exceed {cls.MAX_LENGTH} characters.")
+            )
+        return Ok(cls(_value=normalized))
 
     def __str__(self) -> str:
         """String representation."""

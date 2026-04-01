@@ -50,9 +50,12 @@ class Email:
         """
         if not value:
             return Err(ValueError("Email cannot be empty."))
-        if not cls.EMAIL_REGEX.match(value):
-            return Err(ValueError(f"Invalid email format: {value}"))
-        return Ok(cls(_value=value))
+        normalized = value.strip()
+        if not normalized:
+            return Err(ValueError("Email cannot be empty."))
+        if not cls.EMAIL_REGEX.match(normalized):
+            return Err(ValueError(f"Invalid email format: {normalized}"))
+        return Ok(cls(_value=normalized))
 
     def __str__(self) -> str:
         """String representation."""
