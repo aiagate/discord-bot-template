@@ -4,7 +4,7 @@ import logging
 from datetime import UTC, datetime
 from typing import TypeVar
 
-from flow_res import Err, Ok, Result
+from flow_res import Err, Ok, Result, is_err
 from sqlalchemy import select, update
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -144,7 +144,7 @@ class GenericRepository[T, K](IRepositoryWithId[T, K]):
             orm_instance = ORMMappingRegistry.to_orm(entity)
 
             entity_id_result = self._get_entity_id(entity)
-            if isinstance(entity_id_result, Err):
+            if is_err(entity_id_result):
                 return entity_id_result  # type: ignore[return-value]
             entity_id = entity_id_result.value
 
@@ -241,7 +241,7 @@ class GenericRepository[T, K](IRepositoryWithId[T, K]):
         """Delete entity."""
         try:
             entity_id_result = self._get_entity_id(entity)
-            if isinstance(entity_id_result, Err):
+            if is_err(entity_id_result):
                 return entity_id_result  # type: ignore[return-value]
             entity_id = entity_id_result.value
 

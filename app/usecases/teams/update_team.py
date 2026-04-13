@@ -3,7 +3,7 @@
 import logging
 from dataclasses import dataclass
 
-from flow_res import Err, Ok, Result, combine_all
+from flow_res import Ok, Result, combine_all, is_err
 from injector import inject
 
 from app.core.mediator import Request, RequestHandler
@@ -74,7 +74,7 @@ class UpdateTeamHandler(
                 message=", ".join(str(exc) for exc in e.exceptions),
             )
         )
-        if isinstance(combined_result, Err):
+        if is_err(combined_result):
             return combined_result
 
         team_id, new_team_name = combined_result.unwrap()
@@ -86,7 +86,7 @@ class UpdateTeamHandler(
             get_result = (await team_repo.get_by_id(team_id)).map_err(
                 lambda e: _map_get_error(e, request.team_id)
             )
-            if isinstance(get_result, Err):
+            if is_err(get_result):
                 return get_result
 
             team = get_result.unwrap()
@@ -98,7 +98,7 @@ class UpdateTeamHandler(
             update_result = (await team_repo.update(team)).map_err(
                 lambda e: _map_update_error(e, request.team_id)
             )
-            if isinstance(update_result, Err):
+            if is_err(update_result):
                 return update_result
 
             # Commit transaction
@@ -106,7 +106,7 @@ class UpdateTeamHandler(
                 lambda e: UseCaseError(type=ErrorType.UNEXPECTED, message=e.message)
             )
 
-            if isinstance(commit_result, Err):
+            if is_err(commit_result):
                 return commit_result
 
             updated_team = update_result.unwrap()

@@ -241,7 +241,7 @@ class GetUserHandler(RequestHandler[GetUserQuery, Result[GetUserResult, UseCaseE
     async def handle(self, request: GetUserQuery) -> Result[GetUserResult, UseCaseError]:
         # 文字列からValue Objectへの変換
         user_id_result = UserId.from_primitive(request.user_id)
-        if isinstance(user_id_result, Err):
+        if is_err(user_id_result):
             return Err(UseCaseError(type=ErrorType.VALIDATION_ERROR, ...))
 
         user_id = user_id_result.unwrap()
@@ -301,7 +301,7 @@ class CreateUserHandler(RequestHandler[CreateUserCommand, Result[CreateUserResul
             email=Email.from_primitive(request.email).unwrap()
         ))
 
-        if isinstance(user_result, Err):
+        if is_err(user_result):
             return Err(UseCaseError(...)) # エラー処理
 
         user = user_result.unwrap()
@@ -728,7 +728,7 @@ async def test_get_user_handler(uow: IUnitOfWork) -> None:
     result = await handler.handle(query)
 
     # Assert
-    assert isinstance(result, Ok)
+    assert is_ok(result)
     assert result.value.user.name == "Bob"
 ```
 

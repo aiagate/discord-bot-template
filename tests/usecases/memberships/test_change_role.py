@@ -1,8 +1,7 @@
-from flow_res import Err
-
 """Tests for ChangeRole use case failure scenarios."""
 
 import pytest
+from flow_res import is_err
 from ulid import ULID
 
 from app.domain.repositories import IUnitOfWork
@@ -21,7 +20,7 @@ async def test_change_role_invalid_id(uow: IUnitOfWork) -> None:
 
     result = await handler.handle(command)
 
-    assert isinstance(result, Err)
+    assert is_err(result)
     assert result.error.type == ErrorType.VALIDATION_ERROR
     assert result.error.message == "Invalid Membership ID format"
 
@@ -36,7 +35,7 @@ async def test_change_role_invalid_role(uow: IUnitOfWork) -> None:
 
     result = await handler.handle(command)
 
-    assert isinstance(result, Err)
+    assert is_err(result)
     assert result.error.type == ErrorType.VALIDATION_ERROR
     assert "Invalid Role" in result.error.message
 
@@ -49,6 +48,6 @@ async def test_change_role_not_found(uow: IUnitOfWork) -> None:
 
     result = await handler.handle(command)
 
-    assert isinstance(result, Err)
+    assert is_err(result)
     assert result.error.type == ErrorType.NOT_FOUND
     assert result.error.message == "Membership not found"

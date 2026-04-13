@@ -3,7 +3,7 @@
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from flow_res import Err, Ok
+from flow_res import Err, is_err, is_ok
 
 from app.domain.repositories import IUnitOfWork, RepositoryError, RepositoryErrorType
 from app.usecases.result import ErrorType
@@ -18,7 +18,7 @@ async def test_create_team_handler(uow: IUnitOfWork) -> None:
     command = CreateTeamCommand(name="Alpha Team")
     result = await handler.handle(command)
 
-    assert isinstance(result, Ok)
+    assert is_ok(result)
     team_id = result.value.id  # Now it's a str
     assert team_id  # ULID string should exist
     assert len(team_id) == 26  # ULID is 26 characters
@@ -33,7 +33,7 @@ async def test_create_team_handler_validation_error(uow: IUnitOfWork) -> None:
     command = CreateTeamCommand(name="")
     result = await handler.handle(command)
 
-    assert isinstance(result, Err)
+    assert is_err(result)
     assert result.error.type == ErrorType.VALIDATION_ERROR
 
 
@@ -46,7 +46,7 @@ async def test_create_team_handler_name_too_long(uow: IUnitOfWork) -> None:
     command = CreateTeamCommand(name="x" * 101)
     result = await handler.handle(command)
 
-    assert isinstance(result, Err)
+    assert is_err(result)
     assert result.error.type == ErrorType.VALIDATION_ERROR
     assert "must not exceed 100 characters" in result.error.message
 
@@ -60,7 +60,7 @@ async def test_create_team_handler_whitespace_validation(uow: IUnitOfWork) -> No
     command = CreateTeamCommand(name="  Team Name  ")
     result = await handler.handle(command)
 
-    assert isinstance(result, Err)
+    assert is_err(result)
     assert result.error.type == ErrorType.VALIDATION_ERROR
     assert "leading or trailing whitespace" in result.error.message
 
@@ -90,6 +90,6 @@ async def test_create_team_handler_repository_error() -> None:
     command = CreateTeamCommand(name="Test Team")
     result = await handler.handle(command)
 
-    assert isinstance(result, Err)
+    assert is_err(result)
     assert result.error.type == ErrorType.UNEXPECTED
     assert "Database connection failed" in result.error.message

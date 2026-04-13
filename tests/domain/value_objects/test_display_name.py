@@ -1,6 +1,6 @@
 """Tests for DisplayName value object."""
 
-from flow_res import Err, Ok
+from flow_res import is_err, is_ok
 
 from app.domain.value_objects.display_name import DisplayName
 
@@ -8,7 +8,7 @@ from app.domain.value_objects.display_name import DisplayName
 def test_display_name_from_primitive_with_valid_name() -> None:
     """Test creating DisplayName from valid string."""
     result = DisplayName.from_primitive("John Doe")
-    assert isinstance(result, Ok)
+    assert is_ok(result)
     display_name = result.expect(
         "DisplayName.from_primitive should succeed for valid name"
     )
@@ -18,14 +18,14 @@ def test_display_name_from_primitive_with_valid_name() -> None:
 def test_display_name_from_primitive_with_empty_string() -> None:
     """Test that empty string returns Err."""
     result = DisplayName.from_primitive("")
-    assert isinstance(result, Err)
+    assert is_err(result)
     assert "Display name cannot be empty" in str(result.error)
 
 
 def test_display_name_from_primitive_with_whitespace() -> None:
     """Test that whitespace-only string returns Err."""
     result = DisplayName.from_primitive("   ")
-    assert isinstance(result, Err)
+    assert is_err(result)
     # Detected as having leading/trailing whitespace before empty check
     assert "leading or trailing whitespace" in str(result.error)
 
@@ -33,14 +33,14 @@ def test_display_name_from_primitive_with_whitespace() -> None:
 def test_display_name_from_primitive_with_leading_whitespace() -> None:
     """Test that string with leading whitespace returns Err."""
     result = DisplayName.from_primitive("  John")
-    assert isinstance(result, Err)
+    assert is_err(result)
     assert "leading or trailing whitespace" in str(result.error)
 
 
 def test_display_name_from_primitive_with_trailing_whitespace() -> None:
     """Test that string with trailing whitespace returns Err."""
     result = DisplayName.from_primitive("John  ")
-    assert isinstance(result, Err)
+    assert is_err(result)
     assert "leading or trailing whitespace" in str(result.error)
 
 
@@ -48,7 +48,7 @@ def test_display_name_from_primitive_exceeds_max_length() -> None:
     """Test that string exceeding max length returns Err."""
     long_name = "a" * (DisplayName.MAX_LENGTH + 1)
     result = DisplayName.from_primitive(long_name)
-    assert isinstance(result, Err)
+    assert is_err(result)
     assert "must not exceed" in str(result.error)
 
 

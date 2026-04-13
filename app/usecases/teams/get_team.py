@@ -3,7 +3,7 @@
 import logging
 from dataclasses import dataclass
 
-from flow_res import Err, Ok, Result
+from flow_res import Ok, Result, is_err
 from injector import inject
 
 from app.core.mediator import Request, RequestHandler
@@ -48,7 +48,7 @@ class GetTeamHandler(RequestHandler[GetTeamQuery, Result[GetTeamResult, UseCaseE
                 message="Invalid Team ID format.",
             )
         )
-        if isinstance(team_id_result, Err):
+        if is_err(team_id_result):
             return team_id_result
 
         team_id = team_id_result.unwrap()
@@ -59,7 +59,7 @@ class GetTeamHandler(RequestHandler[GetTeamQuery, Result[GetTeamResult, UseCaseE
                 lambda e: UseCaseError(type=ErrorType.NOT_FOUND, message=e.message)
             )
 
-            if isinstance(team_result, Err):
+            if is_err(team_result):
                 return team_result
 
             team = team_result.unwrap()

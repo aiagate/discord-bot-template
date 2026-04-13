@@ -1,8 +1,7 @@
-from flow_res import Err, Ok
-
 """Tests for User repository with version conflict handling."""
 
 import pytest
+from flow_res import is_err, is_ok
 
 from app.domain.aggregates.user import User
 from app.domain.repositories import IUnitOfWork, RepositoryErrorType
@@ -26,17 +25,17 @@ async def test_user_repository_new_user_has_version_zero(
     async with uow:
         repo = uow.GetRepository(User)
         save_result = await repo.add(user)
-        assert isinstance(save_result, Ok)
+        assert is_ok(save_result)
         saved_user = save_result.value
         assert saved_user.version.to_primitive() == 0
         commit_result = await uow.commit()
-        assert isinstance(commit_result, Ok)
+        assert is_ok(commit_result)
 
     # Verify by retrieving
     async with uow:
         repo = uow.GetRepository(User, UserId)
         get_result = await repo.get_by_id(saved_user.id)
-        assert isinstance(get_result, Ok)
+        assert is_ok(get_result)
         retrieved_user = get_result.value
         assert retrieved_user.version.to_primitive() == 0
 
@@ -59,17 +58,17 @@ async def test_user_repository_version_increments_on_update(
     async with uow:
         repo = uow.GetRepository(User)
         save_result = await repo.add(user)
-        assert isinstance(save_result, Ok)
+        assert is_ok(save_result)
         saved_user = save_result.value
         assert saved_user.version.to_primitive() == 0
         commit_result = await uow.commit()
-        assert isinstance(commit_result, Ok)
+        assert is_ok(commit_result)
 
     # First update - version should become 1
     async with uow:
         repo = uow.GetRepository(User, UserId)
         get_result = await repo.get_by_id(saved_user.id)
-        assert isinstance(get_result, Ok)
+        assert is_ok(get_result)
         user_v0 = get_result.value
         assert user_v0.version.to_primitive() == 0
 
@@ -82,17 +81,17 @@ async def test_user_repository_version_increments_on_update(
     async with uow:
         repo = uow.GetRepository(User)
         update_result = await repo.update(user_v0_updated)
-        assert isinstance(update_result, Ok)
+        assert is_ok(update_result)
         user_v1 = update_result.value
         assert user_v1.version.to_primitive() == 1
         commit_result = await uow.commit()
-        assert isinstance(commit_result, Ok)
+        assert is_ok(commit_result)
 
     # Second update - version should become 2
     async with uow:
         repo = uow.GetRepository(User, UserId)
         get_result = await repo.get_by_id(user_v1.id)
-        assert isinstance(get_result, Ok)
+        assert is_ok(get_result)
         user_v1_loaded = get_result.value
         assert user_v1_loaded.version.to_primitive() == 1
 
@@ -105,11 +104,11 @@ async def test_user_repository_version_increments_on_update(
     async with uow:
         repo = uow.GetRepository(User)
         update_result = await repo.update(user_v1_updated)
-        assert isinstance(update_result, Ok)
+        assert is_ok(update_result)
         user_v2 = update_result.value
         assert user_v2.version.to_primitive() == 2
         commit_result = await uow.commit()
-        assert isinstance(commit_result, Ok)
+        assert is_ok(commit_result)
 
 
 @pytest.mark.anyio
@@ -131,22 +130,22 @@ async def test_user_repository_concurrent_update_returns_version_conflict(
     async with uow:
         repo = uow.GetRepository(User)
         save_result = await repo.add(user)
-        assert isinstance(save_result, Ok)
+        assert is_ok(save_result)
         saved_user = save_result.value
         commit_result = await uow.commit()
-        assert isinstance(commit_result, Ok)
+        assert is_ok(commit_result)
 
     # Simulate two concurrent updates by loading user twice
     async with uow:
         repo = uow.GetRepository(User, UserId)
         user1_result = await repo.get_by_id(saved_user.id)
-        assert isinstance(user1_result, Ok)
+        assert is_ok(user1_result)
         user1 = user1_result.value
 
     async with uow:
         repo = uow.GetRepository(User, UserId)
         user2_result = await repo.get_by_id(saved_user.id)
-        assert isinstance(user2_result, Ok)
+        assert is_ok(user2_result)
         user2 = user2_result.value
 
     # Both have same version
@@ -161,11 +160,11 @@ async def test_user_repository_concurrent_update_returns_version_conflict(
     async with uow:
         repo = uow.GetRepository(User)
         update1_result = await repo.update(user1_updated)
-        assert isinstance(update1_result, Ok)
+        assert is_ok(update1_result)
         updated_user1 = update1_result.value
         assert updated_user1.version.to_primitive() == 1  # Version incremented
         commit_result = await uow.commit()
-        assert isinstance(commit_result, Ok)
+        assert is_ok(commit_result)
 
     # Second update fails with VERSION_CONFLICT
     user2_updated = user2.change_email(
@@ -176,7 +175,7 @@ async def test_user_repository_concurrent_update_returns_version_conflict(
     async with uow:
         repo = uow.GetRepository(User)
         update2_result = await repo.update(user2_updated)
-        assert isinstance(update2_result, Err)
+        assert is_err(update2_result)
         error = update2_result.error
         assert error.type == RepositoryErrorType.VERSION_CONFLICT
         assert "version" in error.message.lower()

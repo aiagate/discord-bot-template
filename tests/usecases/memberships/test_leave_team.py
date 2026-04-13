@@ -1,8 +1,7 @@
-from flow_res import Err
-
 """Tests for LeaveTeam use case failure scenarios."""
 
 import pytest
+from flow_res import is_err
 from ulid import ULID
 
 from app.domain.repositories import IUnitOfWork
@@ -24,7 +23,7 @@ async def test_leave_team_invalid_id(uow: IUnitOfWork) -> None:
 
     result = await handler.handle(command)
 
-    assert isinstance(result, Err)
+    assert is_err(result)
     assert result.error.type == ErrorType.VALIDATION_ERROR
     assert result.error.message == "Invalid Membership ID format"
 
@@ -37,7 +36,7 @@ async def test_leave_team_not_found(uow: IUnitOfWork) -> None:
 
     result = await handler.handle(command)
 
-    assert isinstance(result, Err)
+    assert is_err(result)
     assert result.error.type == ErrorType.NOT_FOUND
     assert result.error.message == "Membership not found"
 
@@ -74,6 +73,6 @@ async def test_leave_team_already_left(uow: IUnitOfWork) -> None:
     result = await leave_handler.handle(LeaveTeamCommand(membership_id=membership_id))
 
     # Assert
-    assert isinstance(result, Err)
+    assert is_err(result)
     assert result.error.type == ErrorType.VALIDATION_ERROR
     assert result.error.message == "User has already leaved the team"

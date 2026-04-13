@@ -3,7 +3,7 @@
 import logging
 from dataclasses import dataclass
 
-from flow_res import Err, Ok, Result
+from flow_res import Err, Ok, Result, is_err
 from injector import inject
 
 from app.core.mediator import Request, RequestHandler
@@ -51,13 +51,13 @@ class RequestJoinTeamHandler(
         team_id_result = TeamId.from_primitive(request.team_id)
         user_id_result = UserId.from_primitive(request.user_id)
 
-        if isinstance(team_id_result, Err):
+        if is_err(team_id_result):
             return Err(
                 UseCaseError(
                     type=ErrorType.VALIDATION_ERROR, message="Invalid Team ID format"
                 )
             )
-        if isinstance(user_id_result, Err):
+        if is_err(user_id_result):
             return Err(
                 UseCaseError(
                     type=ErrorType.VALIDATION_ERROR, message="Invalid User ID format"
@@ -74,14 +74,14 @@ class RequestJoinTeamHandler(
 
             # Check if team exists
             team_exists = await team_repo.get_by_id(team_id)
-            if isinstance(team_exists, Err):
+            if is_err(team_exists):
                 return Err(
                     UseCaseError(type=ErrorType.NOT_FOUND, message="Team not found")
                 )
 
             # Check if user exists
             user_exists = await user_repo.get_by_id(user_id)
-            if isinstance(user_exists, Err):
+            if is_err(user_exists):
                 return Err(
                     UseCaseError(type=ErrorType.NOT_FOUND, message="User not found")
                 )
@@ -90,7 +90,7 @@ class RequestJoinTeamHandler(
             membership = TeamMembership.request_join(team_id=team_id, user_id=user_id)
 
             add_result = await membership_repo.add(membership)
-            if isinstance(add_result, Err):
+            if is_err(add_result):
                 return Err(
                     UseCaseError(
                         type=ErrorType.UNEXPECTED, message=add_result.error.message
@@ -98,7 +98,7 @@ class RequestJoinTeamHandler(
                 )
 
             commit_result = await self._uow.commit()
-            if isinstance(commit_result, Err):
+            if is_err(commit_result):
                 return Err(
                     UseCaseError(
                         type=ErrorType.UNEXPECTED, message=commit_result.error.message

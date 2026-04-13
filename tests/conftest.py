@@ -15,7 +15,7 @@ init_orm_mappings()
 
 
 @pytest.fixture(scope="function")
-async def test_db_engine() -> AsyncGenerator[None, None]:
+async def test_db_engine() -> AsyncGenerator[None]:
     """Create test database engine with in-memory SQLite."""
     test_url = "sqlite+aiosqlite:///:memory:"
 

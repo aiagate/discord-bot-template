@@ -1,8 +1,8 @@
-from flow_res import Err
-
 """Tests for domain models."""
 
 from datetime import UTC, datetime
+
+from flow_res import is_err
 
 from app.domain.aggregates.user import User
 from app.domain.value_objects import DisplayName, Email
@@ -11,7 +11,7 @@ from app.domain.value_objects import DisplayName, Email
 def test_create_user_with_empty_name_raises_error() -> None:
     """Test that creating a User with an empty display name returns Err."""
     result = DisplayName.from_primitive("")
-    assert isinstance(result, Err)
+    assert is_err(result)
     assert "Display name cannot be empty" in str(result.error)
 
 
@@ -68,5 +68,5 @@ def test_user_timestamps_use_utc() -> None:
 def test_creation_with_invalid_email_returns_err() -> None:
     """Test that creating user with invalid email raises ValueError."""
     result = Email.from_primitive("invalid-email")
-    assert isinstance(result, Err)
+    assert is_err(result)
     assert "Invalid email format" in str(result.error)

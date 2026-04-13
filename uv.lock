@@ -148,7 +148,7 @@ requires-dist = [
     { name = "alembic", specifier = ">=1.17.2" },
     { name = "discord-py", specifier = ">=2.5.2" },
     { name = "fastapi", specifier = ">=0.124.4" },
-    { name = "flow-res", specifier = ">=0.1.0" },
+    { name = "flow-res", specifier = "==0.1.1" },
     { name = "injector", specifier = ">=0.22.0" },
     { name = "python-dotenv", specifier = ">=1.2.1" },
     { name = "python-ulid", specifier = ">=3.1.0" },
@@ -356,11 +356,11 @@ wheels = [
 
 [[package]]
 name = "flow-res"
-version = "0.1.0"
+version = "0.1.1"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/b1/d4/036f520d4c1f07843279ecda91d54158664edc22ccd63c6103780ebd8844/flow_res-0.1.0.tar.gz", hash = "sha256:91463a2418e946977dd2ce33510e45f7898cbdaceb0fa055ee3baa6f19bda55c", size = 9151, upload-time = "2026-04-13T09:06:22.953Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/2a/da/14ec4c034d8ac419482d79e103303f03cb8bf004055a953f79597b18090f/flow_res-0.1.1.tar.gz", hash = "sha256:b399cd869043587a2ded61d72609a8a9d62302254b43cac4f5e0e89a75381fa9", size = 39093, upload-time = "2026-04-13T12:43:22.94Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/81/72/d4cede644f9f7b619f1f14fb81846e0b9c3c82d02b6b0fb67806fccbe8d7/flow_res-0.1.0-py3-none-any.whl", hash = "sha256:e400263081956f06f934ff3ba9942653b4d8ec2f115455d6d2e27d17153459c5", size = 10967, upload-time = "2026-04-13T09:06:21.517Z" },
+    { url = "https://files.pythonhosted.org/packages/42/ac/7679b934257b888850c997847c37da2c14728efa8a8ed01a4da7f893903d/flow_res-0.1.1-py3-none-any.whl", hash = "sha256:b179881714057e25306ae2d7f6f2c277d03cf4e32c096e1075fe3acb0a2da1ba", size = 10700, upload-time = "2026-04-13T12:43:21.67Z" },
 ]
 
 [[package]]

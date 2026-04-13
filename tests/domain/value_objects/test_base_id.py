@@ -1,10 +1,9 @@
-from flow_res import Err, Ok
-
 """Tests for BaseId base class."""
 
 import dataclasses
 
 import pytest
+from flow_res import is_err, is_ok
 from ulid import ULID
 
 from app.domain.value_objects.base_id import BaseId
@@ -18,7 +17,7 @@ class TestId(BaseId):
 def test_generate_creates_new_id() -> None:
     """Test that generate creates a new ID with valid ULID."""
     result = TestId.generate()
-    assert isinstance(result, Ok)
+    assert is_ok(result)
     test_id = result.expect("TestId.generate should succeed")
     assert test_id is not None
     assert isinstance(test_id._value, ULID)
@@ -45,7 +44,7 @@ def test_from_primitive_reconstructs_id() -> None:
 def test_from_primitive_with_invalid_string_returns_err() -> None:
     """Test that from_primitive returns Err for invalid string."""
     result = TestId.from_primitive("invalid-ulid")
-    assert isinstance(result, Err)
+    assert is_err(result)
     assert "Invalid ULID string" in str(result.error)
 
 

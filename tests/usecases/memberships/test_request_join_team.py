@@ -1,8 +1,7 @@
-from flow_res import Err
-
 """Tests for RequestJoinTeam use case failure scenarios."""
 
 import pytest
+from flow_res import is_err
 from ulid import ULID
 
 from app.domain.repositories import IUnitOfWork
@@ -22,7 +21,7 @@ async def test_request_join_team_invalid_ids(uow: IUnitOfWork) -> None:
     res1 = await handler.handle(
         RequestJoinTeamCommand(team_id="invalid", user_id=str(ULID()))
     )
-    assert isinstance(res1, Err)
+    assert is_err(res1)
     assert res1.error.type == ErrorType.VALIDATION_ERROR
     assert res1.error.message == "Invalid Team ID format"
 
@@ -30,7 +29,7 @@ async def test_request_join_team_invalid_ids(uow: IUnitOfWork) -> None:
     res2 = await handler.handle(
         RequestJoinTeamCommand(team_id=str(ULID()), user_id="invalid")
     )
-    assert isinstance(res2, Err)
+    assert is_err(res2)
     assert res2.error.type == ErrorType.VALIDATION_ERROR
     assert res2.error.message == "Invalid User ID format"
 
@@ -45,7 +44,7 @@ async def test_request_join_team_not_found(uow: IUnitOfWork) -> None:
     res1 = await handler.handle(
         RequestJoinTeamCommand(team_id=valid_id, user_id=valid_id)
     )
-    assert isinstance(res1, Err)
+    assert is_err(res1)
     assert res1.error.type == ErrorType.NOT_FOUND
     assert res1.error.message == "Team not found"
 
@@ -58,6 +57,6 @@ async def test_request_join_team_not_found(uow: IUnitOfWork) -> None:
     res2 = await handler.handle(
         RequestJoinTeamCommand(team_id=team_id, user_id=valid_id)
     )
-    assert isinstance(res2, Err)
+    assert is_err(res2)
     assert res2.error.type == ErrorType.NOT_FOUND
     assert res2.error.message == "User not found"

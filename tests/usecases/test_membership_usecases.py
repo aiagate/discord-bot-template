@@ -1,8 +1,7 @@
-from flow_res import Err, Ok
-
 """Integration tests for Membership use cases."""
 
 import pytest
+from flow_res import is_err, is_ok
 
 from app.domain.repositories import IUnitOfWork
 from app.usecases.memberships.approve_join_request import (
@@ -27,14 +26,14 @@ async def test_join_team_success(uow: IUnitOfWork) -> None:
     # Setup: Create a team and a user
     team_handler = CreateTeamHandler(uow)
     team_result = await team_handler.handle(CreateTeamCommand(name="Team A"))
-    assert isinstance(team_result, Ok)
+    assert is_ok(team_result)
     team_id = team_result.value.id
 
     user_handler = CreateUserHandler(uow)
     user_result = await user_handler.handle(
         CreateUserCommand(display_name="User A", email="user@example.com")
     )
-    assert isinstance(user_result, Ok)
+    assert is_ok(user_result)
     user_id = user_result.value.id
 
     # Execute
@@ -43,7 +42,7 @@ async def test_join_team_success(uow: IUnitOfWork) -> None:
     result = await join_handler.handle(command)
 
     # Assert
-    assert isinstance(result, Ok)
+    assert is_ok(result)
     assert result.value.team_id == team_id
     assert result.value.user_id == user_id
     assert result.value.id
@@ -61,8 +60,8 @@ async def test_join_team_not_found(uow: IUnitOfWork) -> None:
     # Note: Validation fails first if format is totally wrong,
     # but "invalid_team_id" might pass ULID from_primitive if it looks like one,
     # or fail validation if it doesn't.
-    # Our JoinTeamHandler checks isinstance(team_id_result, Err) which fails for "invalid_team_id"
-    assert isinstance(res1, Err)
+    # Our JoinTeamHandler checks is_err(team_id_result) which fails for "invalid_team_id"
+    assert is_err(res1)
     assert res1.error.type == ErrorType.VALIDATION_ERROR
 
     # Use valid looking ULIDs but non-existent
@@ -74,7 +73,7 @@ async def test_join_team_not_found(uow: IUnitOfWork) -> None:
     res2 = await join_handler.handle(
         JoinTeamCommand(team_id=dummy_team_id, user_id=dummy_user_id)
     )
-    assert isinstance(res2, Err)
+    assert is_err(res2)
     assert res2.error.type == ErrorType.NOT_FOUND
 
 
@@ -98,7 +97,7 @@ async def test_request_join_team_success(uow: IUnitOfWork) -> None:
     result = await handler.handle(command)
 
     # Assert
-    assert isinstance(result, Ok)
+    assert is_ok(result)
     assert result.value.status == "PENDING"
     assert result.value.team_id == team_id
 
@@ -143,7 +142,7 @@ async def test_approve_join_request_success(uow: IUnitOfWork) -> None:
     )
 
     # Assert
-    assert isinstance(result, Ok)
+    assert is_ok(result)
     assert result.value.status == "ACTIVE"
 
 
@@ -181,7 +180,7 @@ async def test_leave_team_success(uow: IUnitOfWork) -> None:
     result = await leave_handler.handle(LeaveTeamCommand(membership_id=membership_id))
 
     # Assert
-    assert isinstance(result, Ok)
+    assert is_ok(result)
     assert result.value.status == "LEAVED"
 
 
@@ -221,5 +220,5 @@ async def test_change_role_success(uow: IUnitOfWork) -> None:
     )
 
     # Assert
-    assert isinstance(result, Ok)
+    assert is_ok(result)
     assert result.value.role == "ADMIN"

@@ -3,7 +3,7 @@
 import logging
 from dataclasses import dataclass
 
-from flow_res import Err, Ok, Result
+from flow_res import Ok, Result, is_err
 from injector import inject
 
 from app.core.mediator import Request, RequestHandler
@@ -48,7 +48,7 @@ class GetUserHandler(RequestHandler[GetUserQuery, Result[GetUserResult, UseCaseE
                 message="Invalid User ID format.",
             )
         )
-        if isinstance(user_id_result, Err):
+        if is_err(user_id_result):
             return user_id_result
 
         user_id = user_id_result.unwrap()
@@ -59,7 +59,7 @@ class GetUserHandler(RequestHandler[GetUserQuery, Result[GetUserResult, UseCaseE
                 lambda e: UseCaseError(type=ErrorType.NOT_FOUND, message=e.message)
             )
 
-            if isinstance(user_result, Err):
+            if is_err(user_result):
                 return user_result
 
             user = user_result.unwrap()

@@ -1,11 +1,10 @@
-from flow_res import Err, Ok
-
 """Tests for GenericRepository error cases to improve coverage."""
 
 from dataclasses import dataclass
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from flow_res import is_err, is_ok
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
@@ -61,7 +60,7 @@ async def test_generic_repository_get_by_id_sqlalchemy_error(
         ):
             result = await repo.get_by_id(user_id)
 
-        assert isinstance(result, Err)
+        assert is_err(result)
         assert result.error.type == RepositoryErrorType.UNEXPECTED
         assert "Database error" in result.error.message
 
@@ -89,7 +88,7 @@ async def test_generic_repository_add_sqlalchemy_error(uow: IUnitOfWork) -> None
         ):
             result = await repo.add(user)
 
-        assert isinstance(result, Err)
+        assert is_err(result)
         assert result.error.type == RepositoryErrorType.UNEXPECTED
         assert "Conversion error" in result.error.message
 
@@ -131,7 +130,7 @@ async def test_generic_repository_delete_entity_without_id(
         repo = GenericRepository(session, EntityWithoutId, None)
         result = await repo.delete(entity)
 
-        assert isinstance(result, Err)
+        assert is_err(result)
         assert result.error.type == RepositoryErrorType.UNEXPECTED
         assert "does not have an id attribute" in result.error.message
 
@@ -154,7 +153,7 @@ async def test_generic_repository_delete_non_existent_entity(
         repo = uow.GetRepository(User, UserId)
         result = await repo.delete(user)
 
-        assert isinstance(result, Err)
+        assert is_err(result)
         assert result.error.type == RepositoryErrorType.NOT_FOUND
         assert "not found" in result.error.message
 
@@ -175,7 +174,7 @@ async def test_generic_repository_delete_sqlalchemy_error(uow: IUnitOfWork) -> N
     async with uow:
         repo = uow.GetRepository(User)
         add_result = await repo.add(user)
-        assert isinstance(add_result, Ok)
+        assert is_ok(add_result)
         saved_user = add_result.value
         await uow.commit()
 
@@ -191,7 +190,7 @@ async def test_generic_repository_delete_sqlalchemy_error(uow: IUnitOfWork) -> N
         ):
             result = await repo.delete(saved_user)
 
-        assert isinstance(result, Err)
+        assert is_err(result)
         assert result.error.type == RepositoryErrorType.UNEXPECTED
         assert "Delete error" in result.error.message
 
@@ -217,7 +216,7 @@ async def test_generic_repository_update_entity_deleted_during_version_check(
     async with uow:
         repo = uow.GetRepository(Team)
         add_result = await repo.add(team)
-        assert isinstance(add_result, Ok)
+        assert is_ok(add_result)
         saved_team = add_result.value
         await uow.commit()
 
@@ -261,7 +260,7 @@ async def test_generic_repository_update_entity_deleted_during_version_check(
         ):
             result = await repo.update(updated_team)
 
-        assert isinstance(result, Err)
+        assert is_err(result)
         assert result.error.type == RepositoryErrorType.NOT_FOUND
         assert "not found" in result.error.message
         # Verify execute was called three times (existence check + UPDATE + refetch)

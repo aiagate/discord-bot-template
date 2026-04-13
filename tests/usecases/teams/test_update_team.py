@@ -3,7 +3,7 @@
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from flow_res import Err, Ok
+from flow_res import Err, Ok, is_err, is_ok
 
 from app.domain.aggregates.team import Team
 from app.domain.repositories import IUnitOfWork, RepositoryError, RepositoryErrorType
@@ -25,10 +25,10 @@ async def test_update_team_handler(uow: IUnitOfWork) -> None:
     async with uow:
         repo = uow.GetRepository(Team)
         save_result = await repo.add(team)
-        assert isinstance(save_result, Ok)
+        assert is_ok(save_result)
         saved_team = save_result.value
         commit_result = await uow.commit()
-        assert isinstance(commit_result, Ok)
+        assert is_ok(commit_result)
 
     # Now test updating it
     handler = UpdateTeamHandler(uow)
@@ -37,7 +37,7 @@ async def test_update_team_handler(uow: IUnitOfWork) -> None:
     )
     result = await handler.handle(command)
 
-    assert isinstance(result, Ok)
+    assert is_ok(result)
     team_id = result.value.id  # Now it's a str
     assert team_id == saved_team.id.to_primitive()
     # Version verification is no longer done here
@@ -55,7 +55,7 @@ async def test_update_team_handler_not_found(uow: IUnitOfWork) -> None:
     )
     result = await handler.handle(command)
 
-    assert isinstance(result, Err)
+    assert is_err(result)
     assert result.error.type == ErrorType.NOT_FOUND
 
 
@@ -72,17 +72,17 @@ async def test_update_team_handler_validation_error(uow: IUnitOfWork) -> None:
     async with uow:
         repo = uow.GetRepository(Team)
         save_result = await repo.add(team)
-        assert isinstance(save_result, Ok)
+        assert is_ok(save_result)
         saved_team = save_result.value
         commit_result = await uow.commit()
-        assert isinstance(commit_result, Ok)
+        assert is_ok(commit_result)
 
     # Try to update with empty name
     handler = UpdateTeamHandler(uow)
     command = UpdateTeamCommand(team_id=saved_team.id.to_primitive(), new_name="")
     result = await handler.handle(command)
 
-    assert isinstance(result, Err)
+    assert is_err(result)
     assert result.error.type == ErrorType.VALIDATION_ERROR
 
 
@@ -99,10 +99,10 @@ async def test_update_team_handler_name_too_long(uow: IUnitOfWork) -> None:
     async with uow:
         repo = uow.GetRepository(Team)
         save_result = await repo.add(team)
-        assert isinstance(save_result, Ok)
+        assert is_ok(save_result)
         saved_team = save_result.value
         commit_result = await uow.commit()
-        assert isinstance(commit_result, Ok)
+        assert is_ok(commit_result)
 
     # Try to update with name that's too long
     handler = UpdateTeamHandler(uow)
@@ -111,7 +111,7 @@ async def test_update_team_handler_name_too_long(uow: IUnitOfWork) -> None:
     )
     result = await handler.handle(command)
 
-    assert isinstance(result, Err)
+    assert is_err(result)
     assert result.error.type == ErrorType.VALIDATION_ERROR
 
 
@@ -132,22 +132,22 @@ async def test_update_team_handler_concurrency_conflict(uow: IUnitOfWork) -> Non
     async with uow:
         repo = uow.GetRepository(Team)
         save_result = await repo.add(team)
-        assert isinstance(save_result, Ok)
+        assert is_ok(save_result)
         saved_team = save_result.value
         commit_result = await uow.commit()
-        assert isinstance(commit_result, Ok)
+        assert is_ok(commit_result)
 
     # Simulate two users loading the team at the same time (both have version 0)
     async with uow:
         repo = uow.GetRepository(Team, TeamId)
         user1_team_result = await repo.get_by_id(saved_team.id)
-        assert isinstance(user1_team_result, Ok)
+        assert is_ok(user1_team_result)
         user1_team = user1_team_result.value
 
     async with uow:
         repo = uow.GetRepository(Team, TeamId)
         user2_team_result = await repo.get_by_id(saved_team.id)
-        assert isinstance(user2_team_result, Ok)
+        assert is_ok(user2_team_result)
         user2_team = user2_team_result.value
 
     # Both users have version 0
@@ -163,10 +163,10 @@ async def test_update_team_handler_concurrency_conflict(uow: IUnitOfWork) -> Non
     async with uow:
         repo = uow.GetRepository(Team)
         update1_result = await repo.update(user1_team)
-        assert isinstance(update1_result, Ok)
+        assert is_ok(update1_result)
         assert update1_result.value.version.to_primitive() == 1
         commit_result = await uow.commit()
-        assert isinstance(commit_result, Ok)
+        assert is_ok(commit_result)
 
     # Second user tries to update with stale version (0) - should fail
     user2_team.change_name(
@@ -177,7 +177,7 @@ async def test_update_team_handler_concurrency_conflict(uow: IUnitOfWork) -> Non
     async with uow:
         repo = uow.GetRepository(Team)
         update2_result = await repo.update(user2_team)
-        assert isinstance(update2_result, Err)
+        assert is_err(update2_result)
         assert update2_result.error.type == RepositoryErrorType.VERSION_CONFLICT
 
 
@@ -190,7 +190,7 @@ async def test_update_team_handler_invalid_team_id(uow: IUnitOfWork) -> None:
     command = UpdateTeamCommand(team_id="invalid-id", new_name="New Name")
     result = await handler.handle(command)
 
-    assert isinstance(result, Err)
+    assert is_err(result)
     assert result.error.type == ErrorType.VALIDATION_ERROR
 
 
@@ -220,7 +220,7 @@ async def test_update_team_handler_get_unexpected_error() -> None:
     )
     result = await handler.handle(command)
 
-    assert isinstance(result, Err)
+    assert is_err(result)
     assert result.error.type == ErrorType.UNEXPECTED
     assert "Database connection failed" in result.error.message
 
@@ -259,7 +259,7 @@ async def test_update_team_handler_version_conflict_through_handler() -> None:
     command = UpdateTeamCommand(team_id=team_id.to_primitive(), new_name="Updated Name")
     result = await handler.handle(command)
 
-    assert isinstance(result, Err)
+    assert is_err(result)
     assert result.error.type == ErrorType.CONCURRENCY_CONFLICT
     assert "modified by another user" in result.error.message
 
@@ -298,7 +298,7 @@ async def test_update_team_handler_add_unexpected_error() -> None:
     command = UpdateTeamCommand(team_id=team_id.to_primitive(), new_name="Updated Name")
     result = await handler.handle(command)
 
-    assert isinstance(result, Err)
+    assert is_err(result)
     assert result.error.type == ErrorType.UNEXPECTED
     assert "Database write failed" in result.error.message
 
@@ -345,6 +345,6 @@ async def test_update_team_handler_commit_failure() -> None:
     command = UpdateTeamCommand(team_id=team_id.to_primitive(), new_name="Updated Name")
     result = await handler.handle(command)
 
-    assert isinstance(result, Err)
+    assert is_err(result)
     assert result.error.type == ErrorType.UNEXPECTED
     assert "Transaction commit failed" in result.error.message

@@ -3,7 +3,7 @@
 import logging
 from dataclasses import dataclass
 
-from flow_res import Err, Ok, Result
+from flow_res import Err, Ok, Result, is_err
 from injector import inject
 
 from app.core.mediator import Request, RequestHandler
@@ -49,7 +49,7 @@ class ApproveJoinRequestHandler(
         """Approve a join request."""
         membership_id_result = MembershipId.from_primitive(request.membership_id)
 
-        if isinstance(membership_id_result, Err):
+        if is_err(membership_id_result):
             return Err(
                 UseCaseError(
                     type=ErrorType.VALIDATION_ERROR,
@@ -63,7 +63,7 @@ class ApproveJoinRequestHandler(
             membership_repo = self._uow.GetRepository(TeamMembership, MembershipId)
 
             membership_result = await membership_repo.get_by_id(membership_id)
-            if isinstance(membership_result, Err):
+            if is_err(membership_result):
                 return Err(
                     UseCaseError(
                         type=ErrorType.NOT_FOUND, message="Membership not found"
@@ -83,7 +83,7 @@ class ApproveJoinRequestHandler(
             membership.activate()
 
             update_result = await membership_repo.update(membership)
-            if isinstance(update_result, Err):
+            if is_err(update_result):
                 return Err(
                     UseCaseError(
                         type=ErrorType.UNEXPECTED, message=update_result.error.message
@@ -91,7 +91,7 @@ class ApproveJoinRequestHandler(
                 )
 
             commit_result = await self._uow.commit()
-            if isinstance(commit_result, Err):
+            if is_err(commit_result):
                 return Err(
                     UseCaseError(
                         type=ErrorType.UNEXPECTED, message=commit_result.error.message

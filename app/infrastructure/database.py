@@ -33,7 +33,7 @@ def get_engine() -> AsyncEngine:
     return _engine
 
 
-async def get_session() -> AsyncGenerator[AsyncSession, None]:
+async def get_session() -> AsyncGenerator[AsyncSession]:
     """Get database session for dependency injection."""
     if _session_factory is None:
         raise RuntimeError("Database not initialized. Call init_db() first.")
