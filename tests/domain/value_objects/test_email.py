@@ -1,17 +1,18 @@
+from flow_res import Err, Ok
+
 """Tests for Email value object."""
 
 import dataclasses
 
 import pytest
 
-from app.core.result import is_err, is_ok
 from app.domain.value_objects.email import Email
 
 
 def test_create_valid_email() -> None:
     """Test creating a valid email."""
     result = Email.from_primitive("test@example.com")
-    assert is_ok(result)
+    assert isinstance(result, Ok)
     email = result.expect("Email.from_primitive should succeed for valid email")
     assert email.to_primitive() == "test@example.com"
     assert str(email) == "test@example.com"
@@ -20,7 +21,7 @@ def test_create_valid_email() -> None:
 def test_create_email_with_plus_sign() -> None:
     """Test creating email with plus sign (subaddressing)."""
     result = Email.from_primitive("user+tag@example.com")
-    assert is_ok(result)
+    assert isinstance(result, Ok)
     email = result.expect("Email.from_primitive should succeed for valid email")
     assert email.to_primitive() == "user+tag@example.com"
 
@@ -28,7 +29,7 @@ def test_create_email_with_plus_sign() -> None:
 def test_create_email_with_subdomain() -> None:
     """Test creating email with subdomain."""
     result = Email.from_primitive("user@mail.example.com")
-    assert is_ok(result)
+    assert isinstance(result, Ok)
     email = result.expect("Email.from_primitive should succeed for valid email")
     assert email.to_primitive() == "user@mail.example.com"
 
@@ -36,7 +37,7 @@ def test_create_email_with_subdomain() -> None:
 def test_create_email_with_hyphen() -> None:
     """Test creating email with hyphen in domain."""
     result = Email.from_primitive("user@my-domain.com")
-    assert is_ok(result)
+    assert isinstance(result, Ok)
     email = result.expect("Email.from_primitive should succeed for valid email")
     assert email.to_primitive() == "user@my-domain.com"
 
@@ -44,7 +45,7 @@ def test_create_email_with_hyphen() -> None:
 def test_empty_email_returns_err() -> None:
     """Test that empty email returns an Err."""
     result = Email.from_primitive("")
-    assert is_err(result)
+    assert isinstance(result, Err)
     assert "Email cannot be empty" in str(result.error)
 
 
@@ -62,7 +63,7 @@ def test_invalid_email_format_returns_err() -> None:
     ]
     for invalid_email in invalid_emails:
         result = Email.from_primitive(invalid_email)
-        assert is_err(result)
+        assert isinstance(result, Err)
         assert "Invalid email format" in str(result.error)
 
 

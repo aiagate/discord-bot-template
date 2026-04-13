@@ -5,9 +5,9 @@ import logging
 from dataclasses import fields, is_dataclass
 from typing import Any, ClassVar, TypeVar, cast, get_args, get_origin, get_type_hints
 
+from flow_res import Err, Ok, Result
 from sqlmodel import SQLModel
 
-from app.core.result import Result, is_err, is_ok
 from app.domain.interfaces import IValueObject
 
 logger = logging.getLogger(__name__)
@@ -136,9 +136,9 @@ def _convert_orm_value_to_field_value(
             elif field_name.lstrip("_") == "id" and hasattr(actual_type, "generate"):
                 # For non-Optional ID fields, generate a new ID
                 id_result = actual_type.generate()
-                if is_err(id_result):
+                if isinstance(id_result, Err):
                     raise ValueError(f"Failed to generate ID: {id_result.error}")
-                assert is_ok(id_result)  # type: ignore[reportAssertType]
+                assert isinstance(id_result, Ok)  # type: ignore[reportAssertType]
                 return id_result.unwrap()
             else:
                 raise ValueError(
@@ -149,12 +149,12 @@ def _convert_orm_value_to_field_value(
         else:
             # Convert from primitive using from_primitive()
             result = cast(Result[Any, Any], actual_type.from_primitive(orm_value))
-            if is_err(result):
+            if isinstance(result, Err):
                 raise ValueError(
                     f"Failed to convert field '{field_name}' "
                     f"from primitive: {result.error}"
                 )
-            assert is_ok(result)  # type: ignore[reportAssertType]
+            assert isinstance(result, Ok)  # type: ignore[reportAssertType]
             return result.unwrap()
     else:
         # Use primitive value as-is

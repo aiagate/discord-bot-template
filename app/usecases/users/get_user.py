@@ -3,10 +3,10 @@
 import logging
 from dataclasses import dataclass
 
+from flow_res import Err, Ok, Result
 from injector import inject
 
 from app.core.mediator import Request, RequestHandler
-from app.core.result import Ok, Result, is_err
 from app.domain.aggregates.user import User
 from app.domain.repositories import IUnitOfWork
 from app.domain.value_objects import UserId
@@ -48,7 +48,7 @@ class GetUserHandler(RequestHandler[GetUserQuery, Result[GetUserResult, UseCaseE
                 message="Invalid User ID format.",
             )
         )
-        if is_err(user_id_result):
+        if isinstance(user_id_result, Err):
             return user_id_result
 
         user_id = user_id_result.unwrap()
@@ -59,7 +59,7 @@ class GetUserHandler(RequestHandler[GetUserQuery, Result[GetUserResult, UseCaseE
                 lambda e: UseCaseError(type=ErrorType.NOT_FOUND, message=e.message)
             )
 
-            if is_err(user_result):
+            if isinstance(user_result, Err):
                 return user_result
 
             user = user_result.unwrap()

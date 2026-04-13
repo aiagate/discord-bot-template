@@ -9,6 +9,7 @@ dependencies = [
     "alembic>=1.17.2",
     "discord-py>=2.5.2",
     "fastapi>=0.124.4",
+    "flow-res>=0.1.0",
     "injector>=0.22.0",
     "python-dotenv>=1.2.1",
     "python-ulid>=3.1.0",

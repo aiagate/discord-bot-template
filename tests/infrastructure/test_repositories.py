@@ -4,8 +4,8 @@ import asyncio
 from datetime import UTC, datetime
 
 import pytest
+from flow_res import Err, Ok
 
-from app.core.result import Err, Ok, is_err
 from app.domain.aggregates.user import User
 from app.domain.repositories import IUnitOfWork
 from app.domain.value_objects import DisplayName, Email, UserId
@@ -21,7 +21,7 @@ async def test_repository_get_non_existent_raises_error(uow: IUnitOfWork) -> Non
                 "UserId.from_primitive should succeed for valid ULID"
             )
         )
-        assert is_err(result)
+        assert isinstance(result, Err)
 
 
 @pytest.mark.anyio

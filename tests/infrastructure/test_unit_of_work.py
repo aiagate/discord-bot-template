@@ -1,8 +1,9 @@
+from flow_res import Ok
+
 """Tests for infrastructure Unit of Work component."""
 
 import pytest
 
-from app.core.result import is_ok
 from app.domain.aggregates.user import User
 from app.domain.repositories import IUnitOfWork
 from app.domain.value_objects import DisplayName, Email, UserId
@@ -25,18 +26,18 @@ async def test_uow_rollback(uow: IUnitOfWork) -> None:
     async with uow:
         repo = uow.GetRepository(User, UserId)
         save_result = await repo.add(user)
-        assert is_ok(save_result)
+        assert isinstance(save_result, Ok)
         initial_user = save_result.value
         assert initial_user.id  # ULID should exist
         commit_result = await uow.commit()
-        assert is_ok(commit_result)
+        assert isinstance(commit_result, Ok)
 
     # 2. Attempt to update the user in a failing transaction
     try:
         async with uow:
             repo = uow.GetRepository(User, UserId)
             get_result = await repo.get_by_id(initial_user.id)
-            assert is_ok(get_result)
+            assert isinstance(get_result, Ok)
             user_to_update = get_result.value
             user_to_update.change_email(
                 Email.from_primitive("updated@example.com").expect(
@@ -53,6 +54,6 @@ async def test_uow_rollback(uow: IUnitOfWork) -> None:
     async with uow:
         repo = uow.GetRepository(User, UserId)
         retrieved_result = await repo.get_by_id(initial_user.id)
-        assert is_ok(retrieved_result)
+        assert isinstance(retrieved_result, Ok)
         retrieved_user = retrieved_result.value
         assert retrieved_user.email.to_primitive() == "rollback@example.com"

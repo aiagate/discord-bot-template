@@ -3,10 +3,10 @@
 import logging
 from dataclasses import dataclass
 
+from flow_res import Err, Ok, Result, combine_all
 from injector import inject
 
 from app.core.mediator import Request, RequestHandler
-from app.core.result import Ok, Result, combine_all, is_err
 from app.domain.aggregates.team import Team
 from app.domain.repositories import IUnitOfWork, RepositoryError, RepositoryErrorType
 from app.domain.value_objects import TeamId, TeamName
@@ -69,9 +69,12 @@ class UpdateTeamHandler(
         team_name_result = TeamName.from_primitive(request.new_name)
 
         combined_result = combine_all((team_id_result, team_name_result)).map_err(
-            lambda e: UseCaseError(type=ErrorType.VALIDATION_ERROR, message=str(e))
+            lambda e: UseCaseError(
+                type=ErrorType.VALIDATION_ERROR,
+                message=", ".join(str(exc) for exc in e.exceptions),
+            )
         )
-        if is_err(combined_result):
+        if isinstance(combined_result, Err):
             return combined_result
 
         team_id, new_team_name = combined_result.unwrap()
@@ -83,7 +86,7 @@ class UpdateTeamHandler(
             get_result = (await team_repo.get_by_id(team_id)).map_err(
                 lambda e: _map_get_error(e, request.team_id)
             )
-            if is_err(get_result):
+            if isinstance(get_result, Err):
                 return get_result
 
             team = get_result.unwrap()
@@ -95,7 +98,7 @@ class UpdateTeamHandler(
             update_result = (await team_repo.update(team)).map_err(
                 lambda e: _map_update_error(e, request.team_id)
             )
-            if is_err(update_result):
+            if isinstance(update_result, Err):
                 return update_result
 
             # Commit transaction
@@ -103,7 +106,7 @@ class UpdateTeamHandler(
                 lambda e: UseCaseError(type=ErrorType.UNEXPECTED, message=e.message)
             )
 
-            if is_err(commit_result):
+            if isinstance(commit_result, Err):
                 return commit_result
 
             updated_team = update_result.unwrap()

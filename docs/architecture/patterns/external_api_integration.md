@@ -29,7 +29,7 @@
 ```python
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from app.core.result import Result
+from flow_res import Result
 
 @dataclass
 class MovieData:
@@ -53,7 +53,7 @@ class IMovieService(ABC):
 ```python
 import httpx
 from app.domain.interfaces.movie_service import IMovieService, MovieData
-from app.core.result import Result, Ok, Err
+from flow_res import Result, Ok, Err
 
 class TmdbMovieService(IMovieService):
     def __init__(self, api_key: str):

@@ -2,10 +2,10 @@
 
 from typing import Any, overload
 
+from flow_res import Err, Ok, Result
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from app.core.result import Err, Ok, Result
 from app.domain.repositories import (
     IRepository,
     IRepositoryWithId,

@@ -3,10 +3,10 @@
 import logging
 from dataclasses import dataclass
 
+from flow_res import Err, Ok, Result
 from injector import inject
 
 from app.core.mediator import Request, RequestHandler
-from app.core.result import Err, Ok, Result, is_err
 from app.domain.aggregates.team_membership import TeamMembership
 from app.domain.repositories import IUnitOfWork
 from app.domain.value_objects import MembershipId, MembershipRole
@@ -47,14 +47,14 @@ class ChangeRoleHandler(
         membership_id_result = MembershipId.from_primitive(request.membership_id)
         new_role_result = MembershipRole.from_primitive(request.new_role)
 
-        if is_err(membership_id_result):
+        if isinstance(membership_id_result, Err):
             return Err(
                 UseCaseError(
                     type=ErrorType.VALIDATION_ERROR,
                     message="Invalid Membership ID format",
                 )
             )
-        if is_err(new_role_result):
+        if isinstance(new_role_result, Err):
             return Err(
                 UseCaseError(
                     type=ErrorType.VALIDATION_ERROR,
@@ -69,7 +69,7 @@ class ChangeRoleHandler(
             membership_repo = self._uow.GetRepository(TeamMembership, MembershipId)
 
             membership_result = await membership_repo.get_by_id(membership_id)
-            if is_err(membership_result):
+            if isinstance(membership_result, Err):
                 return Err(
                     UseCaseError(
                         type=ErrorType.NOT_FOUND, message="Membership not found"
@@ -81,7 +81,7 @@ class ChangeRoleHandler(
             membership.change_role(new_role)
 
             update_result = await membership_repo.update(membership)
-            if is_err(update_result):
+            if isinstance(update_result, Err):
                 return Err(
                     UseCaseError(
                         type=ErrorType.UNEXPECTED, message=update_result.error.message
@@ -89,7 +89,7 @@ class ChangeRoleHandler(
                 )
 
             commit_result = await self._uow.commit()
-            if is_err(commit_result):
+            if isinstance(commit_result, Err):
                 return Err(
                     UseCaseError(
                         type=ErrorType.UNEXPECTED, message=commit_result.error.message

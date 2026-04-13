@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from enum import Enum
 
-from app.core.result import Err, Ok, Result
+from flow_res import Err, Ok, Result
 
 
 class MembershipRole(str, Enum):

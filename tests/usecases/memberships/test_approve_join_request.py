@@ -1,9 +1,10 @@
+from flow_res import Err
+
 """Tests for ApproveJoinRequest use case failure scenarios."""
 
 import pytest
 from ulid import ULID
 
-from app.core.result import is_err
 from app.domain.repositories import IUnitOfWork
 from app.usecases.memberships.approve_join_request import (
     ApproveJoinRequestCommand,
@@ -23,7 +24,7 @@ async def test_approve_join_request_invalid_id(uow: IUnitOfWork) -> None:
 
     result = await handler.handle(command)
 
-    assert is_err(result)
+    assert isinstance(result, Err)
     assert result.error.type == ErrorType.VALIDATION_ERROR
     assert result.error.message == "Invalid Membership ID format"
 
@@ -36,7 +37,7 @@ async def test_approve_join_request_not_found(uow: IUnitOfWork) -> None:
 
     result = await handler.handle(command)
 
-    assert is_err(result)
+    assert isinstance(result, Err)
     assert result.error.type == ErrorType.NOT_FOUND
     assert result.error.message == "Membership not found"
 
@@ -73,6 +74,6 @@ async def test_approve_join_request_not_pending(uow: IUnitOfWork) -> None:
     result = await handler.handle(command)
 
     # Assert
-    assert is_err(result)
+    assert isinstance(result, Err)
     assert result.error.type == ErrorType.VALIDATION_ERROR
     assert "Membership is not in PENDING status" in result.error.message

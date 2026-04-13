@@ -3,10 +3,10 @@
 import logging
 from dataclasses import dataclass
 
+from flow_res import Err, Ok, Result, combine_all
 from injector import inject
 
 from app.core.mediator import Request, RequestHandler
-from app.core.result import Ok, Result, combine_all, is_err
 from app.domain.aggregates.team import Team
 from app.domain.repositories import IUnitOfWork
 from app.domain.value_objects import TeamName
@@ -43,9 +43,12 @@ class CreateTeamHandler(
         team_name_result = TeamName.from_primitive(request.name)
 
         combined_result = combine_all((team_name_result,)).map_err(
-            lambda e: UseCaseError(type=ErrorType.VALIDATION_ERROR, message=str(e))
+            lambda e: UseCaseError(
+                type=ErrorType.VALIDATION_ERROR,
+                message=", ".join(str(exc) for exc in e.exceptions),
+            )
         )
-        if is_err(combined_result):
+        if isinstance(combined_result, Err):
             return combined_result
 
         (team_name,) = combined_result.unwrap()
@@ -58,14 +61,14 @@ class CreateTeamHandler(
                 lambda e: UseCaseError(type=ErrorType.UNEXPECTED, message=e.message)
             )
 
-            if is_err(add_result):
+            if isinstance(add_result, Err):
                 return add_result
 
             commit_result = (await self._uow.commit()).map_err(
                 lambda e: UseCaseError(type=ErrorType.UNEXPECTED, message=e.message)
             )
 
-            if is_err(commit_result):
+            if isinstance(commit_result, Err):
                 return commit_result
 
             id = team.id.to_primitive()

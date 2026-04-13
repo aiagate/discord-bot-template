@@ -4,7 +4,7 @@ import re
 from dataclasses import dataclass
 from typing import ClassVar
 
-from app.core.result import Err, Ok, Result
+from flow_res import Err, Ok, Result
 
 
 @dataclass(frozen=True)

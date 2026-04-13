@@ -1,8 +1,9 @@
+from flow_res import Err, Ok
+
 """Tests for Team aggregate."""
 
 from datetime import UTC, datetime
 
-from app.core.result import is_err, is_ok
 from app.domain.aggregates.team import Team
 from app.domain.value_objects import TeamId, TeamName
 
@@ -10,7 +11,7 @@ from app.domain.value_objects import TeamId, TeamName
 def test_create_team_with_empty_name_returns_err() -> None:
     """Test that creating a Team with an empty name raises ValueError."""
     result = TeamName.from_primitive("")
-    assert is_err(result)
+    assert isinstance(result, Err)
     assert "Team name cannot be empty" in str(result.error)
 
 
@@ -32,10 +33,10 @@ def test_team_change_name() -> None:
 def test_team_creation_with_valid_data() -> None:
     """Test creating a team with valid data."""
     team_id_result = TeamId.generate()
-    assert is_ok(team_id_result)
+    assert isinstance(team_id_result, Ok)
 
     team_name_result = TeamName.from_primitive("Alpha Team")
-    assert is_ok(team_name_result)
+    assert isinstance(team_name_result, Ok)
     team_name = team_name_result.expect(
         "TeamName.from_primitive should succeed for valid name"
     )
@@ -66,10 +67,10 @@ def test_team_creation_with_invalid_name_returns_err() -> None:
     """Test that creating team with invalid name raises ValueError."""
     # Test name too long
     result_too_long = TeamName.from_primitive("x" * 101)
-    assert is_err(result_too_long)
+    assert isinstance(result_too_long, Err)
     assert "must not exceed 100 characters" in str(result_too_long.error)
 
     # Test name with leading/trailing whitespace
     result_whitespace = TeamName.from_primitive("  Team Name  ")
-    assert is_err(result_whitespace)
+    assert isinstance(result_whitespace, Err)
     assert "cannot have leading or trailing whitespace" in str(result_whitespace.error)

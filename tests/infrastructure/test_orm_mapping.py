@@ -4,9 +4,9 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 
 import pytest
+from flow_res import Ok, Result
 from sqlmodel import Field, SQLModel
 
-from app.core.result import Ok, Result
 from app.infrastructure.orm_mapping import (
     ORMMappingRegistry,
     entity_to_orm_dict,

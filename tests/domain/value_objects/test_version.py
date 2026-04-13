@@ -1,15 +1,16 @@
+from flow_res import Err, Ok
+
 """Tests for Version value object."""
 
 import pytest
 
-from app.core.result import is_err, is_ok
 from app.domain.value_objects.version import Version
 
 
 def test_version_from_primitive_valid() -> None:
     """Test creating Version from valid primitive."""
     result = Version.from_primitive(0)
-    assert is_ok(result)
+    assert isinstance(result, Ok)
     version = result.value
     assert version.to_primitive() == 0
 
@@ -17,7 +18,7 @@ def test_version_from_primitive_valid() -> None:
 def test_version_from_primitive_positive() -> None:
     """Test creating Version from positive integer."""
     result = Version.from_primitive(42)
-    assert is_ok(result)
+    assert isinstance(result, Ok)
     version = result.value
     assert version.to_primitive() == 42
 
@@ -25,7 +26,7 @@ def test_version_from_primitive_positive() -> None:
 def test_version_from_primitive_negative_fails() -> None:
     """Test that negative version fails validation."""
     result = Version.from_primitive(-1)
-    assert is_err(result)
+    assert isinstance(result, Err)
     error = result.error
     assert isinstance(error, ValueError)
     assert "non-negative" in str(error).lower()
@@ -34,7 +35,7 @@ def test_version_from_primitive_negative_fails() -> None:
 def test_version_from_primitive_non_int_fails() -> None:
     """Test that non-int type fails validation."""
     result = Version.from_primitive("5")  # type: ignore[arg-type]
-    assert is_err(result)
+    assert isinstance(result, Err)
     error = result.error
     assert isinstance(error, TypeError)
 

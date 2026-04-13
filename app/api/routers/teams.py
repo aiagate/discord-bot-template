@@ -1,8 +1,8 @@
 from fastapi import APIRouter, HTTPException
+from flow_res import Err
 from pydantic import BaseModel
 
 from app.core.mediator import Mediator
-from app.core.result import is_err
 from app.usecases.teams.create_team import CreateTeamCommand
 from app.usecases.teams.get_team import GetTeamQuery
 from app.usecases.teams.update_team import UpdateTeamCommand
@@ -33,10 +33,10 @@ async def create_team(request: CreateTeamRequest) -> CreateTeamResponse:
     """Create a new team."""
     command = CreateTeamCommand(name=request.name)
 
-    # Mediator returns a ResultAwaitable, which we await to get the Result
+    # Mediator returns a AwaitableResult, which we await to get the Result
     result = await Mediator.send_async(command)
 
-    if is_err(result):
+    if isinstance(result, Err):
         # In a real app, you would map ErrorType to status codes
         raise HTTPException(status_code=400, detail=result.error.message)
 
@@ -50,7 +50,7 @@ async def get_team(team_id: str) -> TeamResponse:
     query = GetTeamQuery(id=team_id)
     result = await Mediator.send_async(query)
 
-    if is_err(result):
+    if isinstance(result, Err):
         raise HTTPException(status_code=404, detail=result.error.message)
 
     team_result = result.unwrap()
@@ -68,7 +68,7 @@ async def update_team(team_id: str, request: UpdateTeamRequest) -> CreateTeamRes
     command = UpdateTeamCommand(team_id=team_id, new_name=request.name)
     result = await Mediator.send_async(command)
 
-    if is_err(result):
+    if isinstance(result, Err):
         raise HTTPException(status_code=400, detail=result.error.message)
 
     updated_team_id = result.unwrap().id

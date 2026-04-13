@@ -1,8 +1,8 @@
 from fastapi import APIRouter, HTTPException
+from flow_res import Err
 from pydantic import BaseModel
 
 from app.core.mediator import Mediator
-from app.core.result import is_err
 from app.usecases.users.create_user import CreateUserCommand
 from app.usecases.users.get_user import GetUserQuery
 
@@ -31,7 +31,7 @@ async def create_user(request: CreateUserRequest) -> CreateUserResponse:
 
     result = await Mediator.send_async(command)
 
-    if is_err(result):
+    if isinstance(result, Err):
         raise HTTPException(status_code=400, detail=result.error.message)
 
     user_id = result.unwrap().id
@@ -44,7 +44,7 @@ async def get_user(user_id: str) -> UserResponse:
     query = GetUserQuery(user_id=user_id)
     result = await Mediator.send_async(query)
 
-    if is_err(result):
+    if isinstance(result, Err):
         raise HTTPException(status_code=404, detail=result.error.message)
 
     user_result = result.unwrap()
