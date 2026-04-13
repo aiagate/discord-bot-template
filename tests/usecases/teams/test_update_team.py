@@ -3,8 +3,8 @@
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from flow_res import Err, Ok, is_err, is_ok
 
-from app.core.result import Err, Ok, is_err, is_ok
 from app.domain.aggregates.team import Team
 from app.domain.repositories import IUnitOfWork, RepositoryError, RepositoryErrorType
 from app.domain.value_objects import TeamId, TeamName

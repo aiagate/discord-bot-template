@@ -2,9 +2,8 @@ import logging
 from abc import ABC, ABCMeta, abstractmethod
 from typing import Any, ClassVar
 
+from flow_res import AwaitableResult, Result
 from injector import Injector
-
-from app.core.result import Result, ResultAwaitable
 
 logger = logging.getLogger(__name__)
 
@@ -66,17 +65,17 @@ class Mediator:
     @classmethod
     def send_async[T, E: Exception](
         cls, request: Request[Result[T, E]]
-    ) -> ResultAwaitable[T, E]:
+    ) -> AwaitableResult[T, E]:
         """
         Send a request to its handler.
 
-        Returns ResultAwaitable for method chaining.
+        Returns AwaitableResult for method chaining.
 
         Args:
             request: The request to handle
 
         Returns:
-            ResultAwaitable wrapping the handler result
+            AwaitableResult wrapping the handler result
         """
 
         async def execute() -> Result[T, E]:
@@ -92,7 +91,7 @@ class Mediator:
             handler = cls._injector.get(handler_provider)
             return await handler.handle(request)
 
-        return ResultAwaitable(execute())
+        return AwaitableResult(execute())
 
     @classmethod
     def register(cls, request_type: type[Any], handler_type: type[Any]) -> None:

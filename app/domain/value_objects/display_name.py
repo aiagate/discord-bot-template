@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass
 
-from app.core.result import Err, Ok, Result
+from flow_res import Err, Ok, Result
 
 
 @dataclass(frozen=True)
@@ -54,7 +54,6 @@ class DisplayName:
             return Err(
                 ValueError(f"Display name must not exceed {cls.MAX_LENGTH} characters.")
             )
-        # 前後の空白をチェック
         if value != value.strip():
             return Err(
                 ValueError("Display name cannot have leading or trailing whitespace.")

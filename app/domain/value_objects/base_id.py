@@ -3,9 +3,8 @@
 from dataclasses import dataclass
 from typing import TypeVar
 
+from flow_res import Err, Ok, Result
 from ulid import ULID
-
-from app.core.result import Err, Ok, Result
 
 T = TypeVar("T", bound="BaseId")
 

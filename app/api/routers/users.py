@@ -1,8 +1,8 @@
 from fastapi import APIRouter, HTTPException
+from flow_res import is_err
 from pydantic import BaseModel
 
 from app.core.mediator import Mediator
-from app.core.result import is_err
 from app.usecases.users.create_user import CreateUserCommand
 from app.usecases.users.get_user import GetUserQuery
 

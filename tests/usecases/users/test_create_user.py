@@ -3,8 +3,8 @@
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from flow_res import Err, is_err, is_ok
 
-from app.core.result import Err, is_err, is_ok
 from app.domain.repositories import IUnitOfWork, RepositoryError, RepositoryErrorType
 from app.usecases.result import ErrorType
 from app.usecases.users.create_user import (

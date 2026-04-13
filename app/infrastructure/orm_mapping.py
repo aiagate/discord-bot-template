@@ -5,9 +5,9 @@ import logging
 from dataclasses import fields, is_dataclass
 from typing import Any, ClassVar, TypeVar, cast, get_args, get_origin, get_type_hints
 
+from flow_res import Result, is_err, is_ok
 from sqlmodel import SQLModel
 
-from app.core.result import Result, is_err, is_ok
 from app.domain.interfaces import IValueObject
 
 logger = logging.getLogger(__name__)

@@ -3,8 +3,8 @@
 import dataclasses
 
 import pytest
+from flow_res import is_err, is_ok
 
-from app.core.result import is_err, is_ok
 from app.domain.value_objects.email import Email
 
 

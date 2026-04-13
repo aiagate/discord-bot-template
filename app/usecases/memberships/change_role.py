@@ -3,10 +3,10 @@
 import logging
 from dataclasses import dataclass
 
+from flow_res import Err, Ok, Result, is_err
 from injector import inject
 
 from app.core.mediator import Request, RequestHandler
-from app.core.result import Err, Ok, Result, is_err
 from app.domain.aggregates.team_membership import TeamMembership
 from app.domain.repositories import IUnitOfWork
 from app.domain.value_objects import MembershipId, MembershipRole

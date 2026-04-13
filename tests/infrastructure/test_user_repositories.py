@@ -1,8 +1,8 @@
 """Tests for User repository with version conflict handling."""
 
 import pytest
+from flow_res import is_err, is_ok
 
-from app.core.result import is_err, is_ok
 from app.domain.aggregates.user import User
 from app.domain.repositories import IUnitOfWork, RepositoryErrorType
 from app.domain.value_objects import DisplayName, Email, UserId

@@ -3,9 +3,9 @@
 import dataclasses
 
 import pytest
+from flow_res import is_err, is_ok
 from ulid import ULID
 
-from app.core.result import is_err, is_ok
 from app.domain.value_objects.base_id import BaseId
 
 

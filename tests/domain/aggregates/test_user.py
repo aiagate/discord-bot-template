@@ -2,7 +2,8 @@
 
 from datetime import UTC, datetime
 
-from app.core.result import is_err
+from flow_res import is_err
+
 from app.domain.aggregates.user import User
 from app.domain.value_objects import DisplayName, Email
 

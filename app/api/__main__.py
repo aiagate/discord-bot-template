@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     """Initialize application services on startup."""
     # 1. Initialize Database
     db_url = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///./bot.db")

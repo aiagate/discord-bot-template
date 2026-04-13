@@ -4,11 +4,11 @@ import logging
 from datetime import UTC, datetime
 from typing import TypeVar
 
+from flow_res import Err, Ok, Result, is_err
 from sqlalchemy import select, update
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.result import Err, Ok, Result, is_err
 from app.domain.interfaces import IAuditable, IValueObject, IVersionable
 from app.domain.repositories import (
     IRepositoryWithId,

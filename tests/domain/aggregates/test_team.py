@@ -2,7 +2,8 @@
 
 from datetime import UTC, datetime
 
-from app.core.result import is_err, is_ok
+from flow_res import is_err, is_ok
+
 from app.domain.aggregates.team import Team
 from app.domain.value_objects import TeamId, TeamName
 

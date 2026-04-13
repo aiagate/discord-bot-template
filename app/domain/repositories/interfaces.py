@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from enum import Enum, auto
 from typing import Any, overload
 
-from app.core.result import Result
+from flow_res import Result
 
 
 class RepositoryErrorType(Enum):

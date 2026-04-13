@@ -1,9 +1,9 @@
 """Tests for RequestJoinTeam use case failure scenarios."""
 
 import pytest
+from flow_res import is_err
 from ulid import ULID
 
-from app.core.result import is_err
 from app.domain.repositories import IUnitOfWork
 from app.usecases.memberships.request_join_team import (
     RequestJoinTeamCommand,

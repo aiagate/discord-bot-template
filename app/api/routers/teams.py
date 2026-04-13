@@ -1,8 +1,8 @@
 from fastapi import APIRouter, HTTPException
+from flow_res import is_err
 from pydantic import BaseModel
 
 from app.core.mediator import Mediator
-from app.core.result import is_err
 from app.usecases.teams.create_team import CreateTeamCommand
 from app.usecases.teams.get_team import GetTeamQuery
 from app.usecases.teams.update_team import UpdateTeamCommand
@@ -33,7 +33,7 @@ async def create_team(request: CreateTeamRequest) -> CreateTeamResponse:
     """Create a new team."""
     command = CreateTeamCommand(name=request.name)
 
-    # Mediator returns a ResultAwaitable, which we await to get the Result
+    # Mediator returns a AwaitableResult, which we await to get the Result
     result = await Mediator.send_async(command)
 
     if is_err(result):

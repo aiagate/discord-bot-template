@@ -1,8 +1,8 @@
 """Tests for Version value object."""
 
 import pytest
+from flow_res import is_err, is_ok
 
-from app.core.result import is_err, is_ok
 from app.domain.value_objects.version import Version
 
 

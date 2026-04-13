@@ -3,10 +3,10 @@
 import logging
 from dataclasses import dataclass
 
+from flow_res import Ok, Result, combine_all, is_err
 from injector import inject
 
 from app.core.mediator import Request, RequestHandler
-from app.core.result import Ok, Result, combine_all, is_err
 from app.domain.aggregates.user import User
 from app.domain.repositories import IUnitOfWork
 from app.domain.value_objects import DisplayName, Email
@@ -45,7 +45,10 @@ class CreateUserHandler(
         display_name_result = DisplayName.from_primitive(request.display_name)
 
         combined_result = combine_all((email_result, display_name_result)).map_err(
-            lambda e: UseCaseError(type=ErrorType.VALIDATION_ERROR, message=str(e))
+            lambda e: UseCaseError(
+                type=ErrorType.VALIDATION_ERROR,
+                message=", ".join(str(exc) for exc in e.exceptions),
+            )
         )
         if is_err(combined_result):
             return combined_result

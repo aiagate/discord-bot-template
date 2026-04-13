@@ -1,6 +1,7 @@
 """Tests for DisplayName value object."""
 
-from app.core.result import is_err, is_ok
+from flow_res import is_err, is_ok
+
 from app.domain.value_objects.display_name import DisplayName
 
 

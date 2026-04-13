@@ -111,7 +111,7 @@ class User:
 
 ```python
 from abc import ABC, abstractmethod
-from app.core.result import Result
+from flow_res import Result
 
 class IRepository[T](ABC):
     """基本リポジトリインターフェース（追加・削除操作）"""

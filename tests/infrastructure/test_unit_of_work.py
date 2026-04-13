@@ -1,8 +1,8 @@
 """Tests for infrastructure Unit of Work component."""
 
 import pytest
+from flow_res import is_ok
 
-from app.core.result import is_ok
 from app.domain.aggregates.user import User
 from app.domain.repositories import IUnitOfWork
 from app.domain.value_objects import DisplayName, Email, UserId

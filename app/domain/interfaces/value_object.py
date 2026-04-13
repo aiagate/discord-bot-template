@@ -2,7 +2,7 @@
 
 from typing import Protocol, TypeVar, runtime_checkable
 
-from app.core.result import Result
+from flow_res import Result
 
 T = TypeVar("T")
 
