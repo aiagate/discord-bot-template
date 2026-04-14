@@ -25,8 +25,9 @@ class MyBot(commands.Bot):
     async def _init_database(self) -> None:
         """Initialize database connection and create tables."""
 
+        from flow_med import Mediator
+
         from app import container
-        from app.core.mediator import Mediator
         from app.infrastructure.database import init_db
 
         db_url = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///./bot.db")

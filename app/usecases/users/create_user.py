@@ -3,10 +3,10 @@
 import logging
 from dataclasses import dataclass
 
+from flow_med import Request, RequestHandler
 from flow_res import Ok, Result, combine_all, is_err
 from injector import inject
 
-from app.core.mediator import Request, RequestHandler
 from app.domain.aggregates.user import User
 from app.domain.repositories import IUnitOfWork
 from app.domain.value_objects import DisplayName, Email

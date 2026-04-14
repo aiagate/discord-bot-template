@@ -1,8 +1,8 @@
 from fastapi import APIRouter, HTTPException
+from flow_med import Mediator
 from flow_res import is_err
 from pydantic import BaseModel
 
-from app.core.mediator import Mediator
 from app.usecases.teams.create_team import CreateTeamCommand
 from app.usecases.teams.get_team import GetTeamQuery
 from app.usecases.teams.update_team import UpdateTeamCommand
