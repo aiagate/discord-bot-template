@@ -3,9 +3,9 @@
 """Discord cog for user management commands."""
 
 from discord.ext import commands
+from flow_med import Mediator
 
 from app.bot.cogs.base_cog import BaseCog
-from app.core.mediator import Mediator
 from app.usecases.users.create_user import CreateUserCommand
 from app.usecases.users.get_user import GetUserQuery
 

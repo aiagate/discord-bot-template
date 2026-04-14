@@ -4,11 +4,11 @@ from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from flow_med import Mediator
 from injector import Injector
 
 from app import container
 from app.api.routers import teams, users
-from app.core.mediator import Mediator
 from app.infrastructure.database import init_db
 
 logger = logging.getLogger(__name__)

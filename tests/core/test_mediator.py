@@ -1,11 +1,11 @@
 """Tests for the Mediator."""
 
 import pytest
+from flow_med import HandlerNotFoundError, Mediator, Request, RequestHandler
 from flow_res import Ok, Result
 from injector import Injector
 
 from app import container
-from app.core.mediator import HandlerNotFoundError, Mediator, Request, RequestHandler
 
 # Initialize Mediator for tests
 Mediator.initialize(Injector([container.configure]))

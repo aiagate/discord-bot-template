@@ -122,6 +122,7 @@ dependencies = [
     { name = "alembic" },
     { name = "discord-py" },
     { name = "fastapi" },
+    { name = "flow-med" },
     { name = "flow-res" },
     { name = "injector" },
     { name = "python-dotenv" },
@@ -148,6 +149,7 @@ requires-dist = [
     { name = "alembic", specifier = ">=1.17.2" },
     { name = "discord-py", specifier = ">=2.5.2" },
     { name = "fastapi", specifier = ">=0.124.4" },
+    { name = "flow-med", specifier = ">=0.1.0" },
     { name = "flow-res", specifier = "==0.1.1" },
     { name = "injector", specifier = ">=0.22.0" },
     { name = "python-dotenv", specifier = ">=1.2.1" },
@@ -355,6 +357,19 @@ wheels = [
 ]
 
 [[package]]
+name = "flow-med"
+version = "0.1.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "flow-res" },
+    { name = "injector" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/a1/a5/ae0223a8c6259baa582a08b9fdd4b1aff67755ccc570ece2906b3e987440/flow_med-0.1.0.tar.gz", hash = "sha256:6f747b4e1c4adb4595988fbe78bacf125a15f197eff2f823c82bb2ae2baa57ac", size = 25385, upload-time = "2026-04-13T14:50:13.266Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/61/0d/83171fc8a4abda1fd497d0a8e4974da846c82998e343e8ddf19788fb2b34/flow_med-0.1.0-py3-none-any.whl", hash = "sha256:339cc829c94de0d05c41061cea114b98318a165e38f85bac027998fbd7fb1398", size = 4530, upload-time = "2026-04-13T14:50:11.888Z" },
+]
+
+[[package]]
 name = "flow-res"
 version = "0.1.1"
 source = { registry = "https://pypi.org/simple" }
@@ -451,11 +466,11 @@ wheels = [
 
 [[package]]
 name = "injector"
-version = "0.22.0"
+version = "0.24.0"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/b5/f6/3a74e4b983b92eebb77b2f27ee526aa7eaf0e62a5913847d59361b4bae5f/injector-0.22.0.tar.gz", hash = "sha256:79b2d4a0874c75d3aa735f11c5b32b89d9542711ca07071161882c5e9cc15ed6", size = 86166, upload-time = "2024-07-07T23:02:23.275Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/17/6c/de0f64b2b8d7d8cd3206bd6fb54ebb0c7c2e2fe0f2d16103756ff1bf803b/injector-0.24.0.tar.gz", hash = "sha256:e85a75d1516cff2f03170f3fd1219f56acb25c9a05e307819ae0dcde3dad3d3f", size = 55988, upload-time = "2026-01-09T12:10:41.782Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/3f/37/37fee65c78ae3f9675e6190bfd12304e5d8d99564f0ec91716bf2bfbbb5f/injector-0.22.0-py2.py3-none-any.whl", hash = "sha256:74379ccef3b893bc7d0b7d504c255b5160c5a55e97dc7bdcc73cb33cc7dce3a1", size = 20461, upload-time = "2024-07-07T23:02:21.103Z" },
+    { url = "https://files.pythonhosted.org/packages/5f/db/953aeee405f1466832f212f61496ee07c29f7f027f7591b71b06bd08a418/injector-0.24.0-py3-none-any.whl", hash = "sha256:47294c7a7fdb811f0d1b442a1e0152bb2fc28b2ccaaba4cba44e5e125e0da2d0", size = 21504, upload-time = "2026-01-09T12:10:40.329Z" },
 ]
 
 [[package]]

@@ -22,7 +22,7 @@
 │  Application Layer                      │  ユースケース
 │  (Use Cases, Mediator)                  │  - ビジネスフロー制御
 │  - app/usecases/                        │  - DTOでの入出力
-│  - app/core/mediator.py                 │  - Result型でのエラーハンドリング
+│  - flow-med (External Library)          │  - Result型でのエラーハンドリング
 ├─────────────────────────────────────────┤
 │  Domain Layer                           │  ビジネスルール
 │  (Aggregates, Entities, Value Objects)  │  - 純粋なPythonオブジェクト
@@ -353,26 +353,26 @@ async def teams_create(self, ctx: commands.Context[commands.Bot], name: str) -> 
 
 ##### 2.2 Mediator Pattern（メディエーターパターン）
 
-`app/core/mediator.py`:
+`flow-med` ライブラリを使用しています。
 
 ```python
 class Mediator:
     """CQRS-style mediator for request/response."""
 
     @classmethod
-    async def send_async[TResponse](
-        cls, request: Request[TResponse]
-    ) -> TResponse:
+    async def send_async[T, E: Exception](
+        cls, request: Request[Result[T, E]]
+    ) -> AwaitableResult[T, E]:
         """Send request to handler and get response."""
-        handler = cls._get_handler(type(request))
-        return await handler.handle(request)
+        # ...
 ```
 
 **利点**:
 
 - プレゼンテーション層とアプリケーション層の疎結合
-- ハンドラーの自動登録（メタクラス使用）
+- ハンドラーの自動登録（`__init_subclass__` 使用）
 - 一貫したリクエスト/レスポンスパターン
+- `AwaitableResult` によるメソッドチェーンのサポート
 
 **使用例**:
 
