@@ -8,10 +8,15 @@ from discord.ext import commands
 from dotenv import load_dotenv
 from injector import Injector
 
-from app.bot.cogs import memberships_cog, teams_cog, users_cog
+from app.bot.cogs.dm_response_cog import DirectMessageResponseCog
+from app.bot.cogs.memberships_cog import MembershipsCog
+from app.bot.cogs.teams_cog import TeamsCog
+from app.bot.cogs.users_cog import UsersCog
 
 
 class MyBot(commands.Bot):
+    injector: Injector
+
     def __init__(self, command_prefix: str = "!") -> None:
         super().__init__(
             intents=discord.Intents.all(),
@@ -35,12 +40,14 @@ class MyBot(commands.Bot):
 
         # Initialize Mediator with dependency injection container
         injector = Injector([container.configure])
+        self.injector = injector
         Mediator.initialize(injector)
 
     async def load_cogs(self) -> None:
-        await self.load_extension(teams_cog.__name__)
-        await self.load_extension(users_cog.__name__)
-        await self.load_extension(memberships_cog.__name__)
+        await self.add_cog(TeamsCog(self))
+        await self.add_cog(UsersCog(self))
+        await self.add_cog(MembershipsCog(self))
+        await self.add_cog(DirectMessageResponseCog(self))
 
 
 def load_environment() -> None:
