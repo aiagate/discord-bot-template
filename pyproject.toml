@@ -7,6 +7,7 @@ requires-python = ">=3.13"
 dependencies = [
     "aiosqlite>=0.21.0",
     "alembic>=1.17.2",
+    "asyncpg>=0.31.0",
     "discord-py>=2.5.2",
     "fastapi>=0.124.4",
     "flow-med>=0.1.0",
@@ -14,6 +15,7 @@ dependencies = [
     "injector>=0.22.0",
     "python-dotenv>=1.2.1",
     "python-ulid>=3.1.0",
+    "redis>=7.4.0",
     "sqlmodel>=0.0.24",
     "uvicorn>=0.38.0",
 ]

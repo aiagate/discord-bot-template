@@ -1,5 +1,7 @@
 """Integration tests for Membership use cases."""
 
+from unittest.mock import AsyncMock
+
 import pytest
 from flow_res import is_err, is_ok
 
@@ -21,7 +23,7 @@ from app.usecases.users.create_user import CreateUserCommand, CreateUserHandler
 
 
 @pytest.mark.anyio
-async def test_join_team_success(uow: IUnitOfWork) -> None:
+async def test_join_team_success(uow: IUnitOfWork, event_bus: AsyncMock) -> None:
     """Test JoinTeamHandler successfully joins a user to a team."""
     # Setup: Create a team and a user
     team_handler = CreateTeamHandler(uow)
@@ -29,7 +31,7 @@ async def test_join_team_success(uow: IUnitOfWork) -> None:
     assert is_ok(team_result)
     team_id = team_result.value.id
 
-    user_handler = CreateUserHandler(uow)
+    user_handler = CreateUserHandler(uow, event_bus)
     user_result = await user_handler.handle(
         CreateUserCommand(display_name="User A", email="user@example.com")
     )
@@ -49,7 +51,7 @@ async def test_join_team_success(uow: IUnitOfWork) -> None:
 
 
 @pytest.mark.anyio
-async def test_join_team_not_found(uow: IUnitOfWork) -> None:
+async def test_join_team_not_found(uow: IUnitOfWork, event_bus: AsyncMock) -> None:
     """Test JoinTeamHandler returns NOT_FOUND for missing team or user."""
     join_handler = JoinTeamHandler(uow)
 
@@ -78,14 +80,16 @@ async def test_join_team_not_found(uow: IUnitOfWork) -> None:
 
 
 @pytest.mark.anyio
-async def test_request_join_team_success(uow: IUnitOfWork) -> None:
+async def test_request_join_team_success(
+    uow: IUnitOfWork, event_bus: AsyncMock
+) -> None:
     """Test RequestJoinTeamHandler successfully creates a pending membership."""
     # Setup
     team_handler = CreateTeamHandler(uow)
     team_result = await team_handler.handle(CreateTeamCommand(name="Team B"))
     team_id = team_result.expect("Success").id
 
-    user_handler = CreateUserHandler(uow)
+    user_handler = CreateUserHandler(uow, event_bus)
     user_result = await user_handler.handle(
         CreateUserCommand(display_name="User B", email="userB@example.com")
     )
@@ -103,7 +107,9 @@ async def test_request_join_team_success(uow: IUnitOfWork) -> None:
 
 
 @pytest.mark.anyio
-async def test_approve_join_request_success(uow: IUnitOfWork) -> None:
+async def test_approve_join_request_success(
+    uow: IUnitOfWork, event_bus: AsyncMock
+) -> None:
     """Test ApproveJoinRequestHandler successfully activates a membership."""
     # Setup
     team_handler = CreateTeamHandler(uow)
@@ -113,7 +119,7 @@ async def test_approve_join_request_success(uow: IUnitOfWork) -> None:
         .id
     )
 
-    user_handler = CreateUserHandler(uow)
+    user_handler = CreateUserHandler(uow, event_bus)
     user_id = (
         (
             await user_handler.handle(
@@ -147,7 +153,7 @@ async def test_approve_join_request_success(uow: IUnitOfWork) -> None:
 
 
 @pytest.mark.anyio
-async def test_leave_team_success(uow: IUnitOfWork) -> None:
+async def test_leave_team_success(uow: IUnitOfWork, event_bus: AsyncMock) -> None:
     """Test LeaveTeamHandler successfully sets status to LEAVED."""
     # Setup
     team_handler = CreateTeamHandler(uow)
@@ -157,7 +163,7 @@ async def test_leave_team_success(uow: IUnitOfWork) -> None:
         .id
     )
 
-    user_handler = CreateUserHandler(uow)
+    user_handler = CreateUserHandler(uow, event_bus)
     user_id = (
         (
             await user_handler.handle(
@@ -185,7 +191,7 @@ async def test_leave_team_success(uow: IUnitOfWork) -> None:
 
 
 @pytest.mark.anyio
-async def test_change_role_success(uow: IUnitOfWork) -> None:
+async def test_change_role_success(uow: IUnitOfWork, event_bus: AsyncMock) -> None:
     """Test ChangeRoleHandler successfully changes role."""
     # Setup
     team_handler = CreateTeamHandler(uow)
@@ -195,7 +201,7 @@ async def test_change_role_success(uow: IUnitOfWork) -> None:
         .id
     )
 
-    user_handler = CreateUserHandler(uow)
+    user_handler = CreateUserHandler(uow, event_bus)
     user_id = (
         (
             await user_handler.handle(

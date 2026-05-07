@@ -14,9 +14,9 @@ from app.usecases.users.create_user import (
 
 
 @pytest.mark.anyio
-async def test_create_user_handler(uow: IUnitOfWork) -> None:
+async def test_create_user_handler(uow: IUnitOfWork, event_bus: AsyncMock) -> None:
     """Test CreateUserHandler with real database."""
-    handler = CreateUserHandler(uow)
+    handler = CreateUserHandler(uow, event_bus)
 
     command = CreateUserCommand(display_name="Alice", email="alice@example.com")
     result = await handler.handle(command)
@@ -28,9 +28,11 @@ async def test_create_user_handler(uow: IUnitOfWork) -> None:
 
 
 @pytest.mark.anyio
-async def test_create_user_handler_invalid_email(uow: IUnitOfWork) -> None:
+async def test_create_user_handler_invalid_email(
+    uow: IUnitOfWork, event_bus: AsyncMock
+) -> None:
     """Test CreateUserHandler returns Err on invalid email format."""
-    handler = CreateUserHandler(uow)
+    handler = CreateUserHandler(uow, event_bus)
 
     # Command with an invalid email format
     command = CreateUserCommand(display_name="Test User", email="invalid-email")
@@ -42,7 +44,7 @@ async def test_create_user_handler_invalid_email(uow: IUnitOfWork) -> None:
 
 
 @pytest.mark.anyio
-async def test_create_user_handler_repository_error() -> None:
+async def test_create_user_handler_repository_error(event_bus: AsyncMock) -> None:
     """Test CreateUserHandler returns Err when repository fails."""
     # Create a mock UnitOfWork that simulates repository error
     mock_uow = MagicMock(spec=IUnitOfWork)
@@ -62,7 +64,7 @@ async def test_create_user_handler_repository_error() -> None:
     mock_uow.__aenter__ = AsyncMock(return_value=mock_uow)
     mock_uow.__aexit__ = AsyncMock(return_value=None)
 
-    handler = CreateUserHandler(mock_uow)
+    handler = CreateUserHandler(mock_uow, event_bus)
     command = CreateUserCommand(display_name="Test User", email="test@example.com")
     result = await handler.handle(command)
 

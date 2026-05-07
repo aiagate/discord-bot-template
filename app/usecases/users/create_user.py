@@ -8,6 +8,7 @@ from flow_res import Ok, Result, combine_all, is_err
 from injector import inject
 
 from app.domain.aggregates.user import User
+from app.domain.interfaces.event_bus import IEventBus
 from app.domain.repositories import IUnitOfWork
 from app.domain.value_objects import DisplayName, Email
 from app.usecases.result import ErrorType, UseCaseError
@@ -34,8 +35,9 @@ class CreateUserHandler(
     """Handler for CreateUser command."""
 
     @inject
-    def __init__(self, uow: IUnitOfWork) -> None:
+    def __init__(self, uow: IUnitOfWork, event_bus: IEventBus) -> None:
         self._uow = uow
+        self._event_bus = event_bus
 
     async def handle(
         self, request: CreateUserCommand
@@ -74,4 +76,8 @@ class CreateUserHandler(
                 return commit_result
 
             id = user.id.to_primitive()
+
+            # イベントの発行（例外が発生してもUseCaseの結果には影響させないよう、バックグラウンド的に扱う）
+            await self._event_bus.publish("user.created", {"user_id": id})
+
             return Ok(CreateUserResult(id=id))
