@@ -77,8 +77,3 @@ class MembershipsCog(BaseCog, name="Memberships"):
             .unwrap()
         )
         await ctx.send(content=message)
-
-
-async def setup(bot: commands.Bot) -> None:
-    """Setup function for cog loading."""
-    await bot.add_cog(MembershipsCog(bot))

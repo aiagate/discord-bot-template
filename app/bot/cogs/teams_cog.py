@@ -134,8 +134,3 @@ class TeamsCog(BaseCog, name="Teams"):
             .unwrap()
         )
         await ctx.send(content=message)
-
-
-async def setup(bot: commands.Bot) -> None:
-    """Setup function for cog loading."""
-    await bot.add_cog(TeamsCog(bot))
