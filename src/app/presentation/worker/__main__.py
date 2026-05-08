@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 
 def load_environment() -> None:
     """Load environment variables from .env files."""
-    root_dir = Path(__file__).parent.parent.parent
+    root_dir = Path(__file__).parent.parent.parent.parent.parent
     env_local = root_dir / ".env.local"
     if env_local.exists():
         load_dotenv(env_local)
@@ -66,8 +66,8 @@ async def main() -> None:
     event_bus = injector.get(IEventBus)
 
     # 3. ハンドラーと定期タスクの登録
-    import app.worker.handlers as _  # type: ignore[reportUnusedImport] # noqa: F401
-    from app.worker.registry import registry
+    import app.presentation.worker.handlers as _  # type: ignore[reportUnusedImport] # noqa: F401
+    from app.presentation.worker.registry import registry
 
     # イベントハンドラーの登録
     for topic, handler in registry.registered_handlers:

@@ -10,9 +10,9 @@
 
 | 層 (Layer) | 役割 | 格納ディレクトリ例 | 実装内容 |
 | :--- | :--- | :--- | :--- |
-| **Domain** | **抽象化 (Interface)** | `app/domain/interfaces/` <br> または `app/domain/services/` | 「何ができるか」という契約（インターフェース）のみを定義します。外部APIの都合（URLや認証方式など）は含めません。 |
-| **Infrastructure** | **実装 (Implementation)** | `app/infrastructure/external/` <br> または `app/infrastructure/services/` | 実際の外部APIを呼び出すコード (`httpx` や `requests` を利用) を書きます。Domain層のインターフェースを実装します。 |
-| **UseCase** | **利用 (Consumer)** | `app/usecases/...` | インターフェースを通して機能を利用します。具体的なクラス名（実装）は知らずに利用します。 |
+| **Domain** | **抽象化 (Interface)** | `src/app/domain/interfaces/` <br> または `src/app/domain/services/` | 「何ができるか」という契約（インターフェース）のみを定義します。外部APIの都合（URLや認証方式など）は含めません。 |
+| **Infrastructure** | **実装 (Implementation)** | `src/app/infrastructure/external/` <br> または `src/app/infrastructure/services/` | 実際の外部APIを呼び出すコード (`httpx` や `requests` を利用) を書きます。Domain層のインターフェースを実装します。 |
+| **UseCase** | **利用 (Consumer)** | `src/app/usecases/...` | インターフェースを通して機能を利用します。具体的なクラス名（実装）は知らずに利用します。 |
 
 ---
 
@@ -24,7 +24,7 @@
 
 まず、「何が欲しいのか」を定義します。ここでは HTTPクライアントの実装などの詳細は隠蔽します。
 
-**ファイル:** `app/domain/interfaces/movie_service.py`
+**ファイル:** `src/app/domain/interfaces/movie_service.py`
 
 ```python
 from abc import ABC, abstractmethod
@@ -48,7 +48,7 @@ class IMovieService(ABC):
 次に、実際に外部APIを叩くコードを書きます。ここでAPIキーやエンドポイントのURLなどの詳細を扱います。
 `IMovieService` を継承して実装します。
 
-**ファイル:** `app/infrastructure/services/tmdb_movie_service.py`
+**ファイル:** `src/app/infrastructure/services/tmdb_movie_service.py`
 
 ```python
 import httpx
@@ -80,7 +80,7 @@ class TmdbMovieService(IMovieService):
 
 UseCaseは具体的なクラス（`TmdbMovieService`）を知らず、`IMovieService` インターフェースを通して機能を利用します。
 
-**ファイル:** `app/usecases/get_movie_usecase.py`
+**ファイル:** `src/app/usecases/get_movie_usecase.py`
 
 ```python
 from app.domain.interfaces.movie_service import IMovieService
@@ -99,7 +99,7 @@ class GetMovieUseCase:
 
 アプリケーション起動時に、「`IMovieService` が必要なら `TmdbMovieService` を渡す」という設定を行います。
 
-**ファイル:** `app/container.py`
+**ファイル:** `src/app/container.py`
 
 ```python
 from app.domain.interfaces.movie_service import IMovieService

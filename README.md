@@ -68,7 +68,7 @@
 
 ```text
 .
-├── app/                           # アプリケーション本体
+├── src/app/                           # アプリケーション本体
 │   ├── api/                       # Web API層
 │   │   ├── __main__.py            # APIエントリーポイント (start-api)
 │   │   └── routers/               # APIルーター

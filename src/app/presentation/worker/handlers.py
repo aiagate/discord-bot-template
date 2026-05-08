@@ -5,8 +5,8 @@ from typing import Any
 
 from flow_med import Mediator
 
+from app.presentation.worker.registry import event_handler, scheduled_task
 from app.usecases.users.welcome_user import WelcomeUserCommand
-from app.worker.registry import event_handler, scheduled_task
 
 logger = logging.getLogger(__name__)
 

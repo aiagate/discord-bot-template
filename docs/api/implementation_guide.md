@@ -5,17 +5,17 @@
 
 ## 1. アーキテクチャ上の位置づけ
 
-API層（`app/api`）は、クリーンアーキテクチャにおける **「プレゼンテーション層 (Interface Adapters)」** に位置します。
+API層（`src/app/presentation/api`）は、クリーンアーキテクチャにおける **「プレゼンテーション層 (Interface Adapters)」** に位置します。
 
 * **役割**: HTTPリクエストを受け取り、適切な **Use Case** を呼び出し、結果をレスポンスとして返すこと。
 * **禁止事項**: API層にビジネスロジックを書いてはいけません。複雑な処理が必要な場合は、必ず Use Case 層以上のロイヤーに実装してください。
 
 ### 依存関係
 
-* [OK] `app/api` -> `app/usecases` (許可)
-* [OK] `app/api` -> `app/mediator` (許可)
-* [NG] `app/api` -> `app/domain` (Use Caseの戻り値としてのDTO参照は許容するが、直接Entityを操作しないこと)
-* [NG] `app/api` -> `app/infrastructure` (データベース操作などは厳禁)
+* [OK] `src/app/presentation/api` -> `src/app/usecases` (許可)
+* [OK] `src/app/presentation/api` -> `src/app/mediator` (許可)
+* [NG] `src/app/presentation/api` -> `src/app/domain` (Use Caseの戻り値としてのDTO参照は許容するが、直接Entityを操作しないこと)
+* [NG] `src/app/presentation/api` -> `src/app/infrastructure` (データベース操作などは厳禁)
 
 ---
 

@@ -29,13 +29,13 @@ Domain層の実装方法を詳細に説明した総合ガイドです。
 
 ### 新しい集約を作成する
 
-1. `app/domain/aggregates/` に新しいファイルを作成
+1. `src/app/domain/aggregates/` に新しいファイルを作成
 2. `@dataclass` を使用してクラスを定義
 3. `__post_init__` でバリデーションを実装
 4. 必要に応じてビジネスロジックのメソッドを追加
 
 ```python
-# app/domain/aggregates/product.py
+# src/app/domain/aggregates/product.py
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from decimal import Decimal

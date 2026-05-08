@@ -32,7 +32,7 @@
 │   ├── script.py.mako        # マイグレーションファイルのテンプレート
 │   └── versions/             # マイグレーションファイル格納ディレクトリ
 ├── alembic.ini               # Alembic設定ファイル
-└── app/
+└── src/app/
     └── infrastructure/
         └── orm_models/       # SQLModel ORMモデル
 ```
@@ -49,7 +49,7 @@
 
 ### 1. ORMモデルの変更
 
-まず、`app/infrastructure/orm_models/` 配下のORMモデルを変更します。
+まず、`src/app/infrastructure/orm_models/` 配下のORMモデルを変更します。
 
 例: `user_orm.py`
 
@@ -270,7 +270,7 @@ def downgrade() -> None:
 
 ### 新しいテーブルを追加する
 
-1. `app/infrastructure/orm_models/` に新しいORMモデルを作成
+1. `src/app/infrastructure/orm_models/` に新しいORMモデルを作成
 2. `alembic/env.py` でモデルをインポート（自動検出のため）
 3. マイグレーションを生成:
 

@@ -5,7 +5,7 @@
 from discord.ext import commands
 from flow_med import Mediator
 
-from app.bot.cogs.base_cog import BaseCog
+from app.presentation.bot.cogs.base_cog import BaseCog
 from app.usecases.memberships.approve_join_request import ApproveJoinRequestCommand
 from app.usecases.memberships.change_role import ChangeRoleCommand
 from app.usecases.memberships.leave_team import LeaveTeamCommand

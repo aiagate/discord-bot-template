@@ -8,8 +8,8 @@ from flow_med import Mediator
 from injector import Injector
 
 from app import container
-from app.api.routers import teams, users
 from app.infrastructure.database import init_db
+from app.presentation.api.routers import teams, users
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +43,9 @@ def start() -> None:
     """Entry point for the FastAPI application."""
     import uvicorn
 
-    uvicorn.run("app.api.main:app", host="127.0.0.1", port=8000, reload=True)
+    uvicorn.run(
+        "app.presentation.api.__main__:app", host="127.0.0.1", port=8000, reload=True
+    )
 
 
 if __name__ == "__main__":
