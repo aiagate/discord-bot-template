@@ -10,7 +10,7 @@ dependencies = [
     "asyncpg>=0.31.0",
     "discord-py>=2.5.2",
     "fastapi>=0.124.4",
-    "flow-med>=0.1.0",
+    "flow-med>=0.1.1",
     "flow-res==0.1.1",
     "injector>=0.22.0",
     "python-dotenv>=1.2.1",
@@ -21,8 +21,8 @@ dependencies = [
 ]
 
 [project.scripts]
-start-bot = "app.bot.__main__:main"
-start-api = "app.api.__main__:start"
+start-bot = "app.presentation.bot.__main__:main"
+start-api = "app.presentation.api.__main__:start"
 
 [dependency-groups]
 dev = [
@@ -37,7 +37,7 @@ dev = [
 ]
 
 [tool.coverage.run]
-source = ["app"]
+source = ["src/app"]
 
 [tool.coverage.report]
 precision = 2
@@ -79,7 +79,7 @@ indent-style = "space"
 [tool.pyright]
 typeCheckingMode = "strict"
 pythonVersion = "3.13"
-include = ["app", "tests" , "alembic"]
+include = ["src/app", "tests" , "alembic"]
 exclude = [
     "**/__pycache__",
     ".venv",
@@ -98,7 +98,7 @@ python_classes = ["Test*"]
 python_functions = ["test_*"]
 addopts = [
     "-v",
-    "--cov=app",
+    "--cov=src/app",
     "--cov-report=term-missing",
     "--cov-report=html",
 ]
@@ -112,4 +112,5 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
+package-dir = {"" = "src"}
 packages = ["app"]

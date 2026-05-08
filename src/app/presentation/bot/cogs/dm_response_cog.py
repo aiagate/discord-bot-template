@@ -3,7 +3,7 @@
 import discord
 from discord.ext import commands
 
-from app.bot.cogs.base_cog import BaseCog
+from app.presentation.bot.cogs.base_cog import BaseCog
 
 
 class DirectMessageResponseCog(BaseCog, name="DM Response"):

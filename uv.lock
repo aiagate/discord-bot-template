@@ -152,7 +152,7 @@ requires-dist = [
     { name = "asyncpg", specifier = ">=0.31.0" },
     { name = "discord-py", specifier = ">=2.5.2" },
     { name = "fastapi", specifier = ">=0.124.4" },
-    { name = "flow-med", specifier = ">=0.1.0" },
+    { name = "flow-med", specifier = ">=0.1.1" },
     { name = "flow-res", specifier = "==0.1.1" },
     { name = "injector", specifier = ">=0.22.0" },
     { name = "python-dotenv", specifier = ">=1.2.1" },
@@ -394,15 +394,15 @@ wheels = [
 
 [[package]]
 name = "flow-med"
-version = "0.1.0"
+version = "0.1.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "flow-res" },
     { name = "injector" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/a1/a5/ae0223a8c6259baa582a08b9fdd4b1aff67755ccc570ece2906b3e987440/flow_med-0.1.0.tar.gz", hash = "sha256:6f747b4e1c4adb4595988fbe78bacf125a15f197eff2f823c82bb2ae2baa57ac", size = 25385, upload-time = "2026-04-13T14:50:13.266Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/19/99/4f05935873294d1ee0ecbfe036ce061b01e0a033b22336688e8f3fa1ff1d/flow_med-0.1.1.tar.gz", hash = "sha256:1cf2c5612c2beccedfc8b53123d68ae0de228c094ea1b27f93bdf21789d16883", size = 25270, upload-time = "2026-05-08T16:28:03.313Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/61/0d/83171fc8a4abda1fd497d0a8e4974da846c82998e343e8ddf19788fb2b34/flow_med-0.1.0-py3-none-any.whl", hash = "sha256:339cc829c94de0d05c41061cea114b98318a165e38f85bac027998fbd7fb1398", size = 4530, upload-time = "2026-04-13T14:50:11.888Z" },
+    { url = "https://files.pythonhosted.org/packages/06/d2/84236fee8a7a69272f7ce4594fb24afa373d8bc4208e8960549ac18e5b5e/flow_med-0.1.1-py3-none-any.whl", hash = "sha256:33220b2b16a07eebded9e8531c78cd88ae39d99d5323a6e54095797d4122f1a0", size = 4447, upload-time = "2026-05-08T16:28:02.138Z" },
 ]
 
 [[package]]

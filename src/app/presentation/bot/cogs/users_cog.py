@@ -5,7 +5,7 @@
 from discord.ext import commands
 from flow_med import Mediator
 
-from app.bot.cogs.base_cog import BaseCog
+from app.presentation.bot.cogs.base_cog import BaseCog
 from app.usecases.users.create_user import CreateUserCommand
 from app.usecases.users.get_user import GetUserQuery
 

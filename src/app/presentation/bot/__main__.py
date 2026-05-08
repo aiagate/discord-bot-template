@@ -8,10 +8,10 @@ from discord.ext import commands
 from dotenv import load_dotenv
 from injector import Injector
 
-from app.bot.cogs.dm_response_cog import DirectMessageResponseCog
-from app.bot.cogs.memberships_cog import MembershipsCog
-from app.bot.cogs.teams_cog import TeamsCog
-from app.bot.cogs.users_cog import UsersCog
+from app.presentation.bot.cogs.dm_response_cog import DirectMessageResponseCog
+from app.presentation.bot.cogs.memberships_cog import MembershipsCog
+from app.presentation.bot.cogs.teams_cog import TeamsCog
+from app.presentation.bot.cogs.users_cog import UsersCog
 
 
 class MyBot(commands.Bot):
@@ -53,8 +53,8 @@ class MyBot(commands.Bot):
 def load_environment() -> None:
     """Load environment variables from .env files."""
     # プロジェクトルートディレクトリを取得
-    # app/bot/__main__.py -> app/bot/ -> app/ -> root
-    root_dir = Path(__file__).parent.parent.parent
+    # app/presentation/bot/__main__.py -> app/presentation/bot/ -> app/presentation/ -> app/ -> src/ -> root
+    root_dir = Path(__file__).parent.parent.parent.parent.parent
 
     # .env.local が存在すれば優先的に読み込む（開発環境用）
     env_local = root_dir / ".env.local"

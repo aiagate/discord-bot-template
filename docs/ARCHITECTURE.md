@@ -13,30 +13,30 @@
 ### レイヤー構造
 
 ```
-┌─────────────────────────────────────────┐
-│  Presentation Layer                     │  外部インターフェース
-│  (Discord Bot, Cogs)                    │  - ユーザーからの入力受付
-│  - app/__main__.py                      │  - 出力のフォーマット
-│  - app/cogs/*.py                        │
-├─────────────────────────────────────────┤
-│  Application Layer                      │  ユースケース
-│  (Use Cases, Mediator)                  │  - ビジネスフロー制御
-│  - app/usecases/                        │  - DTOでの入出力
-│  - flow-med (External Library)          │  - Result型でのエラーハンドリング
-├─────────────────────────────────────────┤
-│  Domain Layer                           │  ビジネスルール
-│  (Aggregates, Entities, Value Objects)  │  - 純粋なPythonオブジェクト
-│  - app/domain/aggregates/               │  - フレームワーク非依存
-│  - app/domain/repositories/             │  - ビジネスロジックの検証
-├─────────────────────────────────────────┤
-│  Infrastructure Layer                   │  技術的詳細
-│  (Database, ORM, External Services)     │  - データベースアクセス
-│  - app/infrastructure/database.py       │  - 外部API呼び出し
-│  - app/infrastructure/orm_models/       │  - ファイルシステムアクセス
-│  - app/infrastructure/repositories/     │
-│  - app/infrastructure/unit_of_work.py   │
-│  - app/container.py (DI)                │
-└─────────────────────────────────────────┘
+┌─────────────────────────────────────────────┐
+│  Presentation Layer                         │  外部インターフェース
+│  (Discord Bot, Cogs)                        │  - ユーザーからの入力受付
+│  - src/app/__main__.py                      │  - 出力のフォーマット
+│  - src/app/presentation/bot/cogs/*.py       │
+├─────────────────────────────────────────────┤
+│  Application Layer                          │  ユースケース
+│  (Use Cases, Mediator)                      │  - ビジネスフロー制御
+│  - src/app/usecases/                        │  - DTOでの入出力
+│  - flow-med (External Library)              │  - Result型でのエラーハンドリング
+├─────────────────────────────────────────────┤
+│  Domain Layer                               │  ビジネスルール
+│  (Aggregates, Entities, Value Objects)      │  - 純粋なPythonオブジェクト
+│  - src/app/domain/aggregates/               │  - フレームワーク非依存
+│  - src/app/domain/repositories/             │  - ビジネスロジックの検証
+├─────────────────────────────────────────────┤
+│  Infrastructure Layer                       │  技術的詳細
+│  (Database, ORM, External Services)         │  - データベースアクセス
+│  - src/app/infrastructure/database.py       │  - 外部API呼び出し
+│  - src/app/infrastructure/orm_models/       │  - ファイルシステムアクセス
+│  - src/app/infrastructure/repositories/     │
+│  - src/app/infrastructure/unit_of_work.py   │
+│  - src/app/container.py (DI)                │
+└─────────────────────────────────────────────┘
 ```
 
 ### 依存関係の方向
@@ -75,7 +75,7 @@ Presentation ──▶ Application ──▶ Domain ◀── Infrastructure
 
 ##### 1.1 Aggregates（集約）
 
-`app/domain/aggregates/user.py`:
+`src/app/domain/aggregates/user.py`:
 
 ```python
 from app.domain.value_objects import Email, UserId
@@ -107,7 +107,7 @@ class User:
 
 ##### 1.2 Repository Interfaces（リポジトリインターフェース）
 
-`app/domain/repositories/interfaces.py`:
+`src/app/domain/repositories/interfaces.py`:
 
 ```python
 from abc import ABC, abstractmethod
@@ -157,7 +157,7 @@ class IRepositoryWithId[T, K](IRepository[T], ABC):
 
 ##### 1.3 Result Type（結果型）
 
-`app/core/result.py`:
+`src/app/core/result.py`:
 
 ```python
 @dataclass(frozen=True)
@@ -219,7 +219,7 @@ message = await (
 - **開放閉鎖の原則（OCP）**: 表示ロジックをGetに一元化することで、表示形式の変更時に既存のCreateコードを変更する必要がない
 - **インターフェース分離の原則（ISP）**: Createは最小限の情報（ID）のみを返し、クライアントに不要な情報を公開しない
 
-`app/usecases/users/get_user.py`:
+`src/app/usecases/users/get_user.py`:
 
 ```python
 # 1. Query（リクエスト）- IDはstringで受け取る
@@ -273,7 +273,7 @@ class GetUserHandler(RequestHandler[GetUserQuery, Result[GetUserResult, UseCaseE
 - **トランザクション**: `async with self._uow` でトランザクション管理
 - **入力バリデーション**: Handler内で文字列をValue Objectに変換し、不正な値を弾く
 
-`app/usecases/users/create_user.py` (Command例):
+`src/app/usecases/users/create_user.py` (Command例):
 
 ```python
 # 1. Command（リクエスト）
@@ -321,7 +321,7 @@ class CreateUserHandler(RequestHandler[CreateUserCommand, Result[CreateUserResul
 **Createの設計パターン**: CreateユースケースはIDのみを返します。プレゼンテーション層（Cog）では、返されたIDを使ってGetユースケースを呼び出すことで、詳細情報を取得します。このフローは `Result` 型の `and_then` メソッドを使うことで、よりクリーンに実装できます。
 
 ```python
-# app/cogs/teams_cog.py
+# src/app/presentation/bot/cogs/teams_cog.py
 @teams.command(name="create")
 async def teams_create(self, ctx: commands.Context[commands.Bot], name: str) -> None:
     """Create new team. Usage: !teams create <name>"""
@@ -384,7 +384,7 @@ result = await Mediator.send_async(query)
 
 ##### 2.3 DTOs（Data Transfer Objects）
 
-`app/usecases/users/user_dto.py`:
+`src/app/usecases/users/user_dto.py`:
 
 ```python
 @dataclass(frozen=True)
@@ -418,7 +418,7 @@ class UserDTO:
 
 ##### 3.1 ORM Models
 
-`app/infrastructure/orm_models/user_orm.py`:
+`src/app/infrastructure/orm_models/user_orm.py`:
 
 ```python
 from datetime import datetime
@@ -448,7 +448,7 @@ class UserORM(SQLModel, table=True):
 
 ##### 3.2 Generic Repository
 
-`app/infrastructure/repositories/generic_repository.py`:
+`src/app/infrastructure/repositories/generic_repository.py`:
 
 ```python
 class GenericRepository[T, K](IRepositoryWithId[T, K]):
@@ -488,7 +488,7 @@ class GenericRepository[T, K](IRepositoryWithId[T, K]):
 
 ドメイン集約とORMモデル間の変換は、`ORMMappingRegistry` によって一元管理されます。
 
-`app/infrastructure/orm_mapping.py`:
+`src/app/infrastructure/orm_mapping.py`:
 
 ```python
 # registry_orm_mapping(DomainClass, ORMClass) でマッピングを登録
@@ -508,7 +508,7 @@ class GenericRepository[T, K](IRepositoryWithId[T, K]):
 
 ##### 3.4 Unit of Work Pattern
 
-`app/infrastructure/unit_of_work.py`:
+`src/app/infrastructure/unit_of_work.py`:
 
 ```python
 class SQLAlchemyUnitOfWork(IUnitOfWork):
@@ -541,7 +541,7 @@ class SQLAlchemyUnitOfWork(IUnitOfWork):
 
 ##### 3.5 Dependency Injection Container
 
-`app/container.py`:
+`src/app/container.py`:
 
 ```python
 from injector import Binder, Module, singleton
@@ -583,7 +583,7 @@ class AppModule(Module):
 
 ##### 4.1 Discord Bot Entry Point
 
-`app/__main__.py`:
+`src/app/__main__.py`:
 
 ```python
 class MyBot(commands.Bot):
@@ -608,7 +608,7 @@ bot.run(token)
 
 ##### 4.2 Discord Cogs
 
-`app/cogs/users_cog.py`:
+`src/app/presentation/bot/cogs/users_cog.py`:
 
 ```python
 class UsersCog(commands.Cog):
@@ -778,7 +778,7 @@ ruff = ">=0.14.6"
 1. **ドメイン集約とValue Objectを作成**
 
 ```python
-# app/domain/aggregates/guild.py
+# src/app/domain/aggregates/guild.py
 @dataclass
 class Guild:
     id: GuildId
@@ -788,7 +788,7 @@ class Guild:
 1. **ORMモデルを作成**
 
 ```python
-# app/infrastructure/orm_models/guild_orm.py
+# src/app/infrastructure/orm_models/guild_orm.py
 class GuildORM(SQLModel, table=True):
     __tablename__ = "guilds"
     id: str | None = Field(default=None, primary_key=True)
@@ -798,7 +798,7 @@ class GuildORM(SQLModel, table=True):
 1. **マッピングを登録**
 
 ```python
-# app/infrastructure/orm_registry.py
+# src/app/infrastructure/orm_registry.py
 from app.domain.aggregates.guild import Guild
 from app.infrastructure.orm_models.guild_orm import GuildORM
 
@@ -809,19 +809,19 @@ def init_orm_mappings() -> None:
     register_orm_mapping(Guild, GuildORM) # ここに追加
 ```
 
-`init_orm_mappings` はアプリ起動時に `app/container.py` から自動で呼び出されるため、ここの追加だけでマッピングは完了します。
+`init_orm_mappings` はアプリ起動時に `src/app/container.py` から自動で呼び出されるため、ここの追加だけでマッピングは完了します。
 
 1. **ユースケースを作成**
 
 ```python
-# app/usecases/guilds/get_guild.py
+# src/app/usecases/guilds/get_guild.py
 # ... GetGuildQuery, GetGuildHandler などを実装
 ```
 
 1. **Cogを作成**
 
 ```python
-# app/cogs/guilds_cog.py
+# src/app/presentation/bot/cogs/guilds_cog.py
 # ... Mediator経由でユースケースを呼び出すコマンドを実装
 ```
 
