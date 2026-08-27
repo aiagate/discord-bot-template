@@ -7,8 +7,8 @@ from flow_med import Request, RequestHandler
 from flow_res import Ok, Result, combine_all, is_err
 from injector import inject
 
+from app.contracts.ports.event_bus import IEventBus
 from app.domain.aggregates.user import User
-from app.domain.interfaces.event_bus import IEventBus
 from app.domain.repositories import IUnitOfWork
 from app.domain.value_objects import DisplayName, Email
 from app.usecases.result import ErrorType, UseCaseError

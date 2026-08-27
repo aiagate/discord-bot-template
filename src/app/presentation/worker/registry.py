@@ -1,9 +1,8 @@
 """Registry for event handlers to allow decorator-based registration."""
 
-from collections.abc import Awaitable, Callable
-from typing import Any
+from collections.abc import Awaitable, Callable, Mapping
 
-EventHandler = Callable[[dict[str, Any]], Awaitable[None]]
+EventHandler = Callable[[Mapping[str, object]], Awaitable[None]]
 ScheduledTask = Callable[[], Awaitable[None]]
 
 

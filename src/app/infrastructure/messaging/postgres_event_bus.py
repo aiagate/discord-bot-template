@@ -2,11 +2,12 @@ import asyncio
 import json
 import logging
 import os
+from collections.abc import Mapping
 from typing import Any
 
 import asyncpg
 
-from app.domain.interfaces.event_bus import EventHandler, IEventBus
+from app.contracts.ports.event_bus import EventHandler, IEventBus
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +39,7 @@ class PostgresEventBus(IEventBus):
         self._handlers[topic].append(handler)
         logger.debug(f"Subscribed to topic: {topic}")
 
-    async def publish(self, topic: str, payload: dict[str, Any]) -> None:
+    async def publish(self, topic: str, payload: Mapping[str, object]) -> None:
         if not self._pool:
             msg = "EventBus not started, cannot publish events."
             logger.warning(msg)

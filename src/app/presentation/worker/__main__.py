@@ -11,7 +11,7 @@ from flow_med import Mediator
 from injector import Injector
 
 from app import container
-from app.domain.interfaces.event_bus import IEventBus
+from app.contracts.ports.event_bus import IEventBus
 from app.infrastructure.database import init_db
 
 logging.basicConfig(

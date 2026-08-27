@@ -177,3 +177,6 @@ cython_debug/
 
 # backup
 *.bak
+
+# Local agent data is not part of the bot template.
+/memory/

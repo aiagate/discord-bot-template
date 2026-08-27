@@ -3,7 +3,7 @@
 import injector
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from app.domain.interfaces.event_bus import IEventBus
+from app.contracts.ports.event_bus import IEventBus
 from app.domain.repositories import IUnitOfWork
 from app.infrastructure.messaging.in_memory_event_bus import InMemoryEventBus
 from app.infrastructure.orm_registry import init_orm_mappings

@@ -7,7 +7,7 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlmodel import SQLModel
 
-from app.domain.interfaces.event_bus import IEventBus
+from app.contracts.ports.event_bus import IEventBus
 from app.domain.repositories import IUnitOfWork
 from app.infrastructure.orm_registry import init_orm_mappings
 from app.infrastructure.unit_of_work import SQLAlchemyUnitOfWork

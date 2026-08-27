@@ -1,8 +1,8 @@
 import asyncio
 import logging
-from typing import Any
+from collections.abc import Mapping
 
-from app.domain.interfaces.event_bus import EventHandler, IEventBus
+from app.contracts.ports.event_bus import EventHandler, IEventBus
 
 logger = logging.getLogger(__name__)
 
@@ -15,11 +15,11 @@ class InMemoryEventBus(IEventBus):
 
     def __init__(self) -> None:
         self._handlers: dict[str, list[EventHandler]] = {}
-        self._queue: asyncio.Queue[tuple[str, dict[str, Any]]] = asyncio.Queue()
+        self._queue: asyncio.Queue[tuple[str, Mapping[str, object]]] = asyncio.Queue()
         self._running = False
         self._task: asyncio.Task[None] | None = None
 
-    async def publish(self, topic: str, payload: dict[str, Any]) -> None:
+    async def publish(self, topic: str, payload: Mapping[str, object]) -> None:
         """キューにメッセージを追加します。"""
         await self._queue.put((topic, payload))
         logger.debug(f"Published to {topic}: {payload}")

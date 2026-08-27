@@ -2,12 +2,13 @@ import asyncio
 import json
 import logging
 import os
+from collections.abc import Mapping
 from typing import Any
 
 import redis.asyncio as redis
 from redis.asyncio.client import PubSub
 
-from app.domain.interfaces.event_bus import EventHandler, IEventBus
+from app.contracts.ports.event_bus import EventHandler, IEventBus
 
 logger = logging.getLogger(__name__)
 
@@ -54,7 +55,7 @@ class RedisEventBus(IEventBus):
         if is_new_topic and self._running and self._pubsub:
             asyncio.create_task(self._subscribe_topic(topic))
 
-    async def publish(self, topic: str, payload: dict[str, Any]) -> None:
+    async def publish(self, topic: str, payload: Mapping[str, object]) -> None:
         if not self._redis:
             msg = f"Redis EventBus not started (redis_url={self.redis_url}), cannot publish event: {topic}"
             logger.warning(msg)
