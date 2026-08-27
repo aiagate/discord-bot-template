@@ -1,5 +1,7 @@
 """Automatic ORM mapping registry with decorator-based registration."""
 
+from __future__ import annotations
+
 import inspect
 import logging
 from dataclasses import fields, is_dataclass
@@ -8,7 +10,9 @@ from typing import Any, ClassVar, TypeVar, cast, get_args, get_origin, get_type_
 from flow_res import Result, is_err, is_ok
 from sqlmodel import SQLModel
 
+from app.domain.aggregates.chat import Chat, DiscordChat, LineChat
 from app.domain.interfaces import IValueObject
+from app.infrastructure.orm_models.chat_orm import ChatORM
 
 logger = logging.getLogger(__name__)
 
@@ -314,6 +318,13 @@ class ORMMappingRegistry:
         Raises:
             ValueError: If ORM type is not registered
         """
+        if isinstance(orm_instance, ChatORM):
+            if orm_instance.type == "DISCORD":
+                return orm_to_entity(orm_instance, DiscordChat)
+            if orm_instance.type == "LINE":
+                return orm_to_entity(orm_instance, LineChat)
+            return orm_to_entity(orm_instance, Chat)
+
         # Find domain type by ORM type
         orm_type = type(orm_instance)
         for domain_type, registered_orm_type in cls._domain_to_orm.items():

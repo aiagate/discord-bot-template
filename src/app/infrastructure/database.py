@@ -1,5 +1,6 @@
 """Database configuration and session management."""
 
+import json
 from collections.abc import AsyncGenerator
 from typing import Any
 
@@ -15,9 +16,17 @@ _engine: AsyncEngine | None = None
 _session_factory: async_sessionmaker[AsyncSession] | None = None
 
 
+def _json_serializer(obj: Any) -> str:
+    """Serialize JSON values without ASCII escaping."""
+
+    return json.dumps(obj, ensure_ascii=False)
+
+
 def init_db(database_url: str, **engine_kwargs: Any) -> None:
     """Initialize database engine and session factory."""
     global _engine, _session_factory
+    if "json_serializer" not in engine_kwargs:
+        engine_kwargs["json_serializer"] = _json_serializer
     _engine = create_async_engine(database_url, **engine_kwargs)
     _session_factory = async_sessionmaker(
         _engine,

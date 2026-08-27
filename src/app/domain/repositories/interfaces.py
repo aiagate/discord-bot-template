@@ -1,11 +1,16 @@
 """Repository interfaces for domain layer."""
 
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum, auto
 from typing import Any, overload
 
 from flow_res import Result
+
+from app.domain.queries.chat_history_query import IChatHistoryQuery
+from app.domain.queries.raw_chat_log_query import IRawChatLogQuery
 
 
 class RepositoryErrorType(Enum):
@@ -124,7 +129,7 @@ class IUnitOfWork(ABC):
         pass
 
     @abstractmethod
-    async def commit(self) -> Result[None, "RepositoryError"]:
+    async def commit(self) -> Result[None, RepositoryError]:
         """Commit the transaction."""
         pass
 
@@ -134,7 +139,17 @@ class IUnitOfWork(ABC):
         pass
 
     @abstractmethod
-    async def __aenter__(self) -> "IUnitOfWork":
+    def GetChatHistoryQuery(self) -> IChatHistoryQuery:
+        """Get the chat history query."""
+        pass
+
+    @abstractmethod
+    def GetRawChatLogQuery(self) -> IRawChatLogQuery:
+        """Get the raw chat log query."""
+        pass
+
+    @abstractmethod
+    async def __aenter__(self) -> IUnitOfWork:
         """Enter async context manager."""
         pass
 
