@@ -13,6 +13,7 @@ dependencies = [
     "flow-med>=0.1.1",
     "flow-res==0.1.1",
     "injector>=0.22.0",
+    "line-bot-sdk>=3.23.0",
     "python-dotenv>=1.2.1",
     "python-ulid>=3.1.0",
     "redis>=7.4.0",
@@ -23,6 +24,7 @@ dependencies = [
 [project.scripts]
 start-bot = "app.presentation.bot.__main__:main"
 start-api = "app.presentation.api.__main__:start"
+start-line = "app.presentation.line.__main__:start"
 
 [dependency-groups]
 dev = [
@@ -79,9 +81,11 @@ indent-style = "space"
 [tool.pyright]
 typeCheckingMode = "strict"
 pythonVersion = "3.13"
-include = ["src/app", "tests" , "alembic"]
+include = ["src/app", "tests", "alembic"]
 exclude = [
     "**/__pycache__",
+    "**/node_modules",
+    "**/.*",
     ".venv",
 ]
 reportMissingTypeStubs = false
@@ -111,6 +115,6 @@ package = true
 requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
-[tool.setuptools]
-package-dir = {"" = "src"}
-packages = ["app"]
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["app*"]

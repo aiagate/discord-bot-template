@@ -10,6 +10,22 @@
       "envFile": "${workspaceFolder}/.env.local"
     },
     {
+      "name": "Debug LINE",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "app.presentation.line.__main__",
+      "console": "integratedTerminal",
+      "envFile": "${workspaceFolder}/.env.local"
+    },
+    {
+      "name": "Debug Worker",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "app.presentation.worker.__main__",
+      "console": "integratedTerminal",
+      "envFile": "${workspaceFolder}/.env.local"
+    },
+    {
       "name": "Debug API",
       "type": "debugpy",
       "request": "launch",
@@ -20,10 +36,12 @@
   ],
   "compounds": [
     {
-      "name": "Debug Both",
+      "name": "Debug Multiple",
       "configurations": [
+        // "Debug API",
         "Debug Bot",
-        "Debug API"
+        "Debug LINE",
+        "Debug Worker",
       ]
     }
   ]

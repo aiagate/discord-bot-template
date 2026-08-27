@@ -21,7 +21,8 @@
     "**/.ruff_cache": true,
     "**/*.egg-info": true,
     "**/.venv": true,
-    "**/htmlcov": true
+    "**/htmlcov": true,
+    "**/.uv-cache": true
   },
   "python.testing.pytestArgs": [
     "tests"
