@@ -54,7 +54,7 @@
 
 ### 9. **テスト環境の整備**
 
-- `pytest`と`pytest-asyncio`を使用したテスト環境を構築。
+- `pytest`とAnyIOのpytestプラグインを使用したテスト環境を構築。
 - `pytest-cov`によるコードカバレッジ測定。
 - インメモリSQLiteを使用した高速なテスト実行。
 
@@ -142,7 +142,40 @@
 
    # データベースURL（オプション、デフォルト: sqlite+aiosqlite:///./bot.db）
    DATABASE_URL=sqlite+aiosqlite:///./bot.db
+
+   # AIキャラクター応答（任意。キー、Webhook URLリスト、Guild IDで有効）
+   GEMINI_API_KEY=your_gemini_api_key_here
+   GEMINI_MODEL=gemini-3.8-flash
+   DISCORD_CHARACTER_WEBHOOK_URLS_JSON='["https://discord.com/api/webhooks/..."]'
+   DISCORD_CHARACTER_GUILD_ID=123456789012345678
+   DISCORD_CHARACTER_MASTER_USER_ID=234567890123456789
    ```
+
+   `DISCORD_CHARACTER_WEBHOOK_URLS_JSON` にはWebhook URLのJSON配列を設定でき、
+   複数のテキスト／フォーラムチャンネルを同時に有効化できます。各URLは指定した
+   Guild内の異なるチャンネルを指す必要があり、同じチャンネルを複数指定するとAI
+   応答全体が無効になります。テキストチャンネルではその
+   チャンネル、フォーラムチャンネルでは各投稿（Thread）を会話単位として、
+   人間の投稿を受信順に処理します。Geminiがキャラクター1人を選んで返信します。
+   メンションは不要です。他Bot・外部Webhookの本文とEmbedも会話履歴へ保存し、
+   アンケート結果などの参考情報として使います。
+
+   `DISCORD_CHARACTER_MASTER_USER_ID` は任意の固定マスターIDです。キャラクター選定・
+   通常返信・Timesのコンテキストに `master.user_id` と `master.mention`（`<@ID>`）を渡します。
+   本文にこの表記を含めた場合だけ、そのユーザーへのメンションを許可します。
+   他ユーザー・ロール・全体へのメンションは無効です。未設定なら `master` は `null` で、
+   メンションは無効のままです。不正なIDを設定するとAI応答を無効にします。
+
+   キー・Webhook URLリスト・Guild IDの不足、キャラクター設定の不備、いずれかの
+   送信先の検証失敗があればAIだけを無効にします。Bot・API・LINEの通常機能はAI設定を読み込まずに
+   利用できます。開発用依存にはSDKを含みます。本番でAIを使う場合は
+   `uv run --frozen --no-dev --extra ai start-bot`、使わない場合は
+   `uv run --frozen --no-dev start-bot` で起動できます。
+
+   キャラクターはリポジトリルートの `characters.override.json` で上書きできます。
+   `CHARACTER_DEFINITIONS_PATH` で別ファイルを指定する場合、相対パスの基準も
+   リポジトリルートです。[会話仕様・負荷上限・配信復旧](docs/adr/0002-optional-character-responses.md)
+   に運用条件と設定例を記載しています。
 
 5. データベースマイグレーションを実行:
 

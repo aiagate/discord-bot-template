@@ -30,6 +30,9 @@ def chat_message_to_orm(message: ChatMessage) -> ChatMessageORM:
         author_kind=message.author_kind.to_primitive(),
         content=message.content.to_primitive(),
         occurred_at=message.occurred_at,
+        external_message_id=message.external_message_id,
+        author_name=message.author_name,
+        reply_to_external_message_id=message.reply_to_external_message_id,
     )
 
 
@@ -120,4 +123,7 @@ def chat_message_from_orm(row: SQLModel) -> ChatMessage:
         author_kind=author_result.value,
         content=content_result.value,
         occurred_at=_occurred_at_from_orm(row.occurred_at),
+        external_message_id=row.external_message_id,
+        author_name=row.author_name,
+        reply_to_external_message_id=row.reply_to_external_message_id,
     )

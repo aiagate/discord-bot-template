@@ -16,7 +16,7 @@ dependencies = [
     "line-bot-sdk>=3.23.0",
     "python-dotenv>=1.2.1",
     "python-ulid>=3.1.0",
-    "redis>=7.4.0",
+    "pyyaml>=6.0.3",
     "sqlmodel>=0.0.24",
     "uvicorn>=0.38.0",
 ]
@@ -26,15 +26,23 @@ start-bot = "app.presentation.bot.__main__:main"
 start-api = "app.presentation.api.__main__:start"
 start-line = "app.presentation.line.__main__:start"
 
+[project.optional-dependencies]
+ai = [
+    "google-genai>=2.23.0",
+    "httpx2>=2.12.0",
+    "mcp>=2.2.0",
+]
+
 [dependency-groups]
 dev = [
     "anyio>=4.11.0",
+    "google-genai>=2.23.0",
+    "httpx2>=2.12.0",
+    "mcp>=2.2.0",
     "pre-commit>=4.5.0",
     "pyright>=1.1.407",
     "pytest>=8.3.5",
-    "pytest-asyncio>=1.3.0",
     "pytest-cov>=7.0.0",
-    "pytest-mock>=3.14.0",
     "ruff>=0.14.6",
 ]
 
@@ -106,7 +114,6 @@ addopts = [
     "--cov-report=term-missing",
     "--cov-report=html",
 ]
-asyncio_default_fixture_loop_scope = "function"
 
 [tool.uv]
 package = true

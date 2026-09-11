@@ -1,6 +1,5 @@
 """Tests for Create User use case."""
 
-import asyncio
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -16,9 +15,9 @@ from app.usecases.users.create_user import (
 
 
 @pytest.mark.anyio
-async def test_create_user_handler(uow: IUnitOfWork, event_bus: AsyncMock) -> None:
+async def test_create_user_handler(uow: IUnitOfWork) -> None:
     """Test CreateUserHandler with real database."""
-    handler = CreateUserHandler(uow, event_bus)
+    handler = CreateUserHandler(uow)
 
     command = CreateUserCommand(display_name="Alice", email="alice@example.com")
     result = await handler.handle(command)
@@ -30,11 +29,9 @@ async def test_create_user_handler(uow: IUnitOfWork, event_bus: AsyncMock) -> No
 
 
 @pytest.mark.anyio
-async def test_create_user_handler_invalid_email(
-    uow: IUnitOfWork, event_bus: AsyncMock
-) -> None:
+async def test_create_user_handler_invalid_email(uow: IUnitOfWork) -> None:
     """Test CreateUserHandler returns Err on invalid email format."""
-    handler = CreateUserHandler(uow, event_bus)
+    handler = CreateUserHandler(uow)
 
     # Command with an invalid email format
     command = CreateUserCommand(display_name="Test User", email="invalid-email")
@@ -46,7 +43,7 @@ async def test_create_user_handler_invalid_email(
 
 
 @pytest.mark.anyio
-async def test_create_user_handler_repository_error(event_bus: AsyncMock) -> None:
+async def test_create_user_handler_repository_error() -> None:
     """Test CreateUserHandler returns Err when repository fails."""
     # Create a mock UnitOfWork that simulates repository error
     mock_uow = MagicMock(spec=IUnitOfWork)
@@ -66,44 +63,10 @@ async def test_create_user_handler_repository_error(event_bus: AsyncMock) -> Non
     mock_uow.__aenter__ = AsyncMock(return_value=mock_uow)
     mock_uow.__aexit__ = AsyncMock(return_value=None)
 
-    handler = CreateUserHandler(mock_uow, event_bus)
+    handler = CreateUserHandler(mock_uow)
     command = CreateUserCommand(display_name="Test User", email="test@example.com")
     result = await handler.handle(command)
 
     assert is_err(result)
     assert result.error.type == RepositoryErrorType.UNEXPECTED
     assert "Database connection failed" in result.error.message
-
-
-@pytest.mark.anyio
-async def test_create_user_succeeds_when_event_publication_fails(
-    uow: IUnitOfWork,
-    event_bus: AsyncMock,
-    caplog: pytest.LogCaptureFixture,
-) -> None:
-    """A committed user is successful even when notification is unavailable."""
-    event_bus.publish.side_effect = RuntimeError("event bus unavailable")
-    handler = CreateUserHandler(uow, event_bus)
-
-    result = await handler.handle(
-        CreateUserCommand(display_name="Alice", email="failure@example.com")
-    )
-
-    assert is_ok(result)
-    assert "Failed to publish user.created" in caplog.text
-    event_bus.publish.assert_awaited_once()
-
-
-@pytest.mark.anyio
-async def test_create_user_does_not_swallow_cancellation(
-    uow: IUnitOfWork,
-    event_bus: AsyncMock,
-) -> None:
-    """Cancellation during publication propagates to the caller."""
-    event_bus.publish.side_effect = asyncio.CancelledError()
-    handler = CreateUserHandler(uow, event_bus)
-
-    with pytest.raises(asyncio.CancelledError):
-        await handler.handle(
-            CreateUserCommand(display_name="Alice", email="cancel@example.com")
-        )

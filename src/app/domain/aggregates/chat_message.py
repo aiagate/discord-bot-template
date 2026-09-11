@@ -71,6 +71,9 @@ class ChatMessage:
     _author_kind: AuthorKind
     _content: MessageContent
     _occurred_at: datetime
+    _external_message_id: str | None = None
+    _author_name: str | None = None
+    _reply_to_external_message_id: str | None = None
 
     def __post_init__(self) -> None:
         """Validate the complete message consistency boundary."""
@@ -84,6 +87,14 @@ class ChatMessage:
             "_occurred_at",
             _normalize_occurred_at(self._occurred_at),
         )
+        metadata: tuple[object, ...] = (
+            self._external_message_id,
+            self._author_name,
+            self._reply_to_external_message_id,
+        )
+        for value in metadata:
+            if value is not None and not value.strip():
+                raise ValueError("External message metadata must be non-empty strings.")
 
     @classmethod
     def create(
@@ -96,6 +107,9 @@ class ChatMessage:
         content: MessageContent,
         occurred_at: datetime,
         message_id: MessageId | None = None,
+        external_message_id: str | None = None,
+        author_name: str | None = None,
+        reply_to_external_message_id: str | None = None,
     ) -> ChatMessage:
         """Create a new immutable chat message."""
         return cls(
@@ -107,6 +121,9 @@ class ChatMessage:
             _author_kind=_as_author_kind(author_kind),
             _content=content,
             _occurred_at=occurred_at,
+            _external_message_id=external_message_id,
+            _author_name=author_name,
+            _reply_to_external_message_id=reply_to_external_message_id,
         )
 
     @classmethod
@@ -120,6 +137,9 @@ class ChatMessage:
         author_kind: AuthorKind | str = AuthorKind.USER,
         occurred_at: datetime,
         message_id: MessageId | None = None,
+        external_message_id: str | None = None,
+        author_name: str | None = None,
+        reply_to_external_message_id: str | None = None,
     ) -> ChatMessage:
         """Create a message scoped to a Discord guild and channel."""
         return cls.create(
@@ -133,6 +153,9 @@ class ChatMessage:
             content=content,
             occurred_at=occurred_at,
             message_id=message_id,
+            external_message_id=external_message_id,
+            author_name=author_name,
+            reply_to_external_message_id=reply_to_external_message_id,
         )
 
     @classmethod
@@ -231,6 +254,9 @@ class ChatMessage:
         author_kind: AuthorKind,
         content: MessageContent,
         occurred_at: datetime,
+        external_message_id: str | None = None,
+        author_name: str | None = None,
+        reply_to_external_message_id: str | None = None,
     ) -> ChatMessage:
         """Restore a message from persistence without adding update state."""
         return cls(
@@ -241,7 +267,25 @@ class ChatMessage:
             _author_kind=author_kind,
             _content=content,
             _occurred_at=occurred_at,
+            _external_message_id=external_message_id,
+            _author_name=author_name,
+            _reply_to_external_message_id=reply_to_external_message_id,
         )
+
+    @property
+    def external_message_id(self) -> str | None:
+        """Return the provider's message ID, separate from the internal ULID."""
+        return self._external_message_id
+
+    @property
+    def author_name(self) -> str | None:
+        """Return the display name observed when the message was received."""
+        return self._author_name
+
+    @property
+    def reply_to_external_message_id(self) -> str | None:
+        """Return the provider ID of the message being answered, if known."""
+        return self._reply_to_external_message_id
 
     @property
     def id(self) -> MessageId:
