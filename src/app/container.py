@@ -1,5 +1,8 @@
 """Dependency injection container configuration."""
 
+import os
+from pathlib import Path
+
 import injector
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
@@ -7,7 +10,16 @@ from app.application.mediator import (
     ApplicationMediator,
     create_application_mediator,
 )
-from app.contracts.ports import IChatHistoryQuery, IEventBus, IUnitOfWork
+from app.contracts.ports import (
+    ICharacterMemoryStore,
+    IChatHistoryQuery,
+    IEventBus,
+    IUnitOfWork,
+)
+from app.infrastructure.memory import MarkdownCharacterMemoryStore
+from app.infrastructure.memory.character_memory_store import (
+    DEFAULT_CHARACTER_MEMORY_ROOT,
+)
 from app.infrastructure.messaging.in_memory_event_bus import InMemoryEventBus
 from app.infrastructure.orm_registry import init_orm_mappings
 from app.infrastructure.queries.chat_history_query import SQLAlchemyChatHistoryQuery
@@ -41,6 +53,16 @@ class DatabaseModule(injector.Module):
     ) -> IChatHistoryQuery:
         """Provide an isolated read query with factory-owned sessions."""
         return SQLAlchemyChatHistoryQuery(session_factory)
+
+    @injector.provider
+    @injector.singleton
+    def provide_character_memory_store(self) -> ICharacterMemoryStore:
+        """Provide Markdown storage for selected character memories."""
+        configured_root = os.getenv("CHARACTER_MEMORY_ROOT", "").strip()
+        root = (
+            Path(configured_root) if configured_root else DEFAULT_CHARACTER_MEMORY_ROOT
+        )
+        return MarkdownCharacterMemoryStore(root)
 
 
 class MessagingModule(injector.Module):

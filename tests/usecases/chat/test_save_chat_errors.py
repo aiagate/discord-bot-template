@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from flow_res import Err, Ok, is_err
 
-from app.contracts.ports import IUnitOfWork
+from app.contracts.ports import IChatHistoryQuery, IUnitOfWork
 from app.domain.aggregates.chat_message import ChatMessage
 from app.domain.repositories import RepositoryError, RepositoryErrorType
 from app.domain.value_objects import LineConversationScope, MessageContent
@@ -40,7 +40,9 @@ async def test_discord_save_propagates_repository_error() -> None:
             )
         )
     )
-    handler = SaveDiscordChatHandler(_mock_uow(repository))
+    handler = SaveDiscordChatHandler(
+        _mock_uow(repository), AsyncMock(spec=IChatHistoryQuery)
+    )
 
     result = await handler.handle(
         SaveDiscordChatCommand(
@@ -96,7 +98,7 @@ async def test_discord_save_rejects_empty_scope_identifiers(
     uow: IUnitOfWork,
 ) -> None:
     """Invalid conversation locators are reported before persistence."""
-    handler = SaveDiscordChatHandler(uow)
+    handler = SaveDiscordChatHandler(uow, AsyncMock(spec=IChatHistoryQuery))
 
     result = await handler.handle(
         SaveDiscordChatCommand(
@@ -117,7 +119,7 @@ async def test_discord_save_rejects_naive_occurred_at(
     uow: IUnitOfWork,
 ) -> None:
     """A naive external timestamp becomes a validation error."""
-    handler = SaveDiscordChatHandler(uow)
+    handler = SaveDiscordChatHandler(uow, AsyncMock(spec=IChatHistoryQuery))
 
     result = await handler.handle(
         SaveDiscordChatCommand(

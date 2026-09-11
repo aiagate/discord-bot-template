@@ -6,6 +6,10 @@ from flow_med import HandlerRegistry, Mediator, Request, RequestHandler
 from flow_res import AwaitableResult, Result
 from injector import Injector
 
+from app.usecases.chat.generate_character_response import (
+    GenerateCharacterResponseHandler,
+)
+from app.usecases.chat.generate_times_episode import GenerateTimesEpisodeHandler
 from app.usecases.chat.save_discord_chat import SaveDiscordChatHandler
 from app.usecases.chat.save_line_chat import SaveLineChatHandler
 from app.usecases.error_mapping import classify_error
@@ -25,6 +29,8 @@ from app.usecases.users.get_user import GetUserHandler
 from app.usecases.users.welcome_user import WelcomeUserHandler
 
 _HANDLER_TYPES: tuple[type[RequestHandler[Any, Any]], ...] = (
+    GenerateCharacterResponseHandler,
+    GenerateTimesEpisodeHandler,
     SaveDiscordChatHandler,
     SaveLineChatHandler,
     ApproveJoinRequestHandler,

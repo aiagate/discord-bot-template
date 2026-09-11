@@ -2,7 +2,55 @@
 
 本ドキュメントは、このコードベースで作業する際の重要な情報をまとめたものです。これらの指針を厳密に遵守してください。
 
+## 指示のローカル上書き
+
+この `AGENTS.md` はリポジトリで共有する既定ルールです。リポジトリルートに
+`AGENTS.override.md` が存在する場合は、このファイルを読み終えた後に読み込み、
+同じ項目が衝突するときは `AGENTS.override.md` の指示を優先してください。
+
+- 上書きファイルに書かれていない既定ルールは、そのまま有効です。
+- システム・開発者・ユーザーの明示的な指示と安全制約は上書きできません。
+- `AGENTS.override.md` は個人や作業環境固有の設定としてGit管理外に置き、
+  チームで共有するルールはこのファイルへ反映してください。
+
 ## 開発の基本ルール
+
+### 0\. Discord Botの起動・再起動
+
+Discord Botは、再起動時にも同じセッションを操作できるよう、固定の
+`screen`セッション名 `discord-bot` で起動する。以下のコマンドは
+リポジトリルートで実行すること。
+
+- 起動:
+
+  ```bash
+  screen -dmS discord-bot uv run start-bot
+  ```
+
+- 再起動:
+
+  ```bash
+  screen -S discord-bot -X quit 2>/dev/null || true
+  screen -dmS discord-bot uv run start-bot
+  ```
+
+- 状態確認:
+
+  ```bash
+  screen -ls
+  ```
+
+- セッションへ接続:
+
+  ```bash
+  screen -r discord-bot
+  ```
+
+- 停止:
+
+  ```bash
+  screen -S discord-bot -X quit
+  ```
 
 ### 1\. パッケージ管理
 
