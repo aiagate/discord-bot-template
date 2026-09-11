@@ -12,6 +12,7 @@ class AuthorKind(StrEnum):
 
     USER = "user"
     BOT = "bot"
+    WEBHOOK = "webhook"
     SYSTEM = "system"
 
     @classmethod

@@ -27,9 +27,9 @@ class RepositoryError(Exception):
 
 
 class IRepository[T](ABC):
-    """Repository interface for add and delete operations.
+    """Repository interface for add and update operations.
 
-    Use this when you need to add or delete entities without ID-based retrieval.
+    Use this when you need to add or update entities without ID-based retrieval.
     Does not require knowledge of ID type.
 
     Type Parameters:
@@ -46,15 +46,10 @@ class IRepository[T](ABC):
 
     @abstractmethod
     async def update(self, entity: T) -> Result[T, RepositoryError]:
-        """Update existing entity.
+        """Update an existing versioned entity with optimistic locking.
 
-        Returns NOT_FOUND error if entity doesn't exist in the database.
+        Returns NOT_FOUND for missing rows and VERSION_CONFLICT for stale versions.
         """
-        pass
-
-    @abstractmethod
-    async def delete(self, entity: T) -> Result[None, RepositoryError]:
-        """Delete entity."""
         pass
 
 

@@ -58,7 +58,7 @@ async def create_team(
     return CreateTeamResponse(id=result.unwrap().id)
 ```
 
-API、Bot、Workerはすべて `ApplicationMediator` を呼び出します。内部のMediatorを
+API、Bot、LINE Webhookはすべて `ApplicationMediator` を呼び出します。内部のMediatorを
 直接生成したり、Handlerを個別に解決したりしません。実装の詳細は
 [`src/app/presentation/api/routers/teams.py`](../../src/app/presentation/api/routers/teams.py)
 と [`src/app/presentation/api/dependencies.py`](../../src/app/presentation/api/dependencies.py)

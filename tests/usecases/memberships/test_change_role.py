@@ -1,7 +1,5 @@
 """Tests for ChangeRole use case failure scenarios."""
 
-from unittest.mock import AsyncMock
-
 import pytest
 from flow_res import is_err
 from ulid import ULID
@@ -62,7 +60,7 @@ async def test_change_role_not_found(uow: IUnitOfWork) -> None:
 
 @pytest.mark.anyio
 async def test_change_role_after_leaving_returns_validation_error(
-    uow: IUnitOfWork, event_bus: AsyncMock
+    uow: IUnitOfWork,
 ) -> None:
     """Test that a LEAVED membership cannot change role through the handler."""
     team_result = await CreateTeamHandler(uow).handle(
@@ -70,7 +68,7 @@ async def test_change_role_after_leaving_returns_validation_error(
     )
     team_id = team_result.unwrap().id
 
-    user_result = await CreateUserHandler(uow, event_bus).handle(
+    user_result = await CreateUserHandler(uow).handle(
         CreateUserCommand(display_name="Role User", email="role@example.com")
     )
     user_id = user_result.unwrap().id

@@ -5,9 +5,10 @@ from flow_res import is_ok
 from injector import Injector
 
 from app import container
-from app.contracts.ports import IChatHistoryQuery, IUnitOfWork
+from app.contracts.ports import ICharacterMemoryStore, IChatHistoryQuery, IUnitOfWork
 from app.domain.aggregates.chat_message import ChatMessage
 from app.domain.value_objects import DiscordConversationScope
+from app.infrastructure.memory import MarkdownCharacterMemoryStore
 from app.infrastructure.queries.chat_history_query import SQLAlchemyChatHistoryQuery
 from app.infrastructure.repositories.generic_repository import GenericRepository
 from app.infrastructure.unit_of_work import SQLAlchemyUnitOfWork
@@ -30,5 +31,6 @@ async def test_di_container_bindings(test_db_engine: None) -> None:
 
     assert isinstance(uow_instance, SQLAlchemyUnitOfWork)
     assert isinstance(query_instance, SQLAlchemyChatHistoryQuery)
+    assert isinstance(injector.get(ICharacterMemoryStore), MarkdownCharacterMemoryStore)
     async with uow_instance:
         assert isinstance(uow_instance.GetRepository(ChatMessage), GenericRepository)

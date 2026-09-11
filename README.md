@@ -54,7 +54,7 @@
 
 ### 9. **テスト環境の整備**
 
-- `pytest`と`pytest-asyncio`を使用したテスト環境を構築。
+- `pytest`とAnyIOのpytestプラグインを使用したテスト環境を構築。
 - `pytest-cov`によるコードカバレッジ測定。
 - インメモリSQLiteを使用した高速なテスト実行。
 
@@ -100,6 +100,9 @@
 
 ## 必要な環境
 
+DiscordからLiliaに調査、Noaにコーディングを依頼する場合は、
+[キャラクター作業の設定と使い方](docs/character-work.md)を参照してください。
+
 - Python 3.13 以上
 - パッケージ管理 [uv](https://github.com/astral-sh/uv)
 - 必要な依存関係は`pyproject.toml`に記載されています。
@@ -142,7 +145,51 @@
 
    # データベースURL（オプション、デフォルト: sqlite+aiosqlite:///./bot.db）
    DATABASE_URL=sqlite+aiosqlite:///./bot.db
+
+   # AIキャラクター応答（任意。キー、Webhook URLリスト、Guild IDで有効）
+   GEMINI_API_KEY=your_gemini_api_key_here
+   GEMINI_MODEL=gemini-3.8-flash
+   DISCORD_CHARACTER_WEBHOOK_URLS_JSON='["https://discord.com/api/webhooks/..."]'
+   DISCORD_CHARACTER_GUILD_ID=123456789012345678
+   DISCORD_CHARACTER_MASTER_USER_ID=234567890123456789
    ```
+
+   `DISCORD_CHARACTER_WEBHOOK_URLS_JSON` にはWebhook URLのJSON配列を設定でき、
+   複数のテキスト／フォーラムチャンネルを同時に有効化できます。各URLは指定した
+   Guild内の異なるチャンネルを指す必要があり、同じチャンネルを複数指定するとAI
+   応答全体が無効になります。テキストチャンネルではその
+   チャンネル、フォーラムチャンネルでは各投稿（Thread）を会話単位として、
+   人間または外部Webhookの投稿を受信順に処理します。Geminiがキャラクター1人を選んで返信します。
+   メンションは不要です。他Botの投稿は会話履歴へ保存し、外部Webhookの投稿は
+   `author_kind: webhook` として送信元ID・表示名を付けたうえで返信生成に渡します。
+   対象外チャンネルの外部Webhookは、最初に設定されたテキストチャンネルをメインの返信先として
+   フォールバックします。対象外チャンネルの人間・他Botの投稿は保存だけ行います。
+   当システムが使用するWebhookの投稿はループ防止のため除外します。
+
+   `DISCORD_CHARACTER_MASTER_USER_ID` は任意の固定マスターIDです。キャラクター選定・
+   通常返信・Timesのコンテキストに `master.user_id` と `master.mention`（`<@ID>`）を渡します。
+   本文にこの表記を含めた場合だけ、そのユーザーへのメンションを許可します。
+   他ユーザー・ロール・全体へのメンションは無効です。未設定なら `master` は `null` で、
+   メンションは無効のままです。不正なIDを設定するとAI応答を無効にします。
+
+   マスターの好みや継続中の目標など、個人設定（ChatGPTのパーソナライズ相当）は、
+   リポジトリルートの `master_context.md` にMarkdownで記述できます。任意設定のため、
+   ファイルが存在しない場合は読み込まれません。利用時は `master_context.example.md` を
+   コピーして作成してください。内容はBot起動時に読み込まれ、キャラクター選定・通常返信・
+   Timesのコンテキスト（`master.context`）として渡されます（最大8,000文字）。
+   変更の反映にはBotの再起動が必要です。このファイルはGit管理対象外ですが、
+   内容はGeminiへ送信されるため、個人情報や認証情報などの機密情報は記述しないでください。
+
+   キー・Webhook URLリスト・Guild IDの不足、キャラクター設定の不備、いずれかの
+   送信先の検証失敗があればAIだけを無効にします。Bot・API・LINEの通常機能はAI設定を読み込まずに
+   利用できます。開発用依存にはSDKを含みます。本番でAIを使う場合は
+   `uv run --frozen --no-dev --extra ai start-bot`、使わない場合は
+   `uv run --frozen --no-dev start-bot` で起動できます。
+
+   キャラクターはリポジトリルートの `characters.override.json` で上書きできます。
+   `CHARACTER_DEFINITIONS_PATH` で別ファイルを指定する場合、相対パスの基準も
+   リポジトリルートです。[会話仕様・負荷上限・配信復旧](docs/adr/0002-optional-character-responses.md)
+   に運用条件と設定例を記載しています。
 
 5. データベースマイグレーションを実行:
 
