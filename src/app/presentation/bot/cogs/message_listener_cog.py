@@ -353,9 +353,18 @@ class DiscordMessageListenerCog(BaseCog, name="Discord Message Listener"):
                     "作業の受付を確認できませんでした。状態を確認してください。",
                 )
                 return
-        if delivery_channel_id is None or is_bot or not content.strip():
-            return
-        if not is_webhook:
+
+        times_candidate = (
+            self._times_destination is not None
+            and author_kind is AuthorKind.USER
+            and scope.guild_id == self._times_destination.scope.guild_id
+            and bool(content.strip())
+        )
+        if (
+            not is_webhook
+            and not is_bot
+            and (delivery_channel_id is not None or times_candidate)
+        ):
             context = await self.bot.get_context(message)
             if context.prefix is not None:
                 return
@@ -363,29 +372,11 @@ class DiscordMessageListenerCog(BaseCog, name="Discord Message Listener"):
             content = re.sub(rf"<@!?{self.bot.user.id}>", "", content).strip()
         if not content:
             return
-        item = _QueuedResponse(
-            command=GenerateCharacterResponseCommand(
-                content=content,
-                guild_id=scope.guild_id,
-                channel_id=scope.channel_id,
-                source_message_id=saved.value.id,
-                delivery_channel_id=delivery_channel_id,
-            ),
-            message=message,
-            expires_at=asyncio.get_running_loop().time() + MAX_QUEUE_WAIT_SECONDS,
-        )
-        try:
-            self._queue.put_nowait(item)
-            self._overloaded = False
-        except asyncio.QueueFull:
-            if not self._overloaded:
-                self._overloaded = True
-                await self._notify(
-                    message,
-                    "応答待ちが上限に達しています。この投稿は保存し、後の会話で参照します。",
-                )
-
-        if self._times_destination is not None and author_kind is AuthorKind.USER:
+        if (
+            self._times_destination is not None
+            and author_kind is AuthorKind.USER
+            and scope.guild_id == self._times_destination.scope.guild_id
+        ):
             times_command = GenerateTimesEpisodeCommand(
                 source_message_id=str(message.id),
                 guild_id=scope.guild_id,
@@ -417,3 +408,27 @@ class DiscordMessageListenerCog(BaseCog, name="Discord Message Listener"):
             # Durable plans make backpressure safe: keep accepting the episode
             # once a worker slot is available instead of leaving it for a restart.
             await self._times_queue.put(times_command)
+
+        if delivery_channel_id is None or is_bot:
+            return
+        item = _QueuedResponse(
+            command=GenerateCharacterResponseCommand(
+                content=content,
+                guild_id=scope.guild_id,
+                channel_id=scope.channel_id,
+                source_message_id=saved.value.id,
+                delivery_channel_id=delivery_channel_id,
+            ),
+            message=message,
+            expires_at=asyncio.get_running_loop().time() + MAX_QUEUE_WAIT_SECONDS,
+        )
+        try:
+            self._queue.put_nowait(item)
+            self._overloaded = False
+        except asyncio.QueueFull:
+            if not self._overloaded:
+                self._overloaded = True
+                await self._notify(
+                    message,
+                    "応答待ちが上限に達しています。この投稿は保存し、後の会話で参照します。",
+                )

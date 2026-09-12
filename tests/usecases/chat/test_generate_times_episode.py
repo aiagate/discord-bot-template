@@ -48,6 +48,9 @@ def test_times_instruction_preserves_maid_identity_and_board_rules() -> None:
     assert "マスターを「マスター」または「ご主人」と呼ぶ" in instruction
     assert "親密度は高く、忖度せず、必要なら辛辣に指摘する" in instruction
     assert "メイド同士の会話・ツッコミ・意見交換を多めに" in instruction
+    assert "原則として3〜8件の短い投稿" in instruction
+    assert "話題の提示、別の視点からの反応、ツッコミや補足、余韻" in instruction
+    assert "postsを空配列 [] にするのは" in instruction
     assert "単一話者・他のメイドの台詞を代作しない制約は適用しません" in instruction
     assert (
         "事実部分は source_history と current に実際に出た内容だけに限定" in instruction

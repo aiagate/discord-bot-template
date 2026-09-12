@@ -140,6 +140,51 @@ async def test_user_message_in_character_destination_triggers_both_character_and
 
 
 @pytest.mark.anyio
+async def test_user_message_outside_character_destination_triggers_times_only(
+    listener_setup: tuple[
+        DiscordMessageListenerCog,
+        AsyncMock,
+        AsyncMock,
+        MagicMock,
+    ],
+) -> None:
+    cog, send_async, times_store_save, _ = listener_setup
+    msg = _message(150, channel_id=456, content="I found a new project idea")
+
+    await cog.on_message(msg)
+
+    assert cog._queue.qsize() == 0
+    assert cog._times_queue.qsize() == 1
+    assert isinstance(send_async.call_args.args[0], SaveDiscordChatCommand)
+    times_store_save.assert_awaited_once()
+    times_command = cog._times_queue.get_nowait()
+    assert times_command == GenerateTimesEpisodeCommand(
+        source_message_id="150",
+        guild_id="456",
+        channel_id="456",
+        delivery_channel_id="789",
+    )
+
+
+@pytest.mark.anyio
+async def test_user_message_from_another_guild_does_not_trigger_times(
+    listener_setup: tuple[
+        DiscordMessageListenerCog,
+        AsyncMock,
+        AsyncMock,
+        MagicMock,
+    ],
+) -> None:
+    cog, _, times_store_save, _ = listener_setup
+    msg = _message(160, channel_id=456, guild_id=999, content="Other guild")
+
+    await cog.on_message(msg)
+
+    times_store_save.assert_not_awaited()
+    assert cog._times_queue.qsize() == 0
+
+
+@pytest.mark.anyio
 async def test_times_webhook_message_is_ignored_preventing_loops(
     listener_setup: tuple[
         DiscordMessageListenerCog,
