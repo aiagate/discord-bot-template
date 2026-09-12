@@ -19,6 +19,7 @@ from openai_codex.generated.v2_all import (
     ItemCompletedNotification,
     ItemStartedNotification,
     MessagePhase,
+    ReasoningEffort,
     ThreadItem,
     Turn,
     TurnCompletedNotification,
@@ -123,6 +124,37 @@ async def test_session_precedes_execution_and_only_final_answer_is_result(
     turn.interrupt.assert_not_awaited()
     client.close.assert_awaited_once()
     assert not await executor.steer("100", "終了後")
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("resume", [False, True])
+async def test_turn_receives_configured_reasoning_effort(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, resume: bool
+) -> None:
+    client, thread, _ = _client(
+        monkeypatch,
+        [_message("最終結果", MessagePhase.final_answer), _completed()],
+    )
+    executor = CodexCharacterWorkExecutor(
+        tmp_path,
+        None,
+        model="gpt-5.6-luna",
+        reasoning_effort="max",
+    )
+    task = _task()
+    if resume:
+        directory = await executor.prepare_workspace(task)
+        task = replace(task, thread_id="thread-1", cwd=str(directory))
+
+    _ = [event async for event in executor.run(task, "調査")]
+
+    start = client.thread_resume if resume else client.thread_start
+    assert start.await_args is not None
+    assert start.await_args.kwargs["model"] == "gpt-5.6-luna"
+    thread.turn.assert_awaited_once_with(
+        task.prompt,
+        effort=ReasoningEffort.max,
+    )
 
 
 @pytest.mark.anyio

@@ -25,7 +25,21 @@ def test_loads_research_only_defaults(tmp_path: Path) -> None:
     assert settings is not None
     assert settings.channel_ids == frozenset({"123", "124"})
     assert settings.repository is None
+    assert settings.model is None
+    assert settings.reasoning_effort is None
     assert settings.timeout_seconds == 1200
+
+
+def test_loads_model_and_reasoning_effort(tmp_path: Path) -> None:
+    environment = _environment(tmp_path)
+    environment["CODEX_WORK_MODEL"] = "gpt-5.6-luna"
+    environment["CODEX_WORK_REASONING_EFFORT"] = "MAX"
+
+    settings = CharacterWorkSettings.from_env(environment, tmp_path / "bot")
+
+    assert settings is not None
+    assert settings.model == "gpt-5.6-luna"
+    assert settings.reasoning_effort == "max"
 
 
 def test_channel_ids_are_optional(tmp_path: Path) -> None:
@@ -68,6 +82,7 @@ def test_prefers_work_guild_override(tmp_path: Path) -> None:
         ("CODEX_WORK_USER_IDS", "everyone"),
         ("CODEX_WORK_TIMEOUT_SECONDS", "0"),
         ("CODEX_WORK_TIMEOUT_SECONDS", "7201"),
+        ("CODEX_WORK_REASONING_EFFORT", "unsupported"),
         ("CODEX_WORK_REPOSITORY", "missing"),
     ],
 )

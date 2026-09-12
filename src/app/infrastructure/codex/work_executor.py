@@ -18,6 +18,7 @@ from openai_codex.generated.v2_all import (
     ItemCompletedNotification,
     ItemStartedNotification,
     MessagePhase,
+    ReasoningEffort,
     TurnCompletedNotification,
     TurnStatus,
 )
@@ -70,11 +71,18 @@ class CodexCharacterWorkExecutor(ICharacterWorkExecutor):
     """Give each running task its own runtime and resumable conversation."""
 
     def __init__(
-        self, root: Path, repository: Path | None, model: str | None = None
+        self,
+        root: Path,
+        repository: Path | None,
+        model: str | None = None,
+        reasoning_effort: str | None = None,
     ) -> None:
         self._root = root.resolve()
         self._repository = repository.resolve() if repository is not None else None
         self._model = model
+        self._reasoning_effort = (
+            ReasoningEffort(reasoning_effort) if reasoning_effort is not None else None
+        )
         self._turns: dict[str, AsyncTurnHandle] = {}
         self._artifacts = FileWorkArtifacts(self._root)
 
@@ -222,7 +230,10 @@ class CodexCharacterWorkExecutor(ICharacterWorkExecutor):
                     developer_instructions=instructions,
                 )
             yield WorkEvent("session", thread_id=thread.id, cwd=str(directory))
-            turn = await thread.turn(task.prompt)
+            if self._reasoning_effort is None:
+                turn = await thread.turn(task.prompt)
+            else:
+                turn = await thread.turn(task.prompt, effort=self._reasoning_effort)
             self._turns[task.id] = turn
             result = ""
             fallback = ""

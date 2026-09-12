@@ -4,6 +4,8 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 
+_REASONING_EFFORTS = frozenset({"none", "low", "medium", "high", "xhigh", "max"})
+
 
 def _ids(value: str) -> frozenset[str]:
     result = frozenset(part.strip() for part in value.split(",") if part.strip())
@@ -12,6 +14,16 @@ def _ids(value: str) -> frozenset[str]:
     ):
         raise ValueError("Work access settings require Discord IDs.")
     return result
+
+
+def _reasoning_effort(value: str) -> str | None:
+    effort = value.strip().casefold()
+    if not effort:
+        return None
+    if effort not in _REASONING_EFFORTS:
+        choices = ", ".join(sorted(_REASONING_EFFORTS))
+        raise ValueError(f"CODEX_WORK_REASONING_EFFORT must be one of: {choices}.")
+    return effort
 
 
 @dataclass(frozen=True, slots=True)
@@ -24,6 +36,7 @@ class CharacterWorkSettings:
     user_ids: frozenset[str]
     repository: Path | None = None
     model: str | None = None
+    reasoning_effort: str | None = None
     timeout_seconds: int = 1200
 
     @classmethod
@@ -66,5 +79,8 @@ class CharacterWorkSettings:
             user_ids=_ids(environment.get("CODEX_WORK_USER_IDS", "")),
             repository=repository,
             model=environment.get("CODEX_WORK_MODEL", "").strip() or None,
+            reasoning_effort=_reasoning_effort(
+                environment.get("CODEX_WORK_REASONING_EFFORT", "")
+            ),
             timeout_seconds=timeout,
         )

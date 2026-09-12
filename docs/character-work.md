@@ -17,8 +17,11 @@ CODEX_WORK_ROOT=/srv/character-work
 CODEX_WORK_USER_IDS=345678901234567890
 # 任意。全員の作業元となる既存Gitリポジトリ（空なら独立フォルダで作業）
 CODEX_WORK_REPOSITORY=/srv/repositories/example
-# 任意（未指定時はCodex既定モデル、制限時間1200秒）
-CODEX_WORK_MODEL=
+# 任意（未指定時はCodex既定モデル）
+CODEX_WORK_MODEL=gpt-5.6-luna
+# 任意（none / low / medium / high / xhigh / max、未指定時はCodex既定値）
+CODEX_WORK_REASONING_EFFORT=max
+# 制限時間（秒、既定1200）
 CODEX_WORK_TIMEOUT_SECONDS=1200
 ```
 

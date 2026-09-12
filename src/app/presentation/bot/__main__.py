@@ -159,7 +159,10 @@ class MyBot(commands.Bot):
                 roster,
                 FileCharacterWorkStore(settings.root / "tasks"),
                 CodexCharacterWorkExecutor(
-                    settings.root, settings.repository, settings.model
+                    settings.root,
+                    settings.repository,
+                    settings.model,
+                    settings.reasoning_effort,
                 ),
                 reporter,
             )
