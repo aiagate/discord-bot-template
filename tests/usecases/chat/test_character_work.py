@@ -393,5 +393,10 @@ async def test_every_registered_character_can_research_and_code(
         assert character.speech_style in instructions
         assert "全員が調査・コーディング・文書作成・検証を行えます" in instructions
         assert "出典URL" in instructions and "コードのテスト" in instructions
+        assert "目的・完了条件・前提・不確実性・次の確認" in instructions
+        if character_id == "astra":
+            assert "Astraは設計レビュー役" in instructions
+        else:
+            assert "Astraは設計レビュー役" not in instructions
     finally:
         await service.close()

@@ -17,10 +17,8 @@ from app.contracts.ports.character_work import (
     ICharacterWorkStore,
 )
 from app.domain.characters import CharacterRoster
-from app.domain.value_objects import AuthorKind
 from app.presentation.bot.cogs.base_cog import BaseCog
 from app.usecases.chat.character_work import CharacterWorkService, WorkResult
-from app.usecases.chat.save_discord_chat import SaveDiscordChatCommand
 
 logger = logging.getLogger(__name__)
 _STATUS = {
@@ -31,6 +29,27 @@ _STATUS = {
     "failed": "失敗",
     "paused": "中断",
 }
+_CHARACTER_PREFIX = re.compile(r"^([^\s、,:：]+)[\s、,:：]+(.+)$", re.DOTALL)
+_EXPLICIT_WORK_PREFIX = re.compile(
+    r"^(?:作業|依頼|タスク)[\s]*[:：][\s]*(.+)$", re.DOTALL
+)
+_WORK_REQUEST_MARKERS = (
+    "調べて",
+    "調査して",
+    "実装して",
+    "作成して",
+    "修正して",
+    "検証して",
+    "比較して",
+    "分析して",
+    "まとめて",
+    "確認して",
+    "書いて",
+    "直して",
+    "作って",
+    "お願い",
+    "依頼",
+)
 
 
 class CharacterWorkCog(BaseCog, name="Character Work"):
@@ -108,7 +127,7 @@ class CharacterWorkCog(BaseCog, name="Character Work"):
         await super().cog_command_error(ctx, error)
 
     async def handle_message(self, message: discord.Message) -> bool:
-        """Route ordinary conversation to a named or already linked worker."""
+        """Start or steer work without consuming the ordinary Gemini response."""
         if not self._allowed(message):
             return False
         context = await self.bot.get_context(message)
@@ -117,15 +136,19 @@ class CharacterWorkCog(BaseCog, name="Character Work"):
         prompt = message.content.strip()
         if not prompt:
             return False
-        match = re.match(r"^([^\s、,:：]+)[\s、,:：]+(.+)$", prompt, re.DOTALL)
-        character_id = self._names.get(match[1].casefold()) if match else None
         current = self._current(message)
+        match = _CHARACTER_PREFIX.match(prompt)
+        character_id = self._names.get(match[1].casefold()) if match else None
         if character_id is not None and match is not None:
-            prompt = match[2].strip()
-            if current is None or current.character_id != character_id:
-                await self._submit(message, character_id, prompt)
-                return True
-        if current is None:
+            request = match[2].strip()
+            work_prompt = self._work_prompt(request)
+            if work_prompt is not None and (
+                current is None or current.character_id != character_id
+            ):
+                return await self._submit(message, character_id, work_prompt)
+        else:
+            work_prompt = self._work_prompt(prompt)
+        if current is None or work_prompt is None:
             return False
         assert message.guild is not None
         result = await self._service.follow_up(
@@ -133,14 +156,24 @@ class CharacterWorkCog(BaseCog, name="Character Work"):
             channel_id=str(message.channel.id),
             owner_id=str(message.author.id),
             message_id=str(message.id),
-            prompt=prompt,
+            prompt=work_prompt,
         )
-        await self._acknowledge(message, result, "追加指示を受け付けました。")
-        return True
+        return await self._report_error(message, result)
+
+    @staticmethod
+    def _work_prompt(prompt: str) -> str | None:
+        """Recognize an explicit work request while leaving casual chat to Gemini."""
+        explicit = _EXPLICIT_WORK_PREFIX.match(prompt)
+        if explicit is not None:
+            value = explicit[1].strip()
+            return value or None
+        if any(marker in prompt for marker in _WORK_REQUEST_MARKERS):
+            return prompt
+        return None
 
     async def _submit(
         self, message: discord.Message, character_id: str, prompt: str
-    ) -> None:
+    ) -> bool:
         assert message.guild is not None
         result = await self._service.start(
             guild_id=str(message.guild.id),
@@ -150,22 +183,18 @@ class CharacterWorkCog(BaseCog, name="Character Work"):
             character_id=character_id,
             prompt=prompt,
         )
-        await self._acknowledge(message, result, "作業を受け付けました。")
+        return await self._report_error(message, result)
 
-    async def _acknowledge(
-        self, message: discord.Message, result: WorkResult, text: str
-    ) -> None:
-        if is_err(result):
-            content = str(result.error)
-        else:
-            task = result.value
-            name = self._characters[task.character_id].name
-            content = f"{name}: {text}（作業 {task.id}）"
+    async def _report_error(self, message: discord.Message, result: WorkResult) -> bool:
+        """Show only rejected work requests in the control conversation."""
+        if not is_err(result):
+            return False
         await message.reply(
-            content,
+            str(result.error),
             mention_author=False,
             allowed_mentions=discord.AllowedMentions.none(),
         )
+        return True
 
     @commands.group(name="work", invoke_without_command=True)
     async def work(
@@ -179,7 +208,7 @@ class CharacterWorkCog(BaseCog, name="Character Work"):
         character_id = self._names.get(character.casefold())
         if character_id is None or not prompt.strip():
             await ctx.send(
-                "`!work キャラクター名 依頼` で開始します。全員に調査・実装を依頼できます。追加指示は通常の発言で送れます。`!work status` / `!work stop` / `!work result` / `!work chat` も使えます。"
+                "`!work キャラクター名 依頼` で開始します。全員に調査・実装を依頼できます。追加指示は `作業: 指示` または調査・実装などの依頼文で送れます。雑談はGeminiへ渡されます。`!work status` / `!work stop` / `!work result` / `!work chat` も使えます。"
             )
             return
         await self._submit(ctx.message, character_id, prompt)
@@ -215,11 +244,10 @@ class CharacterWorkCog(BaseCog, name="Character Work"):
             str(ctx.author.id),
             unlink=unlink,
         )
-        await self._acknowledge(
-            ctx.message,
-            result,
-            "会話に戻りました。" if unlink else "作業を中止しました。",
-        )
+        if is_err(result):
+            await self._report_error(ctx.message, result)
+            return
+        await self._publish(result.value)
 
     @work.command(name="result")
     async def work_result(self, ctx: commands.Context[commands.Bot]) -> None:
@@ -229,7 +257,7 @@ class CharacterWorkCog(BaseCog, name="Character Work"):
             await ctx.send("保存された作業結果はまだありません。")
             return
         try:
-            await self._send(task, task.result, persist=False, include_artifacts=True)
+            await self._send(task, task.result, include_artifacts=True)
         except CharacterWorkError as error:
             await ctx.send(str(error), allowed_mentions=discord.AllowedMentions.none())
 
@@ -237,7 +265,6 @@ class CharacterWorkCog(BaseCog, name="Character Work"):
         await self._send(
             task,
             task.result if task.status == "completed" else task.summary,
-            persist=task.status == "completed",
             include_artifacts=task.status == "completed",
         )
 
@@ -246,7 +273,6 @@ class CharacterWorkCog(BaseCog, name="Character Work"):
         task: CharacterWork,
         text: str,
         *,
-        persist: bool,
         include_artifacts: bool = False,
     ) -> None:
         attachments = (
@@ -254,24 +280,9 @@ class CharacterWorkCog(BaseCog, name="Character Work"):
         )
         if include_artifacts and task.artifacts is not None:
             text = f"{task.artifacts.summary}\n\n{text}"
-        receipt = await self._reporter.send(
+        await self._reporter.send(
             task,
             self._characters[task.character_id],
             text,
             attachments,
         )
-        if persist:
-            saved = await self.mediator.send_async(
-                SaveDiscordChatCommand(
-                    external_sender_id=receipt.external_sender_id,
-                    guild_id=task.guild_id,
-                    channel_id=task.channel_id,
-                    content=text,
-                    occurred_at=receipt.occurred_at,
-                    author_kind=AuthorKind.BOT,
-                    external_message_id=receipt.external_message_id,
-                    author_name=receipt.username,
-                )
-            )
-            if is_err(saved):
-                logger.error("Could not save work result %s in chat history", task.id)

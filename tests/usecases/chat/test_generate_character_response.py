@@ -249,6 +249,17 @@ async def test_character_selection_receives_each_character_working_summary() -> 
 
 
 @pytest.mark.anyio
+async def test_astra_receives_a_concise_metacognitive_self_check() -> None:
+    handler, generator, _, _, _, _, command = _handler(character="Astra")
+
+    assert is_ok(await handler.handle(command))
+
+    instruction = generator.generate.await_args.kwargs["system_instruction"]
+    assert "目的・前提・不確実性・次の一手" in instruction
+    assert "逐語的な思考過程は出力せず" in instruction
+
+
+@pytest.mark.anyio
 async def test_generated_selection_summary_is_saved_for_the_next_selection() -> None:
     source = _source()
     handler, generator, _, _, memory, _, command = _handler(source)

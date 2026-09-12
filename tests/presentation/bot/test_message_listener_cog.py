@@ -228,6 +228,25 @@ async def test_work_webhooks_are_ignored_without_character_chat() -> None:
 
 
 @pytest.mark.anyio
+async def test_accepted_work_still_gets_the_ordinary_gemini_response() -> None:
+    cog, send, _ = _cog()
+    handler = AsyncMock(return_value=False)
+    cog._work_handler = handler
+    await cog.cog_load()
+    try:
+        await cog.on_message(_message(content="Lilia、調べて"))
+        await cog._queue.join()
+    finally:
+        await cog.cog_unload()
+
+    handler.assert_awaited_once()
+    assert send.await_count == 2
+    generated = send.await_args_list[1].args[0]
+    assert isinstance(generated, GenerateCharacterResponseCommand)
+    assert generated.content == "Lilia、調べて"
+
+
+@pytest.mark.anyio
 async def test_prefix_commands_are_saved_without_character_response() -> None:
     cog, send, bot = _cog()
     bot.get_context.return_value = SimpleNamespace(prefix="!")

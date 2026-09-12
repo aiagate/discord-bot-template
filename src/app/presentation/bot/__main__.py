@@ -174,6 +174,11 @@ class MyBot(commands.Bot):
             )
             await self.add_cog(cog)
             self._work_webhook_ids = reporter.webhook_ids
+            logger.info(
+                "Character work enabled for guild %s in %s webhook destinations",
+                settings.guild_id,
+                len(reporter.webhook_ids),
+            )
             return cog.handle_message
         except Exception as error:
             logger.error("Character work disabled (%s)", type(error).__name__)

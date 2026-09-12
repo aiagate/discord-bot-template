@@ -29,7 +29,6 @@ from app.domain.value_objects import DiscordConversationScope
 from app.infrastructure.codex.work_executor import CodexCharacterWorkExecutor
 from app.infrastructure.codex.work_store import FileCharacterWorkStore
 from app.presentation.bot.cogs.character_work_cog import CharacterWorkCog
-from app.usecases.chat.save_discord_chat import SaveDiscordChatCommand
 from tests.infrastructure.test_codex_work_executor import _client, _completed
 from tests.infrastructure.test_codex_work_executor import _message as _codex_message
 from tests.infrastructure.test_discord_work_reporter import _reporter
@@ -106,7 +105,7 @@ async def test_named_start_then_ordinary_followup(
     follow = cog._service.follow_up
     assert isinstance(start, AsyncMock) and isinstance(follow, AsyncMock)
     message = _message(content=f"{character.name}、公式資料を調べて")
-    assert await cog.handle_message(message)
+    assert not await cog.handle_message(message)
     start.assert_awaited_once_with(
         guild_id="456",
         channel_id="123",
@@ -116,7 +115,7 @@ async def test_named_start_then_ordinary_followup(
         prompt="公式資料を調べて",
     )
     cog._service._records["100"] = replace(_task(), character_id=character.character_id)
-    assert await cog.handle_message(_message(101, content="Python版も比較して"))
+    assert not await cog.handle_message(_message(101, content="Python版も比較して"))
     follow.assert_awaited_once_with(
         guild_id="456",
         channel_id="123",
@@ -124,7 +123,7 @@ async def test_named_start_then_ordinary_followup(
         message_id="101",
         prompt="Python版も比較して",
     )
-    message.reply.assert_awaited_once()
+    message.reply.assert_not_awaited()
 
 
 @pytest.mark.anyio
@@ -159,14 +158,25 @@ async def test_threads_in_allowed_parent_and_commands_route_separately(
     tmp_path: Path,
 ) -> None:
     cog, bot, _ = _cog(tmp_path)
-    assert await cog.handle_message(
-        _message(content="lilia 調査", channel_id=124, parent_id=123)
+    assert not await cog.handle_message(
+        _message(content="lilia 作業: 調査", channel_id=124, parent_id=123)
     )
     bot.get_context.return_value = SimpleNamespace(prefix="!")
     cog._service._records["100"] = _task()
     assert not await cog.handle_message(_message(content="!work stop"))
     assert isinstance(cog._service.follow_up, AsyncMock)
     cog._service.follow_up.assert_not_awaited()
+
+
+@pytest.mark.anyio
+async def test_casual_named_chat_is_left_for_gemini(tmp_path: Path) -> None:
+    cog, _, _ = _cog(tmp_path)
+    message = _message(content="Lilia、ごめん再設定した。")
+    assert not await cog.handle_message(message)
+    start = cog._service.start
+    assert isinstance(start, AsyncMock)
+    start.assert_not_awaited()
+    message.reply.assert_not_awaited()
 
 
 @pytest.mark.anyio
@@ -191,15 +201,11 @@ async def test_result_upload_is_bounded_and_saved_with_character_identity(
     assert args[1].avatar_url
     assert args[2] == task.result
     assert args[3] == (WorkAttachment("source.zip", b"archive"),)
-    saved = mediator.send_async.await_args.args[0]
-    assert isinstance(saved, SaveDiscordChatCommand)
-    assert saved.author_name == "Lilia"
-    assert saved.content == task.result
-    assert saved.external_sender_id == "999"
-    await cog._send(task, "短い結果", persist=False)
+    mediator.send_async.assert_not_awaited()
+    await cog._send(task, "短い結果")
     assert report.await_args is not None
     assert report.await_args.args[3] == ()
-    mediator.send_async.assert_awaited_once()
+    mediator.send_async.assert_not_awaited()
 
 
 @pytest.mark.anyio
@@ -267,7 +273,9 @@ async def test_generated_memo_is_saved_then_attached_and_retrieved_after_restart
     cog = fresh_cog()
     await cog.cog_load()
     try:
-        assert await cog.handle_message(_message(content=f"{character.name}、調べて"))
+        assert not await cog.handle_message(
+            _message(content=f"{character.name}、調べて")
+        )
         async with asyncio.timeout(3):
             await asyncio.gather(*cog._service._active.values())
         record = (await store.list_tasks())[0]
@@ -279,7 +287,7 @@ async def test_generated_memo_is_saved_then_attached_and_retrieved_after_restart
         assert "SHA-256" in webhook.send.await_args.kwargs["content"]
         assert webhook.send.await_args.kwargs["username"] == character.display_name
         assert webhook.send.await_args.kwargs["avatar_url"] == character.avatar_url
-        assert mediator.send_async.await_count == (0 if initial_send_fails else 1)
+        assert mediator.send_async.await_count == 0
     finally:
         await cog.cog_unload()
 
@@ -293,7 +301,7 @@ async def test_generated_memo_is_saved_then_attached_and_retrieved_after_restart
         await restored.work_result(context)
         assert delivered[1][f"{character_id}-100-100.zip"] == archive_bytes
         thread.turn.assert_awaited_once()
-        assert mediator.send_async.await_count == (0 if initial_send_fails else 1)
+        assert mediator.send_async.await_count == 0
     finally:
         await restored.cog_unload()
 
