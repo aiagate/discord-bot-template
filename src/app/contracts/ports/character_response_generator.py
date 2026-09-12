@@ -60,7 +60,7 @@ class ICharacterResponseGenerator(ABC):
         user_content: str,
         character_name: str,
     ) -> Result[GeneratedCharacterResponse, CharacterGenerationError]:
-        """Generate a response after a character has been selected."""
+        """Generate a response for the selected character."""
         pass
 
     @abstractmethod

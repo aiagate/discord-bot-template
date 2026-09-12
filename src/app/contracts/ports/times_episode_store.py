@@ -11,7 +11,7 @@ from app.domain.value_objects import DiscordConversationScope
 
 
 class ITimesEpisodeStore(ABC):
-    """Durable storage for Times episodes and board delivery progress."""
+    """Durable storage for Times episodes and delivery progress."""
 
     @abstractmethod
     async def get(
@@ -29,7 +29,7 @@ class ITimesEpisodeStore(ABC):
     async def pending(
         self, destination: DiscordConversationScope
     ) -> Result[list[TimesEpisodePlan], RepositoryError]:
-        """Return unfinished plans for one board in order of creation."""
+        """Return unfinished plans for one Times destination in order of creation."""
         pass
 
     @abstractmethod
@@ -40,5 +40,5 @@ class ITimesEpisodeStore(ABC):
         *,
         before: datetime | None = None,
     ) -> Result[list[TimesEpisodePlan], RepositoryError]:
-        """Return recent completed plans belonging to one board."""
+        """Return recent completed plans for one Times destination."""
         pass

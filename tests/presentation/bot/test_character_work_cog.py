@@ -209,6 +209,29 @@ async def test_result_upload_is_bounded_and_saved_with_character_identity(
 
 
 @pytest.mark.anyio
+async def test_completed_work_uses_gemini_review_and_keeps_archive_attachment(
+    tmp_path: Path,
+) -> None:
+    cog, _, mediator = _cog(tmp_path)
+    task = replace(_task(), status="completed", result="Codexの機械的な原文")
+    cog._service._records[task.id] = task
+    reviewer = AsyncMock(return_value="自然な完了報告")
+    cog._reviewer = reviewer
+
+    await cog._publish(task)
+
+    reviewer.assert_awaited_once()
+    report = cog._reporter.send
+    assert isinstance(report, AsyncMock)
+    assert report.await_args is not None
+    assert report.await_args.args[2] == "自然な完了報告"
+    assert report.await_args.args[3] == (WorkAttachment("source.zip", b"archive"),)
+    assert cog._service._records[task.id].review == "自然な完了報告"
+    assert cog._service._records[task.id].result == "Codexの機械的な原文"
+    mediator.send_async.assert_not_awaited()
+
+
+@pytest.mark.anyio
 @pytest.mark.parametrize("initial_send_fails", [False, True])
 @pytest.mark.parametrize("character_id", ["lilia", "noa", "dorothy", "mira"])
 async def test_generated_memo_is_saved_then_attached_and_retrieved_after_restart(
@@ -284,7 +307,10 @@ async def test_generated_memo_is_saved_then_attached_and_retrieved_after_restart
         archive_bytes = delivered[0][f"{character_id}-100-100.zip"]
         with zipfile.ZipFile(io.BytesIO(archive_bytes)) as archive:
             assert archive.read("files/work-report.md") == original
-        assert "SHA-256" in webhook.send.await_args.kwargs["content"]
+        assert "SHA-256" not in webhook.send.await_args.kwargs["content"]
+        assert webhook.send.await_args.kwargs["content"].endswith(
+            "出典を確認しました。"
+        )
         assert webhook.send.await_args.kwargs["username"] == character.display_name
         assert webhook.send.await_args.kwargs["avatar_url"] == character.avatar_url
         assert mediator.send_async.await_count == 0

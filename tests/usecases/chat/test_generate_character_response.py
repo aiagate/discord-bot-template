@@ -3,7 +3,6 @@
 import json
 from dataclasses import replace
 from datetime import UTC, datetime
-from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -326,46 +325,6 @@ async def test_explicit_memory_candidates_are_saved_with_source_provenance() -> 
     assert saved[0].observed_at == source.occurred_at
     assert saved[0].observed_at.tzinfo is UTC
     publisher.publish.assert_awaited_once()
-
-
-@pytest.mark.anyio
-async def test_character_guidance_reaches_generator_with_local_voice_override(
-    tmp_path: Path,
-) -> None:
-    """Preserve full personas and local dialogue examples through prompt assembly."""
-    path = tmp_path / "characters.override.json"
-    voice = '短く率直に話す。\n会話例: 「完了した」→「終わった！ "完了"です。」'
-    path.write_text(
-        json.dumps({"characters": {"Eris": {"speech_style": voice}}}),
-        encoding="utf-8",
-    )
-    roster = load_ai_maid_definitions(path)
-    _, generator, publisher, history, memory, uow, command = _handler()
-    handler = GenerateCharacterResponseHandler(
-        generator, publisher, history, memory, uow, roster
-    )
-
-    assert is_ok(await handler.handle(command))
-
-    selection_arguments = generator.select_character.await_args.kwargs
-    selection_instruction = selection_arguments["system_instruction"]
-    profiles = json.loads(selection_instruction.split("キャラクター一覧:\n", 1)[1])
-    by_name = {profile["name"]: profile for profile in profiles}
-    defaults = load_ai_maid_definitions()
-    assert set(by_name) == {character.name for character in defaults.characters}
-    for character in defaults.characters:
-        assert by_name[character.name]["persona"] == character.persona
-        assert by_name[character.name]["speech_style"] == (
-            voice if character.name == "Eris" else character.speech_style
-        )
-    assert all(rule in selection_instruction for rule in roster.common_style)
-    response_instruction = generator.generate.await_args.kwargs["system_instruction"]
-    assert "キャラクター一覧:" not in response_instruction
-    assert "Dorothy" in response_instruction
-    assert (
-        json.loads(generator.generate.await_args.kwargs["user_content"])["history"]
-        == []
-    )
 
 
 @pytest.mark.anyio

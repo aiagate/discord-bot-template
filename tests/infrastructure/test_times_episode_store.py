@@ -214,16 +214,16 @@ async def test_times_episode_store_pending_and_completed_queries(
 
 
 @pytest.mark.anyio
-async def test_completed_history_is_filtered_by_board_before_limiting(
+async def test_completed_history_is_filtered_by_times_destination_before_limiting(
     session_factory: async_sessionmaker[AsyncSession],
 ) -> None:
     store = SQLAlchemyTimesEpisodeStore(session_factory)
     plan = TimesEpisodePlan(
-        source_message_id="current_board",
+        source_message_id="current_times_destination",
         guild_id="456",
         channel_id="123",
         delivery_channel_id="999",
-        posts=(TimesPost(character_name="Dorothy", content="Current board memory"),),
+        posts=(TimesPost(character_name="Dorothy", content="Current Times memory"),),
         status="COMPLETED",
         next_post_index=1,
         created_at=datetime(2026, 9, 12, 10, 0, tzinfo=UTC),
@@ -232,7 +232,7 @@ async def test_completed_history_is_filtered_by_board_before_limiting(
     for index, (guild_id, channel_id) in enumerate((("456", "777"), ("888", "999"))):
         other = replace(
             plan,
-            source_message_id=f"other_board_{index}",
+            source_message_id=f"other_times_destination_{index}",
             guild_id=guild_id,
             delivery_channel_id=channel_id,
             created_at=datetime(2026, 9, 12, 11, index, tzinfo=UTC),
@@ -242,4 +242,6 @@ async def test_completed_history_is_filtered_by_board_before_limiting(
     result = await store.get_recent_completed(_DESTINATION, limit=1)
 
     assert is_ok(result)
-    assert [episode.source_message_id for episode in result.value] == ["current_board"]
+    assert [episode.source_message_id for episode in result.value] == [
+        "current_times_destination"
+    ]

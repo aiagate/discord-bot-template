@@ -1,4 +1,4 @@
-"""Confirmed, sequential Discord Times board delivery with progress recovery."""
+"""Confirmed, sequential Discord Times delivery with progress recovery."""
 
 import asyncio
 import logging

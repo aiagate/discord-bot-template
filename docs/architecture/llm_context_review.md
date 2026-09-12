@@ -1,6 +1,6 @@
 # LLM入力コンテキストの確認（2026-09-12）
 
-キャラクター選定・通常応答・Times・MCPの入力生成処理と、ローカルの保存ログを確認した。
+キャラクター選定・通常応答・Times・Codex作業の入力生成処理と、ローカルの保存ログを確認した。
 Timesには、UTCの投稿時刻を日本時間へ換算して答えた記録があった。
 以下は実装上の確認結果であり、形式間の回答精度を比較する評価は行っていない。
 
@@ -11,7 +11,7 @@ Timesには、UTCの投稿時刻を日本時間へ換算して答えた記録が
 | 「今日」「昨日」などの相対表現 | 今回の投稿日時を会話の基準とし、過去の本文・記憶の相対表現はその投稿・記憶の日時で解釈するよう指示する。本文自体は書き換えない。 |
 | Discord固有の記法 | 本文の `<t:UNIX秒:R>`、ユーザー・チャンネル・ロールのIDメンションは未展開。Unix秒の換算や、履歴にないIDの名前の特定をモデルへ任せている。確認した保存ログには出現しなかった。利用時は原文を保ち、JST日時や取得済みの表示名を別に添えるのが改善候補。 |
 | 添付・埋め込み | 埋め込みのタイトル・説明・フィールドは文字列化するが、添付画像・ファイルやDiscordネイティブの投票は入力対象外。これらを指す質問には必要な情報が届かない。形式変更だけでなく、取得・入力対応が必要。 |
-| MCP結果 | `model_dump` した結果全体を渡す。サーバーが構造化結果と本文に同じJSONを返す場合は重複し、画像・音声のbase64も専用入力へ変換しない。32,000文字を超えると生成が失敗する。返却型に応じた抽出・入力方法が改善候補。外部結果内の日時も未変換。 |
+| Codex作業 | これまでは共通のキャラクター口調・担当だけを渡していた。キャラクター固有の作業方針を定義し、実作業の判断と完了報告へ渡す。 |
 | JSON・識別子・並び順 | 日本語は `ensure_ascii=False` で保持し、本文を二重JSON化していない。履歴は古い順、今回の投稿は末尾に置く。投稿者名・種別・返信先を別項目で渡す。IDは照合に必要なため残す。JSON自体を置き換える根拠は今回見つからなかった。 |
 
 実装箇所:
@@ -20,7 +20,8 @@ Timesには、UTCの投稿時刻を日本時間へ換算して答えた記録が
 - [選定・通常応答](../../src/app/usecases/chat/generate_character_response.py)
 - [Times](../../src/app/usecases/chat/generate_times_episode.py)
 - [Discord本文の取り込み](../../src/app/presentation/bot/cogs/message_listener_cog.py)
-- [MCP結果の受け渡し](../../src/app/infrastructure/gemini/mcp_tools.py)
+- [Codex作業](../../src/app/usecases/chat/character_work.py)
+- [Codex完了報告](../../src/app/infrastructure/gemini/work_reviewer.py)
 
 日時変換には標準ライブラリの `astimezone` を使う。
 [Python datetime](https://docs.python.org/3/library/datetime.html#datetime.datetime.astimezone)
@@ -30,6 +31,3 @@ Timesには、UTCの投稿時刻を日本時間へ換算して答えた記録が
 
 Discordは時刻をUnix秒の専用記法で、メンションをIDで表す。
 [Discordのメッセージ記法](https://docs.discord.com/developers/reference#message-formatting)
-
-MCPは構造化結果とテキストの併記や、画像・音声の返却を認めている。
-[MCPのツール仕様](https://modelcontextprotocol.io/specification/2025-11-25/server/tools)

@@ -108,7 +108,7 @@ class SQLAlchemyTimesEpisodeStore(ITimesEpisodeStore):
     async def pending(
         self, destination: DiscordConversationScope
     ) -> Result[list[TimesEpisodePlan], RepositoryError]:
-        """Return unfinished plans for one board in creation order."""
+        """Return unfinished plans for one Times destination in creation order."""
         try:
             async with self._session_factory() as session:
                 table = cast(Any, TimesEpisodeORM).__table__
@@ -134,7 +134,7 @@ class SQLAlchemyTimesEpisodeStore(ITimesEpisodeStore):
         *,
         before: datetime | None = None,
     ) -> Result[list[TimesEpisodePlan], RepositoryError]:
-        """Return completed plans belonging to one board for continuity memory."""
+        """Return completed plans for one Times destination for continuity memory."""
         try:
             async with self._session_factory() as session:
                 table = cast(Any, TimesEpisodeORM).__table__

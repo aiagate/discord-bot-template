@@ -151,6 +151,11 @@ async def test_start_steer_complete_and_resume_same_session(tmp_path: Path) -> N
         assert executor.calls[1].prompt == "公式資料を優先して"
         assert "Lilia" in executor.instructions[0]
         assert "出典URL" in executor.instructions[0]
+        assert "作業時の固有方針:" in executor.instructions[0]
+        character = next(
+            item for item in service._roster.characters if item.character_id == "lilia"
+        )
+        assert character.work_guidance in executor.instructions[0]
     finally:
         await service.close()
     assert executor.closed == ["100", "100"]
@@ -290,6 +295,29 @@ async def test_discord_failure_does_not_lose_completed_result(tmp_path: Path) ->
 
 
 @pytest.mark.anyio
+async def test_review_is_saved_without_replacing_completed_result(
+    tmp_path: Path,
+) -> None:
+    service, executor, store, _ = _service(tmp_path)
+    try:
+        assert is_ok(await _start(service))
+        await _ready(executor)
+        await executor.events["100"].put(WorkEvent("completed", text="Codexの原文"))
+        await _finish(service)
+
+        reviewed = await service.save_review("100", "自然な完了報告")
+
+        assert is_ok(reviewed)
+        assert reviewed.value.review == "自然な完了報告"
+        assert reviewed.value.result == "Codexの原文"
+        saved = (await store.list_tasks())[0]
+        assert saved.review == "自然な完了報告"
+        assert saved.result == "Codexの原文"
+    finally:
+        await service.close()
+
+
+@pytest.mark.anyio
 async def test_shutdown_during_result_delivery_preserves_completion(
     tmp_path: Path,
 ) -> None:
@@ -394,9 +422,7 @@ async def test_every_registered_character_can_research_and_code(
         assert "全員が調査・コーディング・文書作成・検証を行えます" in instructions
         assert "出典URL" in instructions and "コードのテスト" in instructions
         assert "目的・完了条件・前提・不確実性・次の確認" in instructions
-        if character_id == "astra":
-            assert "Astraは設計レビュー役" in instructions
-        else:
-            assert "Astraは設計レビュー役" not in instructions
+        assert "作業時の固有方針:" in instructions
+        assert character.work_guidance in instructions
     finally:
         await service.close()

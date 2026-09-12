@@ -193,10 +193,9 @@ DiscordからLiliaに調査、Noaにコーディングを依頼する場合は�
    `uv run --frozen --no-dev --extra ai start-bot`、使わない場合は
    `uv run --frozen --no-dev start-bot` で起動できます。
 
-   キャラクターはリポジトリルートの `characters.override.json` で上書きできます。
-   `CHARACTER_DEFINITIONS_PATH` で別ファイルを指定する場合、相対パスの基準も
-   リポジトリルートです。[会話仕様・負荷上限・配信復旧](docs/adr/0002-optional-character-responses.md)
-   に運用条件と設定例を記載しています。
+   キャラクター設定の正本は `src/app/domain/characters.py` です。変更を反映するには
+   Botの再起動が必要です。[会話仕様・負荷上限・配信復旧](docs/adr/0002-optional-character-responses.md)
+   に運用条件を記載しています。
 
    #### ユーザー長期記憶（任意）
 

@@ -2,6 +2,7 @@
 
 import logging
 import re
+from collections.abc import Awaitable, Callable
 from typing import Any
 
 import discord
@@ -10,13 +11,17 @@ from flow_res import is_err
 
 from app.application.character_work_settings import CharacterWorkSettings
 from app.application.mediator import ApplicationMediator
-from app.contracts.messages.character_work import CharacterWork, CharacterWorkError
+from app.contracts.messages.character_work import (
+    CharacterWork,
+    CharacterWorkError,
+    WorkAttachment,
+)
 from app.contracts.ports.character_work import (
     ICharacterWorkExecutor,
     ICharacterWorkReporter,
     ICharacterWorkStore,
 )
-from app.domain.characters import CharacterRoster
+from app.domain.characters import CharacterDefinition, CharacterRoster
 from app.presentation.bot.cogs.base_cog import BaseCog
 from app.usecases.chat.character_work import CharacterWorkService, WorkResult
 
@@ -50,6 +55,10 @@ _WORK_REQUEST_MARKERS = (
     "お願い",
     "依頼",
 )
+WorkReviewer = Callable[
+    [CharacterWork, CharacterDefinition, tuple[WorkAttachment, ...]],
+    Awaitable[str | None],
+]
 
 
 class CharacterWorkCog(BaseCog, name="Character Work"):
@@ -64,11 +73,13 @@ class CharacterWorkCog(BaseCog, name="Character Work"):
         store: ICharacterWorkStore,
         executor: ICharacterWorkExecutor,
         reporter: ICharacterWorkReporter,
+        reviewer: WorkReviewer | None = None,
     ) -> None:
         super().__init__(bot, mediator)
         self._settings = settings
         self._executor = executor
         self._reporter = reporter
+        self._reviewer = reviewer
         self._characters = {item.character_id: item for item in roster.characters}
         self._names = {
             name.casefold(): item.character_id
@@ -257,29 +268,52 @@ class CharacterWorkCog(BaseCog, name="Character Work"):
             await ctx.send("保存された作業結果はまだありません。")
             return
         try:
-            await self._send(task, task.result, include_artifacts=True)
+            await self._deliver(task)
         except CharacterWorkError as error:
             await ctx.send(str(error), allowed_mentions=discord.AllowedMentions.none())
 
     async def _publish(self, task: CharacterWork) -> None:
-        await self._send(
-            task,
-            task.result if task.status == "completed" else task.summary,
-            include_artifacts=task.status == "completed",
+        await self._deliver(task)
+
+    async def _deliver(self, task: CharacterWork) -> None:
+        """Review completed evidence and publish only the character-facing report."""
+        attachments = (
+            await self._executor.attachments(task) if task.status == "completed" else ()
         )
+        if (
+            task.status == "completed"
+            and not task.review
+            and self._reviewer is not None
+        ):
+            try:
+                review = await self._reviewer(
+                    task, self._characters[task.character_id], attachments
+                )
+            except Exception:
+                logger.exception("Could not review completed work %s", task.id)
+            else:
+                if review is not None:
+                    saved = await self._service.save_review(task.id, review)
+                    if is_err(saved):
+                        logger.warning(
+                            "Could not save review for work %s: %s",
+                            task.id,
+                            saved.error,
+                        )
+                    else:
+                        task = saved.value
+        text = (
+            (task.review or task.result) if task.status == "completed" else task.summary
+        )
+        await self._send(task, text, attachments=attachments)
 
     async def _send(
         self,
         task: CharacterWork,
         text: str,
         *,
-        include_artifacts: bool = False,
+        attachments: tuple[WorkAttachment, ...] = (),
     ) -> None:
-        attachments = (
-            await self._executor.attachments(task) if include_artifacts else ()
-        )
-        if include_artifacts and task.artifacts is not None:
-            text = f"{task.artifacts.summary}\n\n{text}"
         await self._reporter.send(
             task,
             self._characters[task.character_id],

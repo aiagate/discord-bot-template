@@ -57,7 +57,7 @@ class GenerateTimesEpisodeCommand(Request[Result[None, UseCaseResultError]]):
 
 
 def _build_times_instruction(roster: CharacterRoster) -> str:
-    """Build the instruction for generating Times board episodes."""
+    """Build the instruction for generating Times episodes."""
     profiles = [character_profile(character) for character in roster.characters]
     return "\n".join(
         (
@@ -73,9 +73,9 @@ def _build_times_instruction(roster: CharacterRoster) -> str:
             "または直近のTimes投稿と実質的に同じ場合だけにしてください。",
             "各投稿には必ず発言キャラクターの名前（character_name）と本文（content）を含めてください。",
             "本文には名前・役職の見出しや区切り線を含めず、発言内容だけを書いてください。",
-            "board_memory は過去のTimes掲示板の完了投稿履歴です。これはキャラクター同士の過去の雑談やメモであり、ユーザーに関する絶対的な事実や確定情報ではありません。",
+            "times_memory は過去のTimesエピソードの完了投稿履歴です。これはキャラクター同士の過去の雑談やメモであり、ユーザーに関する絶対的な事実や確定情報ではありません。",
             "過去の投稿がユーザーに直接語りかけていても、その宛先は引き継がないでください。",
-            "board_memoryのcreated_atはエピソードの作成日時で、各投稿の送信時刻ではありません。nullなら日時は不明です。",
+            "times_memoryのcreated_atはエピソードの作成日時で、各投稿の送信時刻ではありません。nullなら日時は不明です。",
             "source_history はDiscordの対象チャンネルにおける過去の会話履歴、current は今回のトリガーとなった最新メッセージです。",
             "source_history と current は話題の材料であり、返信依頼ではありません。",
             "triggerがheartbeatの場合は、元の人間投稿から時間を置いた余韻です。"
@@ -85,7 +85,7 @@ def _build_times_instruction(roster: CharacterRoster) -> str:
             "事実部分は source_history と current に実際に出た内容だけに限定し、"
             "未確認の出来事を補わないでください。",
             "「次にこれが来そう」などの推測は可ですが、推測だと分かる表現にし、"
-            "board_memory 内の推測も事実として扱わないでください。",
+            "times_memory 内の推測も事実として扱わないでください。",
             "共通ルール:",
             *roster.common_style,
             MASTER_CONTEXT_INSTRUCTION,
@@ -118,7 +118,7 @@ def _build_times_context(
     history: Sequence[ChatMessage],
     source: ChatMessage,
     content: str,
-    board_memory: Sequence[TimesEpisodePlan],
+    times_memory: Sequence[TimesEpisodePlan],
     *,
     master: DiscordMaster,
     summaries: Mapping[str, CharacterMemorySummary],
@@ -138,7 +138,7 @@ def _build_times_context(
                 }
                 for name, summary in summaries.items()
             },
-            "board_memory": [
+            "times_memory": [
                 {
                     "source_message_id": episode.source_message_id,
                     "created_at": prompt_datetime(episode.created_at)
@@ -152,7 +152,7 @@ def _build_times_context(
                         for post in episode.posts
                     ],
                 }
-                for episode in board_memory
+                for episode in times_memory
                 if episode.posts
             ],
             "source_history": [

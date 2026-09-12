@@ -36,7 +36,7 @@ from app.usecases.chat.generate_times_episode import (
 )
 
 
-def test_times_instruction_preserves_maid_identity_and_board_rules() -> None:
+def test_times_instruction_preserves_maid_identity_and_times_rules() -> None:
     """Times keeps the maid identities, dialogue style and factual boundaries."""
     instruction = _build_times_instruction(
         CharacterRoster(
@@ -58,7 +58,7 @@ def test_times_instruction_preserves_maid_identity_and_board_rules() -> None:
     )
     assert "「次にこれが来そう」などの推測は可" in instruction
     assert "推測だと分かる表現に" in instruction
-    assert "board_memory 内の推測も事実として扱わない" in instruction
+    assert "times_memory 内の推測も事実として扱わない" in instruction
     profiles = json.loads(
         instruction.split("キャラクター一覧:\n", 1)[1].split("\nTimes専用上書き:", 1)[0]
     )
@@ -276,7 +276,7 @@ async def test_generate_times_episode_continuity_and_point_in_time_bounding(
         before=(source.occurred_at, source.id.to_primitive()),
     )
 
-    # Board memory is bounded by episode creation order, not source message time.
+    # Times memory is bounded by episode creation order, not source message time.
     times_store.get_recent_completed.assert_awaited_once_with(
         DiscordConversationScope(guild_id="456", channel_id="999"),
         limit=20,
@@ -285,7 +285,7 @@ async def test_generate_times_episode_continuity_and_point_in_time_bounding(
     assert history_query.get_recent_history.await_args.kwargs["before"][0].tzinfo is UTC
     assert times_store.get_recent_completed.await_args.kwargs["before"].tzinfo is UTC
 
-    # Check generated prompt contained explicitly labeled board_memory and source_history
+    # Check generated prompt contained explicitly labeled times_memory and source_history
     gen_call = generator.generate_times_episode.call_args.kwargs
     payload = json.loads(gen_call["user_content"])
     character_memory_store.get_selection_summaries.assert_awaited_once_with(
@@ -305,13 +305,13 @@ async def test_generate_times_episode_continuity_and_point_in_time_bounding(
         else None
     )
     assert payload["current"]["author_id"] == "alice"
-    assert "board_memory" in payload
-    assert len(payload["board_memory"]) == 1
-    assert payload["board_memory"][0]["source_message_id"] == "80"
-    assert payload["board_memory"][0]["created_at"] == (
+    assert "times_memory" in payload
+    assert len(payload["times_memory"]) == 1
+    assert payload["times_memory"][0]["source_message_id"] == "80"
+    assert payload["times_memory"][0]["created_at"] == (
         "2026-09-12 00:30:00 JST" if has_creation_time else None
     )
-    assert payload["board_memory"][0]["posts"][0]["content"] == "Past discussion note"
+    assert payload["times_memory"][0]["posts"][0]["content"] == "Past discussion note"
     assert "source_history" in payload
     assert payload["source_history"][0]["message_id"] == "99"
     assert payload["source_history"][0]["occurred_at"] == "2026-09-12 10:59:00 JST"

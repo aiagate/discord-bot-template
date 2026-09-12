@@ -139,17 +139,7 @@ class MyBot(commands.Bot):
             settings = CharacterWorkSettings.from_env(os.environ, PROJECT_ROOT)
             if settings is None:
                 return None
-            override = os.getenv("CHARACTER_DEFINITIONS_PATH", "").strip()
-            path = (
-                Path(override)
-                if override
-                else PROJECT_ROOT / "characters.override.json"
-            )
-            if not path.is_absolute():
-                path = PROJECT_ROOT / path
-            roster = load_ai_maid_definitions(
-                path if override or path.exists() else None
-            )
+            roster = load_ai_maid_definitions()
             urls = (
                 _load_character_webhook_urls("CODEX_WORK_WEBHOOK_URLS_JSON")
                 or _load_character_webhook_urls()
@@ -158,6 +148,13 @@ class MyBot(commands.Bot):
             available_channel_ids = await reporter.initialize(settings.channel_ids)
             if not settings.channel_ids:
                 settings = replace(settings, channel_ids=available_channel_ids)
+            reviewer = None
+            if self._character_response_generator is not None:
+                from app.infrastructure.gemini.work_reviewer import GeminiWorkReviewer
+
+                reviewer = GeminiWorkReviewer(
+                    self._character_response_generator, roster
+                )
             cog = CharacterWorkCog(
                 self,
                 self.mediator,
@@ -171,6 +168,7 @@ class MyBot(commands.Bot):
                     settings.reasoning_effort,
                 ),
                 reporter,
+                reviewer=reviewer,
             )
             await self.add_cog(cog)
             self._work_webhook_ids = reporter.webhook_ids
@@ -203,7 +201,7 @@ class MyBot(commands.Bot):
                 or len(character_guild_id) > 20
             ):
                 raise ValueError("Character guild ID must be a Discord snowflake.")
-            from app.application.character_settings import load_character_settings
+            from app.application.character_settings import load_ai_maid_definitions
             from app.application.master_context import load_master_context
 
             master_context_path = PROJECT_ROOT / MASTER_CONTEXT_FILENAME
@@ -214,18 +212,7 @@ class MyBot(commands.Bot):
                 os.getenv("DISCORD_CHARACTER_MASTER_USER_ID", "").strip() or None,
                 master_context,
             )
-            override = os.getenv("CHARACTER_DEFINITIONS_PATH", "").strip()
-            override_path = (
-                Path(override)
-                if override
-                else PROJECT_ROOT / "characters.override.json"
-            )
-            if not override_path.is_absolute():
-                override_path = PROJECT_ROOT / override_path
-            character_settings = load_character_settings(
-                override_path if override or override_path.exists() else None
-            )
-            roster = character_settings.roster
+            roster = load_ai_maid_definitions()
             stage = "Gemini initialization"
             from google import genai
             from google.genai import types
@@ -253,7 +240,6 @@ class MyBot(commands.Bot):
                     ),
                 ),
                 model=os.getenv("GEMINI_MODEL", "").strip() or DEFAULT_GEMINI_MODEL,
-                mcp_servers=character_settings.mcp_servers,
             )
             self._character_response_generator = generator
             stage = "webhook destination validation"
@@ -327,13 +313,13 @@ class MyBot(commands.Bot):
                     self.injector.binder.bind(ITimesPublisher, to=times_publisher)
                     self.injector.binder.bind(ITimesEpisodeStore, to=times_store)
                     logger.info(
-                        "Times board enabled for guild %s at channel %s",
+                        "Times enabled for guild %s at channel %s",
                         character_guild_id,
                         times_scope.channel_id,
                     )
                 except Exception as error:
                     logger.error(
-                        "Times board disabled during %s (%s)",
+                        "Times disabled during %s (%s)",
                         times_stage,
                         type(error).__name__,
                     )

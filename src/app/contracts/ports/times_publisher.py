@@ -1,4 +1,4 @@
-"""Application port for Times board post delivery."""
+"""Application port for Times post delivery."""
 
 from abc import ABC, abstractmethod
 

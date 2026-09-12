@@ -3,7 +3,6 @@
 import asyncio
 import json
 import logging
-from collections.abc import Mapping
 from typing import Any
 
 from flow_res import Err, Ok, Result, is_err
@@ -15,7 +14,6 @@ from app.contracts.messages import (
     GeneratedCharacterResponse,
     TimesPost,
 )
-from app.contracts.messages.character_mcp import CharacterMcpServer
 from app.contracts.ports.character_response_generator import (
     CharacterGenerationError,
     CharacterGenerationErrorType,
@@ -81,7 +79,6 @@ class GeminiCharacterResponseGenerator(ICharacterResponseGenerator):
         model: str,
         *,
         max_output_tokens: int = 4096,
-        mcp_servers: Mapping[str, tuple[CharacterMcpServer, ...]] | None = None,
     ) -> None:
         """Initialize the Gemini character response generator.
 
@@ -89,12 +86,10 @@ class GeminiCharacterResponseGenerator(ICharacterResponseGenerator):
             client: The Google GenAI client instance.
             model: The Gemini model identifier to use (e.g., 'gemini-2.5-flash').
             max_output_tokens: Maximum number of output tokens to generate.
-            mcp_servers: Permitted MCP servers by character name, for replies only.
         """
         self._client = client
         self._model = model
         self._max_output_tokens = max_output_tokens
-        self._mcp_servers = dict(mcp_servers or {})
 
     async def aclose(self) -> None:
         """Close the synchronous and asynchronous GenAI clients."""
@@ -109,7 +104,6 @@ class GeminiCharacterResponseGenerator(ICharacterResponseGenerator):
         system_instruction: str,
         user_content: str,
         response_schema: types.Schema,
-        mcp_servers: tuple[CharacterMcpServer, ...] = (),
     ) -> Result[dict[str, Any], CharacterGenerationError]:
         """Call Gemini and parse one structured JSON object."""
         try:
@@ -120,22 +114,11 @@ class GeminiCharacterResponseGenerator(ICharacterResponseGenerator):
                 response_schema=response_schema,
             )
             async with asyncio.timeout(GENERATION_TIMEOUT_SECONDS):
-                if mcp_servers:
-                    from app.infrastructure.gemini.mcp_tools import generate_with_mcp
-
-                    response = await generate_with_mcp(
-                        self._client,
-                        model=self._model,
-                        user_content=user_content,
-                        config=config,
-                        servers=mcp_servers,
-                    )
-                else:
-                    response = await self._client.aio.models.generate_content(
-                        model=self._model,
-                        contents=user_content,
-                        config=config,
-                    )
+                response = await self._client.aio.models.generate_content(
+                    model=self._model,
+                    contents=user_content,
+                    config=config,
+                )
             if response.candidates and response.candidates[0].finish_reason not in {
                 None,
                 types.FinishReason.STOP,
@@ -164,11 +147,7 @@ class GeminiCharacterResponseGenerator(ICharacterResponseGenerator):
             return Err(
                 CharacterGenerationError(
                     type=CharacterGenerationErrorType.GENERATION_FAILED,
-                    message=(
-                        f"MCP-enabled response generation failed ({type(err).__name__})."
-                        if mcp_servers
-                        else f"Gemini response generation failed: {err}"
-                    ),
+                    message=f"Gemini response generation failed: {err}",
                 )
             )
 
@@ -247,7 +226,7 @@ class GeminiCharacterResponseGenerator(ICharacterResponseGenerator):
         user_content: str,
         character_name: str,
     ) -> Result[GeneratedCharacterResponse, CharacterGenerationError]:
-        """Generate a response after the application selected a character."""
+        """Generate a response for the selected character."""
         if not character_name.strip():
             return Err(
                 CharacterGenerationError(
@@ -267,7 +246,6 @@ class GeminiCharacterResponseGenerator(ICharacterResponseGenerator):
             system_instruction=system_instruction,
             user_content=user_content,
             response_schema=response_schema,
-            mcp_servers=self._mcp_servers.get(character_name, ()),
         )
         if is_err(result):
             return Err(result.error)
