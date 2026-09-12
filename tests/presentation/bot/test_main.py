@@ -213,6 +213,23 @@ async def test_ai_resources_are_bound_only_after_destination_validation(
     monkeypatch.delenv("CHARACTER_DEFINITIONS_PATH", raising=False)
     monkeypatch.delenv("GEMINI_MODEL", raising=False)
     monkeypatch.setattr(bot_main, "PROJECT_ROOT", tmp_path)
+    (tmp_path / "characters.override.json").write_text(
+        json.dumps(
+            {
+                "characters": {
+                    "Dorothy": {
+                        "mcp_servers": {
+                            "notes": {
+                                "command": "unused-server",
+                                "allowed_tools": ["read_note"],
+                            }
+                        }
+                    }
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
     client_factory = MagicMock()
     monkeypatch.setattr(genai, "Client", client_factory)
     generator = AsyncMock(spec=ICharacterResponseGenerator)
@@ -252,6 +269,9 @@ async def test_ai_resources_are_bound_only_after_destination_validation(
     assert options.timeout == 20_000
     assert options.retry_options.attempts == 3
     assert generator_factory.call_args.kwargs["model"] == bot_main.DEFAULT_GEMINI_MODEL
+    mcp_servers = generator_factory.call_args.kwargs["mcp_servers"]
+    assert set(mcp_servers) == {"Dorothy"}
+    assert mcp_servers["Dorothy"][0].allowed_tools == ("read_note",)
     await bot.close()
 
 

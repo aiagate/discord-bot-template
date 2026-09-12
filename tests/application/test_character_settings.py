@@ -1,11 +1,15 @@
 """Tests for runtime AI maid character settings."""
 
 import json
+from dataclasses import asdict
 from pathlib import Path
 
 import pytest
 
-from app.application.character_settings import load_ai_maid_definitions
+from app.application.character_settings import (
+    load_ai_maid_definitions,
+    load_character_settings,
+)
 
 
 def test_local_override_replaces_only_specified_fields(tmp_path: Path) -> None:
@@ -125,3 +129,87 @@ def test_avatar_requires_an_http_url(tmp_path: Path, url: str) -> None:
     )
     with pytest.raises(ValueError):
         load_ai_maid_definitions(path)
+
+
+def test_mcp_settings_stay_out_of_public_profiles(tmp_path: Path) -> None:
+    path = tmp_path / "characters.json"
+    path.write_text(
+        json.dumps(
+            {
+                "characters": {
+                    "Dorothy": {
+                        "mcp_servers": {
+                            "notes": {
+                                "command": "uvx",
+                                "args": ["notes-server"],
+                                "env_vars": {"TOKEN": "NOTES_TOKEN"},
+                                "allowed_tools": ["read_note"],
+                            },
+                            "calendar": {
+                                "url": "https://calendar.example/mcp",
+                                "headers_env": {"Authorization": "CALENDAR_AUTH"},
+                                "allowed_tools": ["list_events"],
+                            },
+                        }
+                    },
+                    "Eris": {"mcp_servers": {}},
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+    settings = load_character_settings(path)
+    assert settings.roster == load_ai_maid_definitions()
+    assert set(settings.mcp_servers) == {"Dorothy"}
+    notes, calendar = settings.mcp_servers["Dorothy"]
+    assert notes.command == "uvx" and notes.args == ("notes-server",)
+    assert notes.env_vars == (("TOKEN", "NOTES_TOKEN"),)
+    assert notes.allowed_tools == ("read_note",)
+    assert calendar.headers_env == (("Authorization", "CALENDAR_AUTH"),)
+    assert calendar.url == "https://calendar.example/mcp"
+    assert "MCP" not in json.dumps(asdict(settings.roster))
+    assert "NOTES_TOKEN" not in json.dumps(asdict(settings.roster))
+    assert load_character_settings().mcp_servers == {}
+
+
+@pytest.mark.parametrize(
+    "server",
+    [
+        None,
+        [],
+        {},
+        {"url": "https://example.com/mcp"},
+        {"url": "https://example.com/mcp", "allowed_tools": []},
+        {"url": "https://example.com/mcp", "allowed_tools": ["*"]},
+        {"url": "https://example.com/mcp", "allowed_tools": ["read", "read"]},
+        {"url": "https://example.com/mcp", "allowed_tools": [1]},
+        {
+            "url": "https://example.com/mcp",
+            "command": "server",
+            "allowed_tools": ["read"],
+        },
+        {"url": "file:///tmp/socket", "allowed_tools": ["read"]},
+        {"url": "https://", "allowed_tools": ["read"]},
+        {"url": "https://secret@example.com/mcp", "allowed_tools": ["read"]},
+        {"url": "https://example.com/mcp#fragment", "allowed_tools": ["read"]},
+        {
+            "url": "https://example.com/mcp",
+            "allowed_tools": ["read"],
+            "headers_env": {"Authorization": "Bearer secret"},
+        },
+        {"url": "https://example.com/mcp", "allowed_tools": ["read"], "env_vars": {}},
+        {"command": "", "allowed_tools": ["read"]},
+        {"command": "server", "args": "argument", "allowed_tools": ["read"]},
+        {"command": "server", "allowed_tools": ["read"], "headers_env": {}},
+        {"command": "server", "allowed_tools": ["read"], "env_vars": {"": "TOKEN"}},
+        {"command": "server", "allowed_tools": ["read"], "typo": True},
+    ],
+)
+def test_invalid_mcp_settings_are_rejected(tmp_path: Path, server: object) -> None:
+    path = tmp_path / "characters.json"
+    path.write_text(
+        json.dumps({"characters": {"Dorothy": {"mcp_servers": {"test": server}}}}),
+        encoding="utf-8",
+    )
+    with pytest.raises(ValueError):
+        load_character_settings(path)

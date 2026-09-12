@@ -124,7 +124,7 @@ class MyBot(commands.Bot):
                 or len(character_guild_id) > 20
             ):
                 raise ValueError("Character guild ID must be a Discord snowflake.")
-            from app.application.character_settings import load_ai_maid_definitions
+            from app.application.character_settings import load_character_settings
 
             override = os.getenv("CHARACTER_DEFINITIONS_PATH", "").strip()
             override_path = (
@@ -134,9 +134,10 @@ class MyBot(commands.Bot):
             )
             if not override_path.is_absolute():
                 override_path = PROJECT_ROOT / override_path
-            roster = load_ai_maid_definitions(
+            character_settings = load_character_settings(
                 override_path if override or override_path.exists() else None
             )
+            roster = character_settings.roster
             stage = "Gemini initialization"
             from google import genai
             from google.genai import types
@@ -164,6 +165,7 @@ class MyBot(commands.Bot):
                     ),
                 ),
                 model=os.getenv("GEMINI_MODEL", "").strip() or DEFAULT_GEMINI_MODEL,
+                mcp_servers=character_settings.mcp_servers,
             )
             self._character_response_generator = generator
             stage = "webhook destination validation"

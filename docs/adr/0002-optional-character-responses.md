@@ -151,6 +151,60 @@ memory/characters/<character_id>/
 には `source_cursor`（`message_id` と `occurred_at`）を保存し、カーソルが新しい場合だけ
 原子的に更新する。
 
+## キャラクター別MCP
+
+`uv sync --frozen --extra ai` で依存を導入し、上書きファイルの各キャラクターに
+`mcp_servers` を設定する。通常返信で選ばれたキャラクターのツールだけを利用し、
+キャラクター選定とtimes投稿ではMCPへ接続しない。未指定または `{}` ならMCPを使わない。
+MCPのtoolsを対象とし、resources・promptsの自動読込は行わない。
+
+[Exa用設定例](../../characters.exa.example.json) はDorothyの通常返信に検索と本文取得を
+追加する。上書きファイルがなければ `characters.override.json` としてコピーし、既存なら
+Dorothyの `mcp_servers.exa` を追加する。Botが読み込む `.env.local`（なければ `.env`）の
+`EXA_API_KEY` に発行したキーを設定する。
+[Exa公式の認証方式](https://exa.ai/docs/reference/exa-mcp#api-key) に従い、`Bearer ` を
+付けず `x-api-key` ヘッダーへ渡す。キー未設定の間は、この設定でのDorothyの返信生成は失敗する。
+
+```json
+{
+  "characters": {
+    "Dorothy": {
+      "mcp_servers": {
+        "calendar": {
+          "url": "https://mcp.example.com/mcp",
+          "headers_env": { "Authorization": "CALENDAR_AUTHORIZATION" },
+          "allowed_tools": ["list_events"]
+        }
+      }
+    },
+    "Eris": {
+      "mcp_servers": {
+        "notes": {
+          "command": "uv",
+          "args": ["run", "--project", "/path/to/notes-server", "main.py"],
+          "env_vars": { "NOTES_TOKEN": "NOTES_API_TOKEN" },
+          "allowed_tools": ["search_notes"]
+        }
+      }
+    }
+  }
+}
+```
+
+接続先はStreamable HTTPの `url`、またはstdioの `command` と `args` を指定する。
+`headers_env` と `env_vars` の値はBotプロセスの環境変数名で、返信時に解決する。
+例では `CALENDAR_AUTHORIZATION` に `Bearer ...` を含むヘッダー全体を設定し、
+`NOTES_API_TOKEN` の値を子プロセスの `NOTES_TOKEN` へ渡す。設定変更はBot再起動で反映する。
+
+`allowed_tools` は必須で、サーバーが提供するツール名を明示する。ワイルドカードは認めない。
+許可したツールはモデルの判断で実行される。設定型は共有契約に置き、接続情報と認証情報を
+公開プロフィールへ含めない。MCP SDKへの依存と実行処理はインフラ層に閉じる。
+
+JSON応答とツール呼び出しを併用できるGemini 3系モデルを使う。
+接続は返信ごとに開閉し、通信の読取期限15秒、生成全体60秒、ツール実行最大8回、
+公開ツール最大64個、結果1件のJSONは最大32,000文字とする。通信失敗・未知の許可ツール・
+上限超過は返信生成エラーとし、ツール自身が返すエラーはモデルへ渡す。
+
 ## 検証
 
 回帰テストは、他チャンネル除外、他Botの結果参照、話者の区別、履歴の時点、キャラクター要約の

@@ -1,11 +1,13 @@
 """Runtime character settings with optional local overrides."""
 
 import json
-from dataclasses import replace
+import re
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import cast
 from urllib.parse import quote, urlsplit
 
+from app.contracts.messages.character_mcp import CharacterMcpServer
 from app.domain.characters import (
     AI_MAID_CHARACTERS as DEFAULT_AI_MAID_CHARACTERS,
 )
@@ -18,8 +20,23 @@ from app.domain.characters import (
 )
 
 _OVERRIDE_FIELDS = frozenset(
-    {"position", "responsibilities", "persona", "speech_style", "avatar_url"}
+    {
+        "position",
+        "responsibilities",
+        "persona",
+        "speech_style",
+        "avatar_url",
+        "mcp_servers",
+    }
 )
+
+
+@dataclass(frozen=True, slots=True)
+class CharacterSettings:
+    """Keep public identities separate from private tool configuration."""
+
+    roster: CharacterRoster
+    mcp_servers: dict[str, tuple[CharacterMcpServer, ...]]
 
 
 def _as_object(value: object, label: str) -> dict[str, object]:
@@ -157,10 +174,96 @@ def _read_override(path: Path) -> dict[str, object]:
     return values
 
 
-def load_ai_maid_definitions(
+def _environment_references(
+    value: object, label: str, *, headers: bool = False
+) -> tuple[tuple[str, str], ...]:
+    values = _as_object(value, label)
+    references: list[tuple[str, str]] = []
+    for key, raw in values.items():
+        valid_key = (
+            re.fullmatch(r"[-!#$%&'*+.^_`|~0-9A-Za-z]+", key) is not None
+            if headers
+            else key.isascii() and key.isidentifier()
+        )
+        if not valid_key:
+            raise ValueError(f"{label} contains an invalid name.")
+        name = _as_string(raw, label)
+        if not name.isascii() or not name.isidentifier():
+            raise ValueError(f"{label} must reference environment variable names.")
+        references.append((key, name))
+    return tuple(references)
+
+
+def _command_args(value: object, label: str) -> tuple[str, ...]:
+    if not isinstance(value, list) or not all(
+        isinstance(arg, str) and "\x00" not in arg for arg in value
+    ):
+        raise ValueError(f"{label} must be a string array without null characters.")
+    return tuple(cast(list[str], value))
+
+
+def _mcp_servers(value: object, label: str) -> tuple[CharacterMcpServer, ...]:
+    servers: list[CharacterMcpServer] = []
+    for name, raw in _as_object(value, label).items():
+        _as_string(name, label)
+        values = _as_object(raw, f"{label}.{name}")
+        if ("url" in values) == ("command" in values):
+            raise ValueError(f"{label}.{name} requires exactly one of url or command.")
+        http = "url" in values
+        _reject_unknown_keys(
+            values,
+            frozenset({"url", "headers_env", "allowed_tools"})
+            if http
+            else frozenset({"command", "args", "env_vars", "allowed_tools"}),
+            f"{label}.{name}",
+        )
+        allowed = _as_strings(
+            values.get("allowed_tools"), f"{label}.{name}.allowed_tools"
+        )
+        if len(set(allowed)) != len(allowed) or "*" in allowed:
+            raise ValueError(
+                f"{label}.{name}.allowed_tools must list unique tool names."
+            )
+        url = _as_string(values["url"], f"{label}.{name}.url") if http else None
+        if url is not None:
+            parsed = urlsplit(url)
+            if (
+                parsed.scheme not in {"http", "https"}
+                or not parsed.hostname
+                or parsed.username is not None
+                or parsed.password is not None
+                or parsed.fragment
+                or any(char.isspace() for char in url)
+            ):
+                raise ValueError(
+                    f"{label}.{name}.url must be an HTTP(S) URL without credentials or fragments."
+                )
+        servers.append(
+            CharacterMcpServer(
+                name=name,
+                allowed_tools=allowed,
+                url=url,
+                command=None
+                if http
+                else _as_string(values["command"], f"{label}.{name}.command"),
+                args=_command_args(values.get("args", []), f"{label}.{name}.args"),
+                env_vars=_environment_references(
+                    values.get("env_vars", {}), f"{label}.{name}.env_vars"
+                ),
+                headers_env=_environment_references(
+                    values.get("headers_env", {}),
+                    f"{label}.{name}.headers_env",
+                    headers=True,
+                ),
+            )
+        )
+    return tuple(servers)
+
+
+def load_character_settings(
     override_path: Path | None = None,
-) -> CharacterRoster:
-    """Load default AI maid definitions and apply an optional local override."""
+) -> CharacterSettings:
+    """Load public character profiles and their private MCP settings."""
     characters = tuple(
         replace(
             character,
@@ -172,7 +275,9 @@ def load_ai_maid_definitions(
         for character in DEFAULT_AI_MAID_CHARACTERS
     )
     if override_path is None:
-        return CharacterRoster(DEFAULT_AI_MAID_COMMON_STYLE, characters)
+        return CharacterSettings(
+            CharacterRoster(DEFAULT_AI_MAID_COMMON_STYLE, characters), {}
+        )
     path = override_path
     if not path.exists():
         raise ValueError(f"Character override file does not exist: '{path}'.")
@@ -186,7 +291,7 @@ def load_ai_maid_definitions(
         else _as_strings(override["common_style"], "common_style")
     )
     if "characters" not in override:
-        return CharacterRoster(common_style, characters)
+        return CharacterSettings(CharacterRoster(common_style, characters), {})
 
     character_overrides = _as_object(override["characters"], "characters")
     defaults_by_name = {character.name: character for character in characters}
@@ -202,4 +307,17 @@ def load_ai_maid_definitions(
         )
         for character in characters
     )
-    return CharacterRoster(common_style, characters)
+    mcp_servers: dict[str, tuple[CharacterMcpServer, ...]] = {}
+    for name, raw in character_overrides.items():
+        values = _as_object(raw, f"characters.{name}")
+        servers = _mcp_servers(
+            values.get("mcp_servers", {}), f"characters.{name}.mcp_servers"
+        )
+        if servers:
+            mcp_servers[name] = servers
+    return CharacterSettings(CharacterRoster(common_style, characters), mcp_servers)
+
+
+def load_ai_maid_definitions(override_path: Path | None = None) -> CharacterRoster:
+    """Load public AI maid definitions from an optional local override."""
+    return load_character_settings(override_path).roster

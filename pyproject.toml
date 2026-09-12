@@ -30,12 +30,16 @@ start-line = "app.presentation.line.__main__:start"
 [project.optional-dependencies]
 ai = [
     "google-genai>=2.23.0",
+    "httpx2>=2.12.0",
+    "mcp>=2.2.0",
 ]
 
 [dependency-groups]
 dev = [
     "anyio>=4.11.0",
     "google-genai>=2.23.0",
+    "httpx2>=2.12.0",
+    "mcp>=2.2.0",
     "pre-commit>=4.5.0",
     "pyright>=1.1.407",
     "pytest>=8.3.5",
