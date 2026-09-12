@@ -32,7 +32,7 @@
 
 ### 5. **データベース統合**
 
-- **SQLModel + Alembic**: 型安全なORM とマイグレーション管理。
+- **SQLModel + Alembic**: 型安全なORMとマイグレーション管理。
 - **非同期データベース**: aiosqlite による非同期SQLite操作。
 - **クリーンアーキテクチャ準拠**: ORMモデルとドメイン集約を分離。
 - **自動マイグレーション**: Alembicによるスキーマバージョン管理。
@@ -54,7 +54,7 @@
 
 ### 9. **テスト環境の整備**
 
-- `pytest`と`pytest-asyncio`を使用したテスト環境を構築。
+- `pytest`とAnyIOのpytestプラグインを使用したテスト環境を構築。
 - `pytest-cov`によるコードカバレッジ測定。
 - インメモリSQLiteを使用した高速なテスト実行。
 
@@ -68,27 +68,33 @@
 
 ```text
 .
-├── src/app/                           # アプリケーション本体
-│   ├── api/                       # Web API層
-│   │   ├── __main__.py            # APIエントリーポイント (start-api)
-│   │   └── routers/               # APIルーター
-│   ├── bot/                       # Discord Bot層
-│   │   ├── __main__.py            # Botエントリーポイント (start-bot)
-│   │   └── cogs/                  # Cogモジュール
-│   ├── core/                      # アプリケーションコア (Result, Mediatorなど)
+├── src/app/                       # アプリケーション本体
+│   ├── application/               # アプリケーション共通処理
+│   ├── contracts/                 # ポートとメッセージ契約
 │   ├── container.py               # DIコンテナ設定
 │   ├── domain/                    # ドメイン層
-│   │   ├── aggregates/            # ドメイン集約 (user.py, team.py)
+│   │   ├── aggregates/            # ドメイン集約
 │   │   ├── interfaces/            # 抽象インターフェース
+│   │   ├── queries/               # ドメインクエリ
 │   │   ├── repositories/          # リポジトリインターフェース
 │   │   └── value_objects/         # 値オブジェクト
 │   ├── infrastructure/            # インフラストラクチャ層
 │   │   ├── database.py            # DB設定・セッション管理
-│   │   ├── orm_models/            # ORMモデル (user_orm.py, team_orm.py)
+│   │   ├── memory/                # Markdown記憶ストア
+│   │   ├── orm_models/            # ORMモデル
+│   │   ├── queries/               # クエリ実装
 │   │   └── repositories/          # リポジトリ実装
-│   └── usecases/                  # ユースケース層
-│       ├── users/                 # ユーザー関連ユースケース
-│       └── teams/                 # チーム関連ユースケース
+│   ├── presentation/              # 外部入口
+│   │   ├── api/                   # Web API (start-api)
+│   │   ├── bot/                   # Discord Bot (start-bot)
+│   │   ├── line/                  # LINE Bot (start-line)
+│   │   └── worker/                # 日次ワーカー (start-worker)
+│   ├── usecases/                  # ユースケース層
+│   │   ├── chat/                  # チャット関連
+│   │   ├── memory/                # 長期記憶関連
+│   │   ├── users/                 # ユーザー関連
+│   │   └── teams/                 # チーム関連
+│   └── ...
 ├── alembic/                       # Alembicマイグレーション
 │   └── versions/                  # マイグレーションファイル
 ├── docs/                          # ドキュメント
@@ -99,6 +105,9 @@
 ```
 
 ## 必要な環境
+
+DiscordからLiliaに調査、Noaにコーディングを依頼する場合は、
+[キャラクター作業の設定と使い方](docs/character-work.md)を参照してください。
 
 - Python 3.13 以上
 - パッケージ管理 [uv](https://github.com/astral-sh/uv)
@@ -142,7 +151,81 @@
 
    # データベースURL（オプション、デフォルト: sqlite+aiosqlite:///./bot.db）
    DATABASE_URL=sqlite+aiosqlite:///./bot.db
+
+   # AIキャラクター応答（任意。キー、Webhook URLリスト、Guild IDで有効）
+   GEMINI_API_KEY=your_gemini_api_key_here
+   GEMINI_MODEL=gemini-3.8-flash
+   DISCORD_CHARACTER_WEBHOOK_URLS_JSON='["https://discord.com/api/webhooks/..."]'
+   DISCORD_CHARACTER_GUILD_ID=123456789012345678
+   DISCORD_CHARACTER_MASTER_USER_ID=234567890123456789
    ```
+
+   `DISCORD_CHARACTER_WEBHOOK_URLS_JSON` にはWebhook URLのJSON配列を設定でき、
+   複数のテキスト／フォーラムチャンネルを同時に有効化できます。各URLは指定した
+   Guild内の異なるチャンネルを指す必要があり、同じチャンネルを複数指定するとAI
+   応答全体が無効になります。テキストチャンネルではそのチャンネル、フォーラムチャンネルでは各投稿（Thread）を会話単位として、
+   人間または外部Webhookの投稿を受信順に処理します。Geminiがキャラクター1人を選んで返信します。
+   メンションは不要です。他Botの投稿は会話履歴へ保存し、外部Webhookの投稿は
+   `author_kind: webhook` として送信元ID・表示名を付けたうえで返信生成に渡します。
+   対象外チャンネルの外部Webhookは、最初に設定されたテキストチャンネルをメインの返信先として
+   フォールバックします。対象外チャンネルの人間投稿は通常返信の対象外ですが、Timesを設定した
+   場合は同じGuild内のTimesの話題として利用します。他Bot・外部Webhook・コマンド・Botへの
+   メンションだけの投稿はTimesの発火対象外です。
+   当システムが使用するWebhookの投稿はループ防止のため除外します。
+
+   `DISCORD_CHARACTER_MASTER_USER_ID` は任意の固定マスターIDです。キャラクター選定・
+   通常返信・Timesのコンテキストに `master.user_id` と `master.mention`（`<@ID>`）を渡します。
+   本文にこの表記を含めた場合だけ、そのユーザーへのメンションを許可します。
+   他ユーザー・ロール・全体へのメンションは無効です。未設定なら `master` は `null` で、
+   メンションは無効のままです。不正なIDを設定するとAI応答を無効にします。
+
+   マスターの好みや継続中の目標など、個人設定（ChatGPTのパーソナライズ相当）は、
+   リポジトリルートの `master_context.md` にMarkdownで記述できます。任意設定のため、
+   ファイルが存在しない場合は読み込まれません。利用時は `master_context.example.md` を
+   コピーして作成してください。内容はBot起動時に読み込まれ、キャラクター選定・通常返信・
+   Timesのコンテキスト（`master.context`）として渡されます（最大8,000文字）。
+   変更の反映にはBotの再起動が必要です。このファイルはGit管理対象外ですが、
+   内容はGeminiへ送信されるため、個人情報や認証情報などの機密情報は記述しないでください。
+
+   キー・Webhook URLリスト・Guild IDの不足、キャラクター設定の不備、いずれかの
+   送信先の検証失敗があればAIだけを無効にします。Bot・API・LINEの通常機能はAI設定を読み込まずに
+   利用できます。開発用依存にはSDKを含みます。本番でAIを使う場合は
+   `uv run --frozen --no-dev --extra ai start-bot`、使わない場合は
+   `uv run --frozen --no-dev start-bot` で起動できます。
+
+   キャラクター設定の正本は `src/app/domain/characters.py` です。変更を反映するには
+   Botの再起動が必要です。[会話仕様・負荷上限・配信復旧](docs/adr/0002-optional-character-responses.md)
+   に運用条件を記載しています。
+
+   #### ユーザー長期記憶（任意）
+
+   ユーザー別の長期記憶を使う場合は、まず `!users create <name> <email>` で
+   canonical Userを作成し、返されたUser IDと外部参加者IDを
+   `user_channel_identities`へ運用者が明示的に登録します。自動で異なる外部IDを
+   同一人物へ統合することはありません。例:
+
+   ```sql
+   INSERT INTO user_channel_identities
+     (platform, external_participant_id, user_id, created_at)
+   VALUES ('DISCORD', '<discord-user-id>', '<canonical-user-id>', CURRENT_TIMESTAMP);
+   ```
+
+   DBマイグレーション適用後、次のワーカーを1プロセスだけ起動してください。毎日03:00 JSTに、
+   前日までのraw chatをGeminiで評価し、`memory/users/<user-id>/`へProfileとTimelineを
+   原子的に保存します。`WORKER_RUN_ONCE=1`なら1回だけ実行して終了します。
+
+   ```bash
+   uv run --frozen --no-dev --extra ai start-worker
+   # 動作確認や手動実行
+   WORKER_RUN_ONCE=1 uv run --frozen --no-dev --extra ai start-worker
+   ```
+
+   未対応の外部IDの投稿もraw chatとして保存しますが、個人メモリには取り込みません。
+   既存の投稿へ自動で所有権を遡及付与しないため、対応表を登録済みの既存投稿を対象にする場合は、
+   内容を確認してから個別に `chat_messages.user_id` をバックフィルしてください。
+   キャラクター単位の共有記憶（`memory/characters`）は、このユーザー記憶とは別系統です。
+   詳細な境界とシーケンス図は
+   [ADR 0003](docs/adr/0003-user-owned-long-term-memory.md)を参照してください。
 
 5. データベースマイグレーションを実行:
 
@@ -286,7 +369,6 @@ uv run pytest
 
 - **[アーキテクチャ設計](docs/ARCHITECTURE.md)** - システム全体のアーキテクチャ詳細
 - **[Domain層実装ガイド](docs/domain/DOMAIN_IMPLEMENTATION_GUIDE.md)** - ドメインモデルの実装方法
-- **[課題・改善点リスト](docs/ISSUES_AND_IMPROVEMENTS.md)** - 技術的な課題と改善提案
 
 ## TODO
 

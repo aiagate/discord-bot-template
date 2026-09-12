@@ -16,6 +16,7 @@ from app.domain.value_objects import (
     LineConversationScope,
     MessageContent,
     MessageId,
+    UserId,
 )
 from app.infrastructure.orm_models.chat_message_orm import ChatMessageORM
 
@@ -30,6 +31,10 @@ def chat_message_to_orm(message: ChatMessage) -> ChatMessageORM:
         author_kind=message.author_kind.to_primitive(),
         content=message.content.to_primitive(),
         occurred_at=message.occurred_at,
+        user_id=message.user_id.to_primitive() if message.user_id else None,
+        external_message_id=message.external_message_id,
+        author_name=message.author_name,
+        reply_to_external_message_id=message.reply_to_external_message_id,
     )
 
 
@@ -112,6 +117,12 @@ def chat_message_from_orm(row: SQLModel) -> ChatMessage:
         raise ValueError(str(message_id_result.error))
 
     scope = _scope_from_orm(platform, row.conversation_scope)
+    user_id: UserId | None = None
+    if row.user_id is not None:
+        user_result = UserId.from_primitive(row.user_id)
+        if is_err(user_result):
+            raise ValueError(str(user_result.error))
+        user_id = user_result.value
     return ChatMessage.restore(
         message_id=message_id_result.value,
         platform=platform,
@@ -120,4 +131,8 @@ def chat_message_from_orm(row: SQLModel) -> ChatMessage:
         author_kind=author_result.value,
         content=content_result.value,
         occurred_at=_occurred_at_from_orm(row.occurred_at),
+        user_id=user_id,
+        external_message_id=row.external_message_id,
+        author_name=row.author_name,
+        reply_to_external_message_id=row.reply_to_external_message_id,
     )

@@ -1,7 +1,5 @@
 """Regression tests for membership enrollment periods."""
 
-from unittest.mock import AsyncMock
-
 import pytest
 from flow_res import is_err, is_ok
 
@@ -21,7 +19,6 @@ from app.usecases.users.create_user import CreateUserCommand, CreateUserHandler
 
 async def _create_team_and_user(
     uow: IUnitOfWork,
-    event_bus: AsyncMock,
 ) -> tuple[str, str]:
     """Create the two aggregates needed by membership use cases."""
     team_result = await CreateTeamHandler(uow).handle(
@@ -29,7 +26,7 @@ async def _create_team_and_user(
     )
     assert is_ok(team_result)
 
-    user_result = await CreateUserHandler(uow, event_bus).handle(
+    user_result = await CreateUserHandler(uow).handle(
         CreateUserCommand(
             display_name="Enrollment User",
             email="enrollment@example.com",
@@ -42,10 +39,9 @@ async def _create_team_and_user(
 @pytest.mark.anyio
 async def test_duplicate_immediate_join_returns_conflict(
     uow: IUnitOfWork,
-    event_bus: AsyncMock,
 ) -> None:
     """A second active enrollment period is rejected as a conflict."""
-    team_id, user_id = await _create_team_and_user(uow, event_bus)
+    team_id, user_id = await _create_team_and_user(uow)
     handler = JoinTeamHandler(uow)
 
     first = await handler.handle(JoinTeamCommand(team_id, user_id))
@@ -59,10 +55,9 @@ async def test_duplicate_immediate_join_returns_conflict(
 @pytest.mark.anyio
 async def test_duplicate_join_request_returns_conflict(
     uow: IUnitOfWork,
-    event_bus: AsyncMock,
 ) -> None:
     """A second pending enrollment period is rejected as a conflict."""
-    team_id, user_id = await _create_team_and_user(uow, event_bus)
+    team_id, user_id = await _create_team_and_user(uow)
     handler = RequestJoinTeamHandler(uow)
 
     first = await handler.handle(RequestJoinTeamCommand(team_id, user_id))
@@ -76,10 +71,9 @@ async def test_duplicate_join_request_returns_conflict(
 @pytest.mark.anyio
 async def test_rejoin_creates_new_period_and_preserves_leaved_history(
     uow: IUnitOfWork,
-    event_bus: AsyncMock,
 ) -> None:
     """Leaving permits a new period while retaining the old LEAVED row."""
-    team_id, user_id = await _create_team_and_user(uow, event_bus)
+    team_id, user_id = await _create_team_and_user(uow)
     join_handler = JoinTeamHandler(uow)
     first_result = await join_handler.handle(JoinTeamCommand(team_id, user_id))
     assert is_ok(first_result)

@@ -82,13 +82,13 @@ def test_team_membership_cannot_change_role_after_leaving() -> None:
     assert membership.role == MembershipRole.MEMBER
 
 
-def test_team_membership_activate() -> None:
-    """Test activating a pending membership."""
+def test_team_membership_approve() -> None:
+    """Test approving a pending membership."""
     team_id = TeamId.generate().expect("Success")
     user_id = UserId.generate().expect("Success")
     membership = TeamMembership.request_join(team_id=team_id, user_id=user_id)
 
-    membership.activate()
+    membership.approve()
 
     assert membership.status == MembershipStatus.ACTIVE
 

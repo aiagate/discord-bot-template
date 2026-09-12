@@ -1,6 +1,6 @@
 # アーキテクチャ設計ドキュメント
 
-最終更新日: 2026-09-06
+最終更新日: 2026-09-12
 
 このドキュメントは、Discord Bot テンプレートのアーキテクチャ設計と実装パターンを詳細に説明します。
 
@@ -35,7 +35,7 @@
 │  - src/app/domain/repositories/             │  - 汎用Repository契約
 ├─────────────────────────────────────────────┤
 │  Contracts / Ports                          │  アプリケーション境界
-│  - src/app/contracts/ports/                 │  - UoW・読み取りQuery・イベント契約
+│  - src/app/contracts/ports/                 │  - UoW・読み取りQuery・外部サービス契約
 ├─────────────────────────────────────────────┤
 │  Infrastructure Layer                       │  技術的詳細
 │  (Database, ORM, External Services)         │  - データベースアクセス
@@ -124,14 +124,14 @@ from abc import ABC, abstractmethod
 from flow_res import Result
 
 class IRepository[T](ABC):
-    """基本リポジトリインターフェース（追加・削除操作）"""
+    """基本リポジトリインターフェース（追加・更新操作）"""
 
     @abstractmethod
     async def add(self, entity: T) -> Result[T, RepositoryError]:
         pass
 
     @abstractmethod
-    async def delete(self, entity: T) -> Result[None, RepositoryError]:
+    async def update(self, entity: T) -> Result[T, RepositoryError]:
         pass
 
 
@@ -234,7 +234,7 @@ mediator: ApplicationMediator
 result = await mediator.send_async(GetUserQuery(user_id="01H...Z"))
 ```
 
-Presentation層はBot、API、Workerのいずれも同じ `ApplicationMediator` をDIで受け取り、
+Presentation層はBot、APIのいずれも同じ `ApplicationMediator` をDIで受け取り、
 そのインスタンスメソッドだけを呼び出します。
 
 ##### 2.3 DTOs（Data Transfer Objects）
@@ -584,32 +584,9 @@ async def test_get_user_handler(uow: IUnitOfWork) -> None:
 
 ## 依存関係管理
 
-### プロダクション依存関係
-
-```toml
-[project.dependencies]
-aiosqlite = ">=0.21.0"
-alembic = ">=1.17.2"
-discord-py = ">=2.5.2"
-injector = ">=0.22.0"
-python-dotenv = ">=1.2.1"
-python-ulid = ">=3.1.0"   # ULID生成
-sqlmodel = ">=0.0.24"
-```
-
-### 開発依存関係
-
-```toml
-[dependency-groups.dev]
-# anyio は pytest-asyncio の依存関係として導入されます
-pre-commit = ">=4.5.0"
-pyright = ">=1.1.407"
-pytest = ">=8.3.5"
-pytest-asyncio = ">=1.3.0" # 非同期テストランナー
-pytest-cov = ">=7.0.0"
-pytest-mock = ">=3.14.0"
-ruff = ">=0.14.6"
-```
+依存パッケージは [pyproject.toml](../pyproject.toml) で管理します。
+本番用は `project.dependencies`、開発用は `dependency-groups.dev` を参照してください。
+非同期テストには、開発依存のAnyIOに同梱されたpytestプラグインを使います。
 
 ---
 

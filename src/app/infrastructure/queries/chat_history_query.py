@@ -1,16 +1,18 @@
 """SQLAlchemy implementation of conversation-scoped history queries."""
 
 import logging
+from datetime import datetime
 from typing import Any, cast
 
 from flow_res import Err, Ok, Result
-from sqlalchemy import desc, select
+from sqlalchemy import and_, desc, or_, select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.contracts.ports.chat_history_query import IChatHistoryQuery
 from app.domain.aggregates.chat_message import ChatMessage
 from app.domain.repositories import RepositoryError, RepositoryErrorType
+from app.domain.value_objects import AuthorKind, ChatPlatform
 from app.domain.value_objects.conversation_scope import (
     ConversationScope,
     DiscordConversationScope,
@@ -22,7 +24,7 @@ logger = logging.getLogger(__name__)
 
 
 class SQLAlchemyChatHistoryQuery(IChatHistoryQuery):
-    """Read ChatMessage rows for one exact conversation scope."""
+    """Read persisted chat messages for conversation or Discord guild scopes."""
 
     def __init__(
         self,
@@ -35,6 +37,8 @@ class SQLAlchemyChatHistoryQuery(IChatHistoryQuery):
         self,
         conversation_scope: ConversationScope,
         limit: int = 20,
+        *,
+        before: tuple[datetime, str] | None = None,
     ) -> Result[list[ChatMessage], RepositoryError]:
         """Get recent messages for a conversation in chronological order."""
         try:
@@ -64,6 +68,19 @@ class SQLAlchemyChatHistoryQuery(IChatHistoryQuery):
                         scope_column["locator"].as_string()
                         == conversation_scope.locator,
                     ]
+                if before is not None:
+                    occurred_at, message_id = before
+                    if occurred_at.tzinfo is None or occurred_at.utcoffset() is None:
+                        raise ValueError("History cursor must be timezone-aware.")
+                    scope_conditions.append(
+                        or_(
+                            table.c.occurred_at < occurred_at,
+                            and_(
+                                table.c.occurred_at == occurred_at,
+                                table.c.id < message_id,
+                            ),
+                        )
+                    )
                 statement = (
                     select(ChatMessageORM)
                     .where(
@@ -86,4 +103,69 @@ class SQLAlchemyChatHistoryQuery(IChatHistoryQuery):
                     type=RepositoryErrorType.UNEXPECTED,
                     message=str(error),
                 )
+            )
+
+    async def get_recent_discord_user_messages(
+        self, guild_id: str, limit: int = 20
+    ) -> Result[list[ChatMessage], RepositoryError]:
+        """Get recent human-authored Discord messages across one guild."""
+        try:
+            if limit <= 0:
+                return Err(
+                    RepositoryError(
+                        type=RepositoryErrorType.UNEXPECTED,
+                        message="History limit must be greater than zero.",
+                    )
+                )
+
+            async with self._session_factory() as session:
+                table = cast(Any, ChatMessageORM).__table__
+                statement = (
+                    select(ChatMessageORM)
+                    .where(
+                        table.c.platform == ChatPlatform.DISCORD.to_primitive(),
+                        table.c.conversation_scope["guild_id"].as_string() == guild_id,
+                        table.c.author_kind == AuthorKind.USER.to_primitive(),
+                    )
+                    .order_by(desc(table.c.occurred_at), desc(table.c.id))
+                    .limit(limit)
+                )
+                result = await session.execute(statement)
+                rows = list(reversed(result.scalars().all()))
+                messages = [ORMMappingRegistry.from_orm(row) for row in rows]
+                if not all(isinstance(message, ChatMessage) for message in messages):
+                    raise TypeError("Chat history mapping returned an invalid entity.")
+                return Ok(cast(list[ChatMessage], messages))
+        except (SQLAlchemyError, TypeError, ValueError) as error:
+            logger.exception("Database error occurred in Discord guild history lookup")
+            return Err(
+                RepositoryError(
+                    type=RepositoryErrorType.UNEXPECTED,
+                    message=str(error),
+                )
+            )
+
+    async def get_by_external_id(
+        self, platform: ChatPlatform, external_message_id: str
+    ) -> Result[ChatMessage | None, RepositoryError]:
+        """Find one message by its provider identity."""
+        try:
+            async with self._session_factory() as session:
+                table = cast(Any, ChatMessageORM).__table__
+                result = await session.execute(
+                    select(ChatMessageORM).where(
+                        table.c.platform == platform.to_primitive(),
+                        table.c.external_message_id == external_message_id,
+                    )
+                )
+                row = result.scalar_one_or_none()
+                if row is None:
+                    return Ok(None)
+                message = ORMMappingRegistry.from_orm(row)
+                if not isinstance(message, ChatMessage):
+                    raise TypeError("Chat mapping returned an invalid entity.")
+                return Ok(message)
+        except (SQLAlchemyError, TypeError, ValueError) as error:
+            return Err(
+                RepositoryError(type=RepositoryErrorType.UNEXPECTED, message=str(error))
             )

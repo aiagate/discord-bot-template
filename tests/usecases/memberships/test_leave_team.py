@@ -1,7 +1,5 @@
 """Tests for LeaveTeam use case failure scenarios."""
 
-from unittest.mock import AsyncMock
-
 import pytest
 from flow_res import is_err
 from ulid import ULID
@@ -45,14 +43,12 @@ async def test_leave_team_not_found(uow: IUnitOfWork) -> None:
 
 
 @pytest.mark.anyio
-async def test_leave_team_already_leaved(
-    uow: IUnitOfWork, event_bus: AsyncMock
-) -> None:
+async def test_leave_team_already_leaved(uow: IUnitOfWork) -> None:
     """Test that leaving a LEAVED membership returns a validation error."""
     team_handler = CreateTeamHandler(uow)
     team_id = (await team_handler.handle(CreateTeamCommand(name="Team A"))).unwrap().id
 
-    user_handler = CreateUserHandler(uow, event_bus)
+    user_handler = CreateUserHandler(uow)
 
     user_id = (
         (

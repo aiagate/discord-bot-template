@@ -25,44 +25,6 @@ async def test_repository_get_non_existent_raises_error(uow: IUnitOfWork) -> Non
 
 
 @pytest.mark.anyio
-async def test_repository_delete(uow: IUnitOfWork) -> None:
-    """Test deleting an entity via the repository."""
-    user = User.register(
-        display_name=DisplayName.from_primitive("ToDelete").expect(
-            "DisplayName.from_primitive should succeed"
-        ),
-        email=Email.from_primitive("delete@example.com").expect(
-            "Email.from_primitive should succeed for valid email"
-        ),
-    )
-    saved_user_result = None
-
-    # 1. Create user
-    async with uow:
-        repo = uow.GetRepository(User, UserId)
-        saved_user_result = await repo.add(user)
-        assert is_ok(saved_user_result)
-        saved_user = saved_user_result.value
-        assert saved_user.id  # ULID should exist
-        commit_result = await uow.commit()
-        assert is_ok(commit_result)
-
-    # 2. Delete user
-    async with uow:
-        repo = uow.GetRepository(User, UserId)
-        delete_result = await repo.delete(saved_user)
-        assert is_ok(delete_result)
-        commit_result = await uow.commit()
-        assert is_ok(commit_result)
-
-    # 3. Verify user is deleted
-    async with uow:
-        repo = uow.GetRepository(User, UserId)
-        get_result = await repo.get_by_id(saved_user.id)
-        assert is_err(get_result)
-
-
-@pytest.mark.anyio
 async def test_repository_saves_timestamps(uow: IUnitOfWork) -> None:
     """Test that repository correctly saves and retrieves timestamps."""
     before_creation = datetime.now(UTC)
