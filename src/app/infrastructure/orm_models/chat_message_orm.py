@@ -3,7 +3,7 @@
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import JSON, Column, DateTime, Index, String
+from sqlalchemy import JSON, Column, DateTime, ForeignKey, Index, String
 from sqlmodel import Field, SQLModel
 
 
@@ -30,6 +30,10 @@ class ChatMessageORM(SQLModel, table=True):
     content: dict[str, Any] = Field(sa_column=Column(JSON, nullable=False))
     occurred_at: datetime = Field(
         sa_column=Column(DateTime(timezone=True), nullable=False, index=True)
+    )
+    user_id: str | None = Field(
+        default=None,
+        sa_column=Column(String(26), ForeignKey("users.id"), nullable=True, index=True),
     )
     external_message_id: str | None = Field(default=None, max_length=255)
     author_name: str | None = Field(default=None, max_length=255)

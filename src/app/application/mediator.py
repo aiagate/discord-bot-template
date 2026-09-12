@@ -20,6 +20,9 @@ from app.usecases.memberships.change_role import ChangeRoleHandler
 from app.usecases.memberships.join_team import JoinTeamHandler
 from app.usecases.memberships.leave_team import LeaveTeamHandler
 from app.usecases.memberships.request_join_team import RequestJoinTeamHandler
+from app.usecases.memory.consolidate_user_memory import (
+    ConsolidateUserMemoryHandler,
+)
 from app.usecases.result import UseCaseError, UseCaseResultError
 from app.usecases.teams.create_team import CreateTeamHandler
 from app.usecases.teams.get_team import GetTeamHandler
@@ -32,6 +35,7 @@ _HANDLER_TYPES: tuple[type[RequestHandler[Any, Any]], ...] = (
     GenerateTimesEpisodeHandler,
     SaveDiscordChatHandler,
     SaveLineChatHandler,
+    ConsolidateUserMemoryHandler,
     ApproveJoinRequestHandler,
     ChangeRoleHandler,
     JoinTeamHandler,

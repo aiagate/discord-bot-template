@@ -7,10 +7,10 @@ from flow_med import Request, RequestHandler
 from flow_res import Err, Ok, Result, is_err
 from injector import inject
 
-from app.contracts.ports import IChatHistoryQuery, IUnitOfWork
+from app.contracts.ports import IChatHistoryQuery, IUnitOfWork, IUserIdentityQuery
 from app.domain.aggregates.chat_message import ChatMessage
 from app.domain.repositories import RepositoryErrorType
-from app.domain.value_objects import AuthorKind, ChatPlatform
+from app.domain.value_objects import AuthorKind, ChatPlatform, UserId
 from app.domain.value_objects.message_content import MessageContent
 from app.usecases.result import (
     ErrorType,
@@ -51,9 +51,11 @@ class SaveDiscordChatHandler(
         self,
         uow: IUnitOfWork,
         history_query: IChatHistoryQuery,
+        identity_query: IUserIdentityQuery | None = None,
     ) -> None:
         self._uow = uow
         self._history_query = history_query
+        self._identity_query = identity_query
 
     async def handle(
         self, request: SaveDiscordChatCommand
@@ -68,12 +70,24 @@ class SaveDiscordChatHandler(
             if existing.value is not None:
                 return Ok(SaveChatResult(id=existing.value.id.to_primitive()))
         try:
+            user_id: UserId | None = None
+            if (
+                request.author_kind is AuthorKind.USER
+                and self._identity_query is not None
+            ):
+                identity_result = await self._identity_query.resolve(
+                    ChatPlatform.DISCORD, request.external_sender_id
+                )
+                if is_err(identity_result):
+                    return Err(identity_result.error)
+                user_id = identity_result.value
             message = ChatMessage.create_discord(
                 guild_id=request.guild_id,
                 channel_id=request.channel_id,
                 external_sender_id=request.external_sender_id,
                 content=MessageContent.text(request.content),
                 occurred_at=request.occurred_at,
+                user_id=user_id,
                 author_kind=request.author_kind,
                 external_message_id=request.external_message_id,
                 author_name=request.author_name,

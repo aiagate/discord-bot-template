@@ -32,7 +32,7 @@
 
 ### 5. **データベース統合**
 
-- **SQLModel + Alembic**: 型安全なORM とマイグレーション管理。
+- **SQLModel + Alembic**: 型安全なORMとマイグレーション管理。
 - **非同期データベース**: aiosqlite による非同期SQLite操作。
 - **クリーンアーキテクチャ準拠**: ORMモデルとドメイン集約を分離。
 - **自動マイグレーション**: Alembicによるスキーマバージョン管理。
@@ -68,27 +68,33 @@
 
 ```text
 .
-├── src/app/                           # アプリケーション本体
-│   ├── api/                       # Web API層
-│   │   ├── __main__.py            # APIエントリーポイント (start-api)
-│   │   └── routers/               # APIルーター
-│   ├── bot/                       # Discord Bot層
-│   │   ├── __main__.py            # Botエントリーポイント (start-bot)
-│   │   └── cogs/                  # Cogモジュール
-│   ├── core/                      # アプリケーションコア (Result, Mediatorなど)
+├── src/app/                       # アプリケーション本体
+│   ├── application/               # アプリケーション共通処理
+│   ├── contracts/                 # ポートとメッセージ契約
 │   ├── container.py               # DIコンテナ設定
 │   ├── domain/                    # ドメイン層
-│   │   ├── aggregates/            # ドメイン集約 (user.py, team.py)
+│   │   ├── aggregates/            # ドメイン集約
 │   │   ├── interfaces/            # 抽象インターフェース
+│   │   ├── queries/               # ドメインクエリ
 │   │   ├── repositories/          # リポジトリインターフェース
 │   │   └── value_objects/         # 値オブジェクト
 │   ├── infrastructure/            # インフラストラクチャ層
 │   │   ├── database.py            # DB設定・セッション管理
-│   │   ├── orm_models/            # ORMモデル (user_orm.py, team_orm.py)
+│   │   ├── memory/                # Markdown記憶ストア
+│   │   ├── orm_models/            # ORMモデル
+│   │   ├── queries/               # クエリ実装
 │   │   └── repositories/          # リポジトリ実装
-│   └── usecases/                  # ユースケース層
-│       ├── users/                 # ユーザー関連ユースケース
-│       └── teams/                 # チーム関連ユースケース
+│   ├── presentation/              # 外部入口
+│   │   ├── api/                   # Web API (start-api)
+│   │   ├── bot/                   # Discord Bot (start-bot)
+│   │   ├── line/                  # LINE Bot (start-line)
+│   │   └── worker/                # 日次ワーカー (start-worker)
+│   ├── usecases/                  # ユースケース層
+│   │   ├── chat/                  # チャット関連
+│   │   ├── memory/                # 長期記憶関連
+│   │   ├── users/                 # ユーザー関連
+│   │   └── teams/                 # チーム関連
+│   └── ...
 ├── alembic/                       # Alembicマイグレーション
 │   └── versions/                  # マイグレーションファイル
 ├── docs/                          # ドキュメント
@@ -157,8 +163,7 @@ DiscordからLiliaに調査、Noaにコーディングを依頼する場合は�
    `DISCORD_CHARACTER_WEBHOOK_URLS_JSON` にはWebhook URLのJSON配列を設定でき、
    複数のテキスト／フォーラムチャンネルを同時に有効化できます。各URLは指定した
    Guild内の異なるチャンネルを指す必要があり、同じチャンネルを複数指定するとAI
-   応答全体が無効になります。テキストチャンネルではその
-   チャンネル、フォーラムチャンネルでは各投稿（Thread）を会話単位として、
+   応答全体が無効になります。テキストチャンネルではそのチャンネル、フォーラムチャンネルでは各投稿（Thread）を会話単位として、
    人間または外部Webhookの投稿を受信順に処理します。Geminiがキャラクター1人を選んで返信します。
    メンションは不要です。他Botの投稿は会話履歴へ保存し、外部Webhookの投稿は
    `author_kind: webhook` として送信元ID・表示名を付けたうえで返信生成に渡します。
@@ -192,6 +197,36 @@ DiscordからLiliaに調査、Noaにコーディングを依頼する場合は�
    `CHARACTER_DEFINITIONS_PATH` で別ファイルを指定する場合、相対パスの基準も
    リポジトリルートです。[会話仕様・負荷上限・配信復旧](docs/adr/0002-optional-character-responses.md)
    に運用条件と設定例を記載しています。
+
+   #### ユーザー長期記憶（任意）
+
+   ユーザー別の長期記憶を使う場合は、まず `!users create <name> <email>` で
+   canonical Userを作成し、返されたUser IDと外部参加者IDを
+   `user_channel_identities`へ運用者が明示的に登録します。自動で異なる外部IDを
+   同一人物へ統合することはありません。例:
+
+   ```sql
+   INSERT INTO user_channel_identities
+     (platform, external_participant_id, user_id, created_at)
+   VALUES ('DISCORD', '<discord-user-id>', '<canonical-user-id>', CURRENT_TIMESTAMP);
+   ```
+
+   DBマイグレーション適用後、次のワーカーを1プロセスだけ起動してください。毎日03:00 JSTに、
+   前日までのraw chatをGeminiで評価し、`memory/users/<user-id>/`へProfileとTimelineを
+   原子的に保存します。`WORKER_RUN_ONCE=1`なら1回だけ実行して終了します。
+
+   ```bash
+   uv run --frozen --no-dev --extra ai start-worker
+   # 動作確認や手動実行
+   WORKER_RUN_ONCE=1 uv run --frozen --no-dev --extra ai start-worker
+   ```
+
+   未対応の外部IDの投稿もraw chatとして保存しますが、個人メモリには取り込みません。
+   既存の投稿へ自動で所有権を遡及付与しないため、対応表を登録済みの既存投稿を対象にする場合は、
+   内容を確認してから個別に `chat_messages.user_id` をバックフィルしてください。
+   キャラクター単位の共有記憶（`memory/characters`）は、このユーザー記憶とは別系統です。
+   詳細な境界とシーケンス図は
+   [ADR 0003](docs/adr/0003-user-owned-long-term-memory.md)を参照してください。
 
 5. データベースマイグレーションを実行:
 
@@ -335,7 +370,6 @@ uv run pytest
 
 - **[アーキテクチャ設計](docs/ARCHITECTURE.md)** - システム全体のアーキテクチャ詳細
 - **[Domain層実装ガイド](docs/domain/DOMAIN_IMPLEMENTATION_GUIDE.md)** - ドメインモデルの実装方法
-- **[課題・改善点リスト](docs/ISSUES_AND_IMPROVEMENTS.md)** - 技術的な課題と改善提案
 
 ## TODO
 

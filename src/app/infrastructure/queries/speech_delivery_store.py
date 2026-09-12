@@ -16,6 +16,7 @@ from app.domain.value_objects import (
     AuthorKind,
     DiscordConversationScope,
     MessageContent,
+    UserId,
 )
 from app.infrastructure.mappings.chat_message import chat_message_to_orm
 from app.infrastructure.orm_models.chat_message_orm import ChatMessageORM
@@ -90,6 +91,13 @@ class SQLAlchemySpeechDeliveryStore(ISpeechDeliveryStore):
                             author_kind=AuthorKind.BOT,
                             content=MessageContent.text(receipt.content),
                             occurred_at=receipt.occurred_at,
+                            user_id=(
+                                UserId.from_primitive(receipt.user_id).expect(
+                                    "Published speech user ID must be valid"
+                                )
+                                if receipt.user_id is not None
+                                else None
+                            ),
                             external_message_id=receipt.external_message_id,
                             author_name=receipt.username,
                             reply_to_external_message_id=receipt.source_message_id,

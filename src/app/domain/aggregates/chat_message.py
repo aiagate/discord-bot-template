@@ -14,6 +14,7 @@ from app.domain.value_objects import (
     LineConversationScope,
     MessageContent,
     MessageId,
+    UserId,
 )
 
 
@@ -71,6 +72,7 @@ class ChatMessage:
     _author_kind: AuthorKind
     _content: MessageContent
     _occurred_at: datetime
+    _user_id: UserId | None = None
     _external_message_id: str | None = None
     _author_name: str | None = None
     _reply_to_external_message_id: str | None = None
@@ -106,6 +108,7 @@ class ChatMessage:
         author_kind: AuthorKind | str,
         content: MessageContent,
         occurred_at: datetime,
+        user_id: UserId | None = None,
         message_id: MessageId | None = None,
         external_message_id: str | None = None,
         author_name: str | None = None,
@@ -121,6 +124,7 @@ class ChatMessage:
             _author_kind=_as_author_kind(author_kind),
             _content=content,
             _occurred_at=occurred_at,
+            _user_id=user_id,
             _external_message_id=external_message_id,
             _author_name=author_name,
             _reply_to_external_message_id=reply_to_external_message_id,
@@ -136,6 +140,7 @@ class ChatMessage:
         content: MessageContent,
         author_kind: AuthorKind | str = AuthorKind.USER,
         occurred_at: datetime,
+        user_id: UserId | None = None,
         message_id: MessageId | None = None,
         external_message_id: str | None = None,
         author_name: str | None = None,
@@ -152,6 +157,7 @@ class ChatMessage:
             author_kind=author_kind,
             content=content,
             occurred_at=occurred_at,
+            user_id=user_id,
             message_id=message_id,
             external_message_id=external_message_id,
             author_name=author_name,
@@ -167,6 +173,7 @@ class ChatMessage:
         content: MessageContent,
         author_kind: AuthorKind | str = AuthorKind.USER,
         occurred_at: datetime,
+        user_id: UserId | None = None,
         message_id: MessageId | None = None,
     ) -> ChatMessage:
         """Create a message scoped to a LINE conversation."""
@@ -177,6 +184,7 @@ class ChatMessage:
             author_kind=author_kind,
             content=content,
             occurred_at=occurred_at,
+            user_id=user_id,
             message_id=message_id,
         )
 
@@ -189,6 +197,7 @@ class ChatMessage:
         content: MessageContent,
         author_kind: AuthorKind | str = AuthorKind.USER,
         occurred_at: datetime,
+        user_id: UserId | None = None,
         message_id: MessageId | None = None,
     ) -> ChatMessage:
         """Create a message for a one-to-one LINE conversation."""
@@ -198,6 +207,7 @@ class ChatMessage:
             content=content,
             author_kind=author_kind,
             occurred_at=occurred_at,
+            user_id=user_id,
             message_id=message_id,
         )
 
@@ -210,6 +220,7 @@ class ChatMessage:
         content: MessageContent,
         author_kind: AuthorKind | str = AuthorKind.USER,
         occurred_at: datetime,
+        user_id: UserId | None = None,
         message_id: MessageId | None = None,
     ) -> ChatMessage:
         """Create a message for a LINE group conversation."""
@@ -219,6 +230,7 @@ class ChatMessage:
             content=content,
             author_kind=author_kind,
             occurred_at=occurred_at,
+            user_id=user_id,
             message_id=message_id,
         )
 
@@ -231,6 +243,7 @@ class ChatMessage:
         content: MessageContent,
         author_kind: AuthorKind | str = AuthorKind.USER,
         occurred_at: datetime,
+        user_id: UserId | None = None,
         message_id: MessageId | None = None,
     ) -> ChatMessage:
         """Create a message for a LINE room conversation."""
@@ -240,6 +253,7 @@ class ChatMessage:
             content=content,
             author_kind=author_kind,
             occurred_at=occurred_at,
+            user_id=user_id,
             message_id=message_id,
         )
 
@@ -254,6 +268,7 @@ class ChatMessage:
         author_kind: AuthorKind,
         content: MessageContent,
         occurred_at: datetime,
+        user_id: UserId | None = None,
         external_message_id: str | None = None,
         author_name: str | None = None,
         reply_to_external_message_id: str | None = None,
@@ -267,6 +282,7 @@ class ChatMessage:
             _author_kind=author_kind,
             _content=content,
             _occurred_at=occurred_at,
+            _user_id=user_id,
             _external_message_id=external_message_id,
             _author_name=author_name,
             _reply_to_external_message_id=reply_to_external_message_id,
@@ -316,6 +332,11 @@ class ChatMessage:
     def author_kind(self) -> AuthorKind:
         """Return whether the author is a user, bot, or system."""
         return self._author_kind
+
+    @property
+    def user_id(self) -> UserId | None:
+        """Return the canonical User who owns this message, when resolved."""
+        return self._user_id
 
     @property
     def content(self) -> MessageContent:

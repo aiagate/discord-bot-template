@@ -15,6 +15,13 @@ from app.contracts.ports.speech_publisher import (
 from app.contracts.ports.times_episode_store import ITimesEpisodeStore
 from app.contracts.ports.times_publisher import ITimesPublisher
 from app.contracts.ports.unit_of_work import IUnitOfWork
+from app.contracts.ports.user_identity_query import IUserIdentityQuery
+from app.contracts.ports.user_memory import (
+    IUserMemoryExtractor,
+    IUserMemorySourceStore,
+    IUserMemoryStore,
+    MemoryExtractionError,
+)
 
 __all__ = [
     "CharacterGenerationError",
@@ -26,6 +33,11 @@ __all__ = [
     "ITimesEpisodeStore",
     "ITimesPublisher",
     "IUnitOfWork",
+    "IUserIdentityQuery",
+    "IUserMemoryExtractor",
+    "IUserMemorySourceStore",
+    "IUserMemoryStore",
+    "MemoryExtractionError",
     "SpeechPublishError",
     "SpeechPublishErrorType",
 ]

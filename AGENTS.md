@@ -15,11 +15,19 @@
 
 ## 開発の基本ルール
 
-### 0\. Discord Botの起動・再起動
+### 0\. Discord Botとworkerの起動・再起動
 
-Discord Botは、再起動時にも同じセッションを操作できるよう、固定の
-`screen`セッション名 `discord-bot` で起動する。以下のコマンドは
-リポジトリルートで実行すること。
+Discord Botとユーザー長期記憶workerは別プロセスとして起動する。どちらも
+再起動時に同じセッションを操作できるよう、固定の`screen`セッション名を使う。
+以下のコマンドはリポジトリルートで実行すること。
+
+データベース変更を適用した後は、Bot、workerの順に再起動する。
+
+```bash
+uv run --frozen alembic upgrade head
+```
+
+#### Discord Bot
 
 - 起動:
 
@@ -46,11 +54,73 @@ Discord Botは、再起動時にも同じセッションを操作できるよう
   screen -r discord-bot
   ```
 
+- ログ確認:
+
+  ```bash
+  tail -f log/discord_bot_main.log
+  ```
+
 - 停止:
 
   ```bash
   screen -S discord-bot -X quit
   ```
+
+#### ユーザー長期記憶worker
+
+workerは1プロセスだけ起動する。毎日03:00 JSTに前日までのraw chatを処理し、
+ログはBot（`log/discord_bot_main.log`）とは別に
+`log/user_memory_worker.log`へ保存する。
+
+- 起動:
+
+  ```bash
+  mkdir -p log
+  screen -L -Logfile log/user_memory_worker.log -dmS user-memory-worker \
+    uv run --frozen --no-dev --extra ai start-worker
+  ```
+
+- 再起動:
+
+  ```bash
+  mkdir -p log
+  screen -S user-memory-worker -X quit 2>/dev/null || true
+  screen -L -Logfile log/user_memory_worker.log -dmS user-memory-worker \
+    uv run --frozen --no-dev --extra ai start-worker
+  ```
+
+- 状態確認:
+
+  ```bash
+  screen -ls
+  ```
+
+- セッションへ接続:
+
+  ```bash
+  screen -r user-memory-worker
+  ```
+
+- ログ確認:
+
+  ```bash
+  tail -f log/user_memory_worker.log
+  ```
+
+- 停止:
+
+  ```bash
+  screen -S user-memory-worker -X quit
+  ```
+
+- 1回だけ手動実行:
+
+  ```bash
+  WORKER_RUN_ONCE=1 uv run --frozen --no-dev --extra ai start-worker
+  ```
+
+workerには`GEMINI_API_KEY`が必要である。Botだけを再起動してもworkerは再起動
+されないため、workerの変更や設定変更時は専用セッションも再起動する。
 
 ### 1\. パッケージ管理
 

@@ -168,6 +168,7 @@ class DiscordWebhookSpeechPublisher(ISpeechPublisher):
             content=message.content,
             occurred_at=message.created_at,
             source_message_id=plan.source_message_id,
+            user_id=plan.user_id,
         )
 
     async def _find_confirmation(
@@ -346,6 +347,7 @@ class DiscordWebhookSpeechPublisher(ISpeechPublisher):
                         avatar_url=message.avatar_url,
                         parts=parts,
                         delivery_channel_id=message.delivery_channel_id,
+                        user_id=message.user_id,
                     )
                     await self._save(plan)
                 await self._deliver(plan)

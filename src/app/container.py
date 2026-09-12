@@ -14,13 +14,24 @@ from app.contracts.ports import (
     ICharacterMemoryStore,
     IChatHistoryQuery,
     IUnitOfWork,
+    IUserIdentityQuery,
+    IUserMemorySourceStore,
+    IUserMemoryStore,
 )
-from app.infrastructure.memory import MarkdownCharacterMemoryStore
+from app.infrastructure.memory import (
+    MarkdownCharacterMemoryStore,
+    MarkdownUserMemoryStore,
+)
 from app.infrastructure.memory.character_memory_store import (
     DEFAULT_CHARACTER_MEMORY_ROOT,
 )
+from app.infrastructure.memory.user_memory_store import DEFAULT_USER_MEMORY_ROOT
 from app.infrastructure.orm_registry import init_orm_mappings
 from app.infrastructure.queries.chat_history_query import SQLAlchemyChatHistoryQuery
+from app.infrastructure.queries.user_identity_query import SQLAlchemyUserIdentityQuery
+from app.infrastructure.queries.user_memory_source_store import (
+    SQLAlchemyUserMemorySourceStore,
+)
 from app.infrastructure.unit_of_work import SQLAlchemyUnitOfWork
 
 
@@ -53,6 +64,22 @@ class DatabaseModule(injector.Module):
         return SQLAlchemyChatHistoryQuery(session_factory)
 
     @injector.provider
+    def provide_user_identity_query(
+        self,
+        session_factory: async_sessionmaker[AsyncSession],
+    ) -> IUserIdentityQuery:
+        """Provide explicit provider-to-canonical-user resolution."""
+        return SQLAlchemyUserIdentityQuery(session_factory)
+
+    @injector.provider
+    def provide_user_memory_source_store(
+        self,
+        session_factory: async_sessionmaker[AsyncSession],
+    ) -> IUserMemorySourceStore:
+        """Provide raw source selection and processed markers."""
+        return SQLAlchemyUserMemorySourceStore(session_factory)
+
+    @injector.provider
     @injector.singleton
     def provide_character_memory_store(self) -> ICharacterMemoryStore:
         """Provide Markdown storage for selected character memories."""
@@ -61,6 +88,14 @@ class DatabaseModule(injector.Module):
             Path(configured_root) if configured_root else DEFAULT_CHARACTER_MEMORY_ROOT
         )
         return MarkdownCharacterMemoryStore(root)
+
+    @injector.provider
+    @injector.singleton
+    def provide_user_memory_store(self) -> IUserMemoryStore:
+        """Provide isolated Markdown storage for canonical-user memory."""
+        configured_root = os.getenv("USER_MEMORY_ROOT", "").strip()
+        root = Path(configured_root) if configured_root else DEFAULT_USER_MEMORY_ROOT
+        return MarkdownUserMemoryStore(root)
 
 
 class ApplicationModule(injector.Module):

@@ -12,6 +12,10 @@ from flow_res import Err, Ok, is_err, is_ok
 from app.application.character_settings import load_ai_maid_definitions
 from app.contracts.messages import CharacterSelection, GeneratedCharacterResponse
 from app.contracts.messages.character_prompt import UNCONFIGURED_MASTER, DiscordMaster
+from app.contracts.messages.user_memory import (
+    UserMemoryContext,
+    UserMemoryProfile,
+)
 from app.contracts.ports import (
     CharacterGenerationError,
     CharacterGenerationErrorType,
@@ -20,6 +24,7 @@ from app.contracts.ports import (
     IChatHistoryQuery,
     ISpeechPublisher,
     IUnitOfWork,
+    IUserMemoryStore,
     SpeechPublishError,
     SpeechPublishErrorType,
 )
@@ -30,6 +35,7 @@ from app.domain.value_objects import (
     AuthorKind,
     DiscordConversationScope,
     MessageContent,
+    UserId,
 )
 from app.usecases.chat.generate_character_response import (
     GenerateCharacterResponseCommand,
@@ -40,7 +46,12 @@ from app.usecases.result import ErrorType, UseCaseError
 SCOPE = DiscordConversationScope(guild_id="456", channel_id="123")
 
 
-def _source(*, author: str = "alice", content: str = "私の依頼は？") -> ChatMessage:
+def _source(
+    *,
+    author: str = "alice",
+    content: str = "私の依頼は？",
+    user_id: UserId | None = None,
+) -> ChatMessage:
     return ChatMessage.create_discord(
         guild_id=SCOPE.guild_id,
         channel_id=SCOPE.channel_id,
@@ -49,6 +60,7 @@ def _source(*, author: str = "alice", content: str = "私の依頼は？") -> Ch
         external_message_id="123456789012345678",
         content=MessageContent.text(content),
         occurred_at=datetime(2026, 9, 12, 1, 0, tzinfo=UTC),
+        user_id=user_id,
     )
 
 
@@ -58,6 +70,7 @@ def _handler(
     character: str = "Dorothy",
     content: str = "状況を整理しました。",
     master: DiscordMaster = UNCONFIGURED_MASTER,
+    user_memory_store: IUserMemoryStore | None = None,
 ) -> tuple[
     GenerateCharacterResponseHandler,
     MagicMock,
@@ -109,6 +122,7 @@ def _handler(
             uow,
             load_ai_maid_definitions(),
             master,
+            user_memory_store,
         ),
         generator,
         publisher,
@@ -428,6 +442,40 @@ async def test_master_context_reaches_selection_and_response_prompts() -> None:
     assert (
         "master.context" in generator.generate.await_args.kwargs["system_instruction"]
     )
+
+
+@pytest.mark.anyio
+async def test_canonical_user_memory_reaches_private_response_context() -> None:
+    """Load Profile memory by canonical owner and include no provider mapping."""
+    user_id = UserId.generate().expect("test user ID")
+    user_memory = MagicMock(spec=IUserMemoryStore)
+    user_memory.get_context = AsyncMock(
+        return_value=Ok(
+            UserMemoryContext(
+                profile=UserMemoryProfile(
+                    user_id=user_id.to_primitive(),
+                    summary="朝型",
+                    traits=("計画的",),
+                    preferences=("紅茶",),
+                    source_message_ids=("memory-source",),
+                    updated_at=datetime(2026, 9, 11, tzinfo=UTC),
+                )
+            )
+        )
+    )
+    source = _source(user_id=user_id)
+    handler, generator, _, _, _, _, command = _handler(
+        source, user_memory_store=user_memory
+    )
+
+    assert is_ok(await handler.handle(command))
+    user_memory.get_context.assert_awaited_once_with(user_id.to_primitive(), limit=20)
+    payload = json.loads(generator.generate.await_args.kwargs["user_content"])
+    assert payload["user_memory"]["profile"] == {
+        "summary": "朝型",
+        "traits": ["計画的"],
+        "preferences": ["紅茶"],
+    }
 
 
 @pytest.mark.anyio

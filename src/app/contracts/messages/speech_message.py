@@ -20,6 +20,7 @@ class CharacterSpeechMessage:
     source_message_id: str
     delivery_channel_id: str
     avatar_url: str | None = None
+    user_id: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -33,6 +34,7 @@ class PublishedSpeech:
     content: str
     occurred_at: datetime
     source_message_id: str
+    user_id: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -45,6 +47,7 @@ class SpeechDeliveryPlan:
     avatar_url: str | None
     parts: tuple[str, ...]
     delivery_channel_id: str
+    user_id: str | None = None
     delivered: tuple[PublishedSpeech, ...] = ()
     attempt_started_at: datetime | None = None
     failure: str | None = None

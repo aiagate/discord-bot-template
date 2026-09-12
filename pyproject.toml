@@ -25,6 +25,7 @@ dependencies = [
 start-bot = "app.presentation.bot.__main__:main"
 start-api = "app.presentation.api.__main__:start"
 start-line = "app.presentation.line.__main__:start"
+start-worker = "app.presentation.worker.__main__:start"
 
 [project.optional-dependencies]
 ai = [
