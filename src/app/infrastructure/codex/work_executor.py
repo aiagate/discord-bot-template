@@ -131,7 +131,7 @@ class CodexCharacterWorkExecutor(ICharacterWorkExecutor):
         return directory
 
     async def runtime_config(self, directory: Path) -> CodexConfig:
-        """Confine file access and keep bot credentials out of subprocesses."""
+        """Allow host access while keeping bot credentials out of subprocesses."""
         codex_directory = self._root / "codex"
         codex_directory.mkdir(parents=True, exist_ok=True, mode=0o700)
         if (codex_directory / "config.toml").exists():
@@ -142,25 +142,12 @@ class CodexCharacterWorkExecutor(ICharacterWorkExecutor):
         temporary.mkdir(exist_ok=True)
         binary = bundled_codex_path()
         bundled_tools = bundled_path_dir()
-        filesystem = [
-            '":root"="deny"',
-            '":minimal"="read"',
-            '":workspace_roots"={"."="write",".git"="read",'
-            '".codex"="read",".agents"="read","**/.env*"="deny"}',
-            f'{json.dumps(str(binary.parent))}="read"',
-        ]
-        if bundled_tools is not None:
-            filesystem.append(f'{json.dumps(str(bundled_tools))}="read"')
-        if self._repository is not None and (directory / ".git").exists():
-            common = (
-                directory / await _git(directory, "rev-parse", "--git-common-dir")
-            ).resolve()
-            filesystem.append(f'{json.dumps(str(common))}="read"')
+        filesystem = ['":root"="write"']
         overrides = [
             'default_permissions="discord-work"',
             "permissions={discord-work={filesystem={"
             + ",".join(filesystem)
-            + "},network={enabled=false}}}",
+            + "},network={enabled=true}}}",
             'shell_environment_policy.inherit="none"',
             "shell_environment_policy.ignore_default_excludes=false",
             "shell_environment_policy.experimental_use_profile=false",

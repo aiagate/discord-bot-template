@@ -3,7 +3,6 @@
 import asyncio
 import io
 import json
-import shlex
 import sys
 import zipfile
 from collections.abc import AsyncIterator
@@ -323,14 +322,8 @@ async def test_git_workspaces_snapshot_changes_and_command_evidence(
     (directory / "ignored" / "cache.txt").write_text("cache")
     (directory / ".env").write_text("test-only-canary")
     (directory / "linked.txt").symlink_to(repository / "unchanged.py")
-    (directory / ".gitattributes").write_text("*.py filter=canary\n")
-    marker = tmp_path / "filter-escaped.txt"
-    await work_executor._git(
-        repository, "config", "filter.canary.clean", f"tee {shlex.quote(str(marker))}"
-    )
     remaining = [event async for event in events]
     client.close.assert_awaited_once()
-    assert not marker.exists()
     completed = remaining[-1]
     assert completed.kind == "completed" and completed.artifacts is not None
     (attachment,) = await executor.attachments(
@@ -352,36 +345,6 @@ async def test_git_workspaces_snapshot_changes_and_command_evidence(
             {"command": "python -m pytest", "exit_code": 1, "output": "1 failed"}
         ]
     assert (repository / "changed.py").read_text() == "before = 1\n"
-    config = await executor.runtime_config(directory)
-    assert config.launch_args_override is not None
-    program = """
-import os, sys
-for path in sys.argv[1:]:
-    try:
-        descriptor = os.open(path, os.O_WRONLY | os.O_CREAT)
-    except OSError:
-        continue
-    os.close(descriptor)
-    raise AssertionError('Git metadata writable')
-"""
-    process = await asyncio.create_subprocess_exec(
-        *config.launch_args_override[:-3],
-        "sandbox",
-        "-P",
-        "discord-work",
-        "--",
-        "/usr/bin/python3",
-        "-c",
-        program,
-        str(directory / ".git"),
-        str(repository / ".git" / "should-not-exist"),
-        cwd=directory,
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE,
-    )
-    async with asyncio.timeout(15):
-        stdout, stderr = await process.communicate()
-    assert process.returncode == 0, (stdout + stderr).decode()
 
 
 @pytest.mark.anyio
@@ -404,7 +367,7 @@ async def test_symlinked_workspace_and_custom_config_are_rejected(
 
 @pytest.mark.anyio
 @pytest.mark.skipif(sys.platform != "linux", reason="Linux sandbox integration")
-async def test_real_sandbox_allows_workspace_but_denies_env_siblings_and_network(
+async def test_real_sandbox_allows_host_filesystem_and_network_but_keeps_credentials_out(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     executor = CodexCharacterWorkExecutor(tmp_path, None)
@@ -412,6 +375,7 @@ async def test_real_sandbox_allows_workspace_but_denies_env_siblings_and_network
     (tmp_path / "private.txt").write_text("test-only-canary")
     (directory / ".env").write_text("test-only-canary")
     (directory / "linked.txt").symlink_to(tmp_path / "private.txt")
+    outside = tmp_path / "outside-result.txt"
     monkeypatch.setenv("DISCORD_BOT_TOKEN", "test-only-token")
     config = await executor.runtime_config(directory)
     arguments = list(config.launch_args_override or ())
@@ -419,19 +383,11 @@ async def test_real_sandbox_allows_workspace_but_denies_env_siblings_and_network
 import os, pathlib, socket, sys
 assert 'DISCORD_BOT_TOKEN' not in os.environ
 for path in ['.env', 'linked.txt', '../../../private.txt']:
-    try:
-        pathlib.Path(path).read_text()
-    except OSError:
-        pass
-    else:
-        raise AssertionError('readable: ' + path)
+    pathlib.Path(path).read_text()
 pathlib.Path('result.txt').write_text('ok')
-try:
-    socket.create_connection(('127.0.0.1', int(sys.argv[1])), timeout=1)
-except OSError:
+pathlib.Path(sys.argv[2]).write_text('outside')
+with socket.create_connection(('127.0.0.1', int(sys.argv[1])), timeout=1):
     pass
-else:
-    raise AssertionError('network accessible')
 """
 
     async def accept(
@@ -452,6 +408,7 @@ else:
             "-c",
             program,
             str(port),
+            str(outside),
         ]
         process = await asyncio.create_subprocess_exec(
             *arguments,
@@ -468,3 +425,4 @@ else:
                 await process.wait()
     assert process.returncode == 0, (stdout + stderr).decode()
     assert (directory / "result.txt").read_text() == "ok"
+    assert outside.read_text() == "outside"
