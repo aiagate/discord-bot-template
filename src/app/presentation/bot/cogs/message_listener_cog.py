@@ -5,7 +5,7 @@ import logging
 import re
 from collections.abc import Awaitable, Callable
 from contextlib import suppress
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime, timedelta
 from zoneinfo import ZoneInfo
 
@@ -19,7 +19,6 @@ from app.contracts.ports.chat_history_query import IChatHistoryQuery
 from app.contracts.ports.times_episode_store import ITimesEpisodeStore
 from app.domain.value_objects import (
     AuthorKind,
-    ChatPlatform,
     DiscordConversationScope,
 )
 from app.presentation.bot.cogs.base_cog import BaseCog
@@ -39,6 +38,7 @@ SAVE_TIMEOUT_SECONDS = 10.0
 NOTICE_TIMEOUT_SECONDS = 5.0
 TIMES_HEARTBEAT_INTERVAL_SECONDS = 300.0
 TIMES_HEARTBEAT_MIN_AGE = timedelta(minutes=20)
+TIMES_HEARTBEAT_MAX_AGE = timedelta(minutes=30)
 TIMES_HEARTBEAT_HISTORY_LIMIT = 20
 TIMES_HEARTBEAT_TIMEZONE = ZoneInfo("Asia/Tokyo")
 
@@ -254,25 +254,62 @@ class DiscordMessageListenerCog(BaseCog, name="Discord Message Listener"):
                     result = await self.mediator.send_async(command)
                 if is_err(result):
                     episode_id = command.episode_id or command.source_message_id
+                    failure = result.error.message
                     logger.error(
                         "Times episode generation failed for message %s: %s",
                         episode_id,
-                        result.error.message,
+                        failure,
                     )
+                    await self._mark_times_failure(command, failure)
             except TimeoutError:
                 episode_id = command.episode_id or command.source_message_id
+                failure = "Times episode generation timed out."
                 logger.warning(
                     "Times episode timed out for source message %s",
                     episode_id,
                 )
-            except Exception:
+                await self._mark_times_failure(command, failure)
+            except Exception as error:
                 episode_id = command.episode_id or command.source_message_id
+                failure = str(error) or "Times episode failed unexpectedly."
                 logger.exception(
                     "Times episode failed unexpectedly for source message %s",
                     episode_id,
                 )
+                await self._mark_times_failure(command, failure)
             finally:
                 self._times_queue.task_done()
+
+    async def _mark_times_failure(
+        self, command: GenerateTimesEpisodeCommand, failure: str
+    ) -> None:
+        """Terminate a plan that failed before generation produced posts."""
+        if self._times_store is None:
+            return
+        episode_id = command.episode_id or command.source_message_id
+        try:
+            existing = await self._times_store.get(episode_id)
+            if is_err(existing) or existing.value is None:
+                return
+            plan = existing.value
+            if plan.failure is not None or plan.complete or plan.posts:
+                return
+            saved = await self._times_store.save(
+                replace(
+                    plan,
+                    failure=failure.strip() or "Times episode failed.",
+                    status="FAILED",
+                    attempt_started_at=None,
+                )
+            )
+            if is_err(saved):
+                logger.error(
+                    "Could not mark Times episode %s as failed: %s",
+                    episode_id,
+                    saved.error.message,
+                )
+        except Exception:
+            logger.exception("Could not mark Times episode %s as failed", episode_id)
 
     async def _run_times_heartbeat_loop(self) -> None:
         """Check for one delayed follow-up to the latest human Times topic."""
@@ -302,31 +339,37 @@ class DiscordMessageListenerCog(BaseCog, name="Discord Message Listener"):
             if is_err(pending) or pending.value:
                 return
 
-            completed = await self._times_store.get_recent_completed(
-                destination,
+            recent_users = await self._history_query.get_recent_discord_user_messages(
+                destination.guild_id,
                 limit=TIMES_HEARTBEAT_HISTORY_LIMIT,
             )
-            if is_err(completed) or not completed.value:
+            if is_err(recent_users) or not recent_users.value:
                 return
 
-            latest = completed.value[-1]
-            if latest.context_message_id is not None:
+            candidates = [
+                message
+                for message in recent_users.value
+                if str(message.content.payload.get("text", "")).strip()
+            ]
+            if not candidates:
                 return
 
-            source_id = latest.source_message_id
-            source_result = await self._history_query.get_by_external_id(
-                ChatPlatform.DISCORD, source_id
-            )
-            if is_err(source_result) or source_result.value is None:
+            source = candidates[-1]
+            source_scope = source.conversation_scope
+            if not isinstance(source_scope, DiscordConversationScope):
                 return
-            source = source_result.value
-            if source.author_kind is not AuthorKind.USER:
+            source_id = source.external_message_id
+            if source_id is None or source.author_kind is not AuthorKind.USER:
                 return
 
             current_time = now or datetime.now(UTC)
             if current_time.astimezone(TIMES_HEARTBEAT_TIMEZONE).hour < 9:
                 return
-            if current_time - source.occurred_at < TIMES_HEARTBEAT_MIN_AGE:
+            source_age = current_time - source.occurred_at
+            if (
+                source_age < TIMES_HEARTBEAT_MIN_AGE
+                or source_age > TIMES_HEARTBEAT_MAX_AGE
+            ):
                 return
 
             episode_id = f"heartbeat:{destination.channel_id}:{source_id}"
@@ -337,7 +380,7 @@ class DiscordMessageListenerCog(BaseCog, name="Discord Message Listener"):
             plan = TimesEpisodePlan(
                 source_message_id=episode_id,
                 guild_id=destination.guild_id,
-                channel_id=latest.channel_id,
+                channel_id=source_scope.channel_id,
                 delivery_channel_id=destination.channel_id,
                 context_message_id=source_id,
                 posts=(),
@@ -356,7 +399,7 @@ class DiscordMessageListenerCog(BaseCog, name="Discord Message Listener"):
                 GenerateTimesEpisodeCommand(
                     source_message_id=source_id,
                     guild_id=destination.guild_id,
-                    channel_id=latest.channel_id,
+                    channel_id=source_scope.channel_id,
                     delivery_channel_id=destination.channel_id,
                     episode_id=episode_id,
                 )

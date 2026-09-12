@@ -28,6 +28,13 @@ class IChatHistoryQuery(ABC):
         pass
 
     @abstractmethod
+    async def get_recent_discord_user_messages(
+        self, guild_id: str, limit: int = 20
+    ) -> Result[list[ChatMessage], RepositoryError]:
+        """Get recent human-authored Discord messages across one guild."""
+        pass
+
+    @abstractmethod
     async def get_by_external_id(
         self, platform: ChatPlatform, external_message_id: str
     ) -> Result[ChatMessage | None, RepositoryError]:

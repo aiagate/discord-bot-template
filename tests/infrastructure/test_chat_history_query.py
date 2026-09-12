@@ -76,6 +76,51 @@ async def test_history_is_scoped_to_one_discord_conversation(
 
 
 @pytest.mark.anyio
+async def test_recent_discord_user_messages_cover_a_guild_without_bots(
+    uow: IUnitOfWork,
+    chat_history_query: IChatHistoryQuery,
+) -> None:
+    """Guild-wide candidates include users from every channel, not bot posts."""
+    start = datetime(2026, 9, 5, 9, 0, tzinfo=UTC)
+    messages = (
+        ChatMessage.create_discord(
+            guild_id="guild-1",
+            channel_id="channel-1",
+            external_sender_id="user-1",
+            content=MessageContent.text("first"),
+            occurred_at=start,
+        ),
+        ChatMessage.create_discord(
+            guild_id="guild-1",
+            channel_id="channel-2",
+            external_sender_id="poll-bot",
+            author_kind=AuthorKind.BOT,
+            content=MessageContent.text("ignore bot"),
+            occurred_at=start + timedelta(minutes=1),
+        ),
+        ChatMessage.create_discord(
+            guild_id="guild-1",
+            channel_id="channel-2",
+            external_sender_id="user-2",
+            content=MessageContent.text("latest"),
+            occurred_at=start + timedelta(minutes=2),
+        ),
+    )
+    for message in messages:
+        await _save_message(uow, message)
+
+    result = await chat_history_query.get_recent_discord_user_messages(
+        "guild-1", limit=10
+    )
+
+    assert is_ok(result)
+    assert [item.content.payload["text"] for item in result.value] == [
+        "first",
+        "latest",
+    ]
+
+
+@pytest.mark.anyio
 async def test_history_keeps_line_user_group_and_room_scopes_separate(
     uow: IUnitOfWork,
     chat_history_query: IChatHistoryQuery,

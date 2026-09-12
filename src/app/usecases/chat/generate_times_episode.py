@@ -79,6 +79,8 @@ def _build_times_instruction(roster: CharacterRoster) -> str:
             "source_history はDiscordの対象チャンネルにおける過去の会話履歴、current は今回のトリガーとなった最新メッセージです。",
             "source_history と current は話題の材料であり、返信依頼ではありません。",
             "triggerがheartbeatの場合は、元の人間投稿から時間を置いた余韻です。"
+            "currentは拾い直し対象の元投稿で、source_historyにはその後の会話も含まれます。"
+            "後続の会話がある場合は、それを踏まえて自然な続きだけを生成してください。"
             "自然な続きがなければpostsを空配列にし、無理に会話を始めないでください。",
             "事実部分は source_history と current に実際に出た内容だけに限定し、"
             "未確認の出来事を補わないでください。",
@@ -282,11 +284,16 @@ class GenerateTimesEpisodeHandler(
                 )
 
         try:
+            history_before = (
+                None
+                if request.episode_id is not None
+                else (source.occurred_at, source.id.to_primitive())
+            )
             async with asyncio.timeout(HISTORY_TIMEOUT_SECONDS):
                 history_result = await self._history_query.get_recent_history(
                     scope,
                     limit=TIMES_HISTORY_LIMIT,
-                    before=(source.occurred_at, source.id.to_primitive()),
+                    before=history_before,
                 )
         except (ValueError, TimeoutError) as error:
             return _failure(str(error), "会話履歴の取得に失敗しました。")
@@ -294,6 +301,9 @@ class GenerateTimesEpisodeHandler(
             return _failure(
                 history_result.error.message, "会話履歴の取得に失敗しました。"
             )
+        history = history_result.value
+        if request.episode_id is not None:
+            history = [message for message in history if message.id != source.id]
 
         try:
             async with asyncio.timeout(HISTORY_TIMEOUT_SECONDS):
@@ -335,7 +345,7 @@ class GenerateTimesEpisodeHandler(
 
         instruction = _build_times_instruction(self._roster)
         user_content = _build_times_context(
-            history_result.value,
+            history,
             source,
             str(source.content.payload.get("text", "")),
             memory_result.value,

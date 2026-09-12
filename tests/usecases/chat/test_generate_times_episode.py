@@ -1,7 +1,7 @@
 """Tests for Times episode generation use case: continuity, bounding, empty output and recovery."""
 
 import json
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock
 
 import pytest
@@ -383,10 +383,16 @@ async def test_heartbeat_uses_a_separate_episode_id_and_source_context(
         ChatMessage,
     ],
 ) -> None:
-    handler, generator, publisher, times_store, _history_query, source = times_setup
+    handler, generator, publisher, times_store, history_query, source = times_setup
     generator.generate_times_episode.return_value = Ok(
         (TimesPost(character_name="Dorothy", content="少し遅れて拾いました。"),)
     )
+    follow_up = _chat_message(
+        "101",
+        "その後、少し話が進みました。",
+        source.occurred_at + timedelta(minutes=5),
+    )
+    history_query.get_recent_history.return_value = Ok([follow_up])
 
     result = await handler.handle(
         GenerateTimesEpisodeCommand(
@@ -400,6 +406,11 @@ async def test_heartbeat_uses_a_separate_episode_id_and_source_context(
 
     assert is_ok(result)
     times_store.get.assert_awaited_once_with("heartbeat:999:100")
+    history_query.get_recent_history.assert_awaited_once_with(
+        DiscordConversationScope(guild_id="456", channel_id="123"),
+        limit=20,
+        before=None,
+    )
     saved_plan: TimesEpisodePlan = times_store.save.call_args_list[0].args[0]
     assert saved_plan.source_message_id == "heartbeat:999:100"
     assert saved_plan.context_message_id == "100"
@@ -407,6 +418,7 @@ async def test_heartbeat_uses_a_separate_episode_id_and_source_context(
         generator.generate_times_episode.await_args.kwargs["user_content"]
     )
     assert payload["trigger"] == "heartbeat"
+    assert payload["source_history"][0]["message_id"] == "101"
     delivered_plan: TimesEpisodePlan = publisher.deliver.call_args.args[0]
     assert delivered_plan.source_message_id == "heartbeat:999:100"
 
