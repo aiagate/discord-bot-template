@@ -91,7 +91,7 @@ class DiscordMessageListenerCog(BaseCog, name="Discord Message Listener"):
         times_destination: DiscordTimesDestination | None = None,
         times_store: ITimesEpisodeStore | None = None,
         history_query: IChatHistoryQuery | None = None,
-        work_handler: Callable[[discord.Message], Awaitable[bool]] | None = None,
+        times_work_handler: Callable[[TimesEpisodePlan], Awaitable[None]] | None = None,
         ignored_webhook_ids: tuple[int, ...] = (),
     ) -> None:
         super().__init__(bot, mediator)
@@ -107,7 +107,7 @@ class DiscordMessageListenerCog(BaseCog, name="Discord Message Listener"):
         self._times_destination = times_destination
         self._times_store = times_store
         self._history_query = history_query
-        self._work_handler = work_handler
+        self._times_work_handler = times_work_handler
         webhook_ids = [
             *ignored_webhook_ids,
             *(dest.webhook_id for dest in ai_response_destinations),
@@ -139,6 +139,7 @@ class DiscordMessageListenerCog(BaseCog, name="Discord Message Listener"):
                 self._consume_times(), name="times-episodes"
             )
             await self._recover_times_queue()
+            await self._recover_times_work()
             if self._history_query is not None:
                 self._times_heartbeat_task = asyncio.create_task(
                     self._run_times_heartbeat_loop(), name="times-heartbeat"
@@ -159,6 +160,8 @@ class DiscordMessageListenerCog(BaseCog, name="Discord Message Listener"):
             )
             return
         for plan in pending.value:
+            if plan.failure is not None and plan.posts:
+                continue
             await self._times_queue.put(
                 GenerateTimesEpisodeCommand(
                     source_message_id=(
@@ -174,6 +177,34 @@ class DiscordMessageListenerCog(BaseCog, name="Discord Message Listener"):
                     ),
                 )
             )
+
+    async def _recover_times_work(self) -> None:
+        """Resume work intents from completed Times episodes after a restart."""
+        if (
+            self._times_store is None
+            or self._times_destination is None
+            or self._times_work_handler is None
+        ):
+            return
+        completed = await self._times_store.get_completed_with_work(
+            self._times_destination.scope
+        )
+        if is_err(completed):
+            logger.error(
+                "Could not read completed Times work intents: %s",
+                completed.error.message,
+            )
+            return
+        for plan in completed.value:
+            if not plan.work_intents:
+                continue
+            try:
+                await self._times_work_handler(plan)
+            except Exception:
+                logger.exception(
+                    "Could not recover Times work intents for %s",
+                    plan.source_message_id,
+                )
 
     async def cog_unload(self) -> None:
         """Cancel the consumers before the SDK clients close."""
@@ -261,6 +292,8 @@ class DiscordMessageListenerCog(BaseCog, name="Discord Message Listener"):
                         failure,
                     )
                     await self._mark_times_failure(command, failure)
+                else:
+                    await self._dispatch_times_work(command)
             except TimeoutError:
                 episode_id = command.episode_id or command.source_message_id
                 failure = "Times episode generation timed out."
@@ -279,6 +312,29 @@ class DiscordMessageListenerCog(BaseCog, name="Discord Message Listener"):
                 await self._mark_times_failure(command, failure)
             finally:
                 self._times_queue.task_done()
+
+    async def _dispatch_times_work(self, command: GenerateTimesEpisodeCommand) -> None:
+        """Start work only after the corresponding Times episode is complete."""
+        if (
+            self._times_store is None
+            or self._times_work_handler is None
+            or self._times_destination is None
+        ):
+            return
+        episode_id = command.episode_id or command.source_message_id
+        plan = await self._times_store.get(episode_id)
+        if is_err(plan) or plan.value is None:
+            if is_err(plan):
+                logger.error(
+                    "Could not read Times episode %s for work dispatch: %s",
+                    episode_id,
+                    plan.error.message,
+                )
+            return
+        try:
+            await self._times_work_handler(plan.value)
+        except Exception:
+            logger.exception("Could not dispatch Times work for %s", episode_id)
 
     async def _mark_times_failure(
         self, command: GenerateTimesEpisodeCommand, failure: str
@@ -339,16 +395,17 @@ class DiscordMessageListenerCog(BaseCog, name="Discord Message Listener"):
             if is_err(pending) or pending.value:
                 return
 
-            recent_users = await self._history_query.get_recent_discord_user_messages(
-                destination.guild_id,
+            recent_history = await self._history_query.get_recent_history(
+                destination,
                 limit=TIMES_HEARTBEAT_HISTORY_LIMIT,
             )
-            if is_err(recent_users) or not recent_users.value:
+            if is_err(recent_history):
                 return
 
             candidates = [
                 message
-                for message in recent_users.value
+                for message in recent_history.value
+                if message.author_kind is AuthorKind.USER
                 if str(message.content.payload.get("text", "")).strip()
             ]
             if not candidates:
@@ -386,6 +443,7 @@ class DiscordMessageListenerCog(BaseCog, name="Discord Message Listener"):
                 posts=(),
                 status="PENDING",
                 next_post_index=0,
+                owner_id=source.external_sender_id.to_primitive(),
             )
             saved = await self._times_store.save(plan)
             if is_err(saved):
@@ -505,24 +563,11 @@ class DiscordMessageListenerCog(BaseCog, name="Discord Message Listener"):
         if is_err(saved):
             await self._notify(message, "メッセージの保存に失敗しました。")
             return
-        if not is_bot and content.strip() and self._work_handler is not None:
-            try:
-                if await self._work_handler(message):
-                    return
-            except Exception:
-                logger.exception(
-                    "Could not route character work for message %s", message.id
-                )
-                await self._notify(
-                    message,
-                    "作業の受付を確認できませんでした。状態を確認してください。",
-                )
-                return
-
         times_candidate = (
             self._times_destination is not None
             and author_kind is AuthorKind.USER
             and scope.guild_id == self._times_destination.scope.guild_id
+            and scope.channel_id == self._times_destination.scope.channel_id
             and bool(content.strip())
         )
         if (
@@ -541,6 +586,7 @@ class DiscordMessageListenerCog(BaseCog, name="Discord Message Listener"):
             self._times_destination is not None
             and author_kind is AuthorKind.USER
             and scope.guild_id == self._times_destination.scope.guild_id
+            and scope.channel_id == self._times_destination.scope.channel_id
         ):
             async with self._times_trigger_lock:
                 times_command = GenerateTimesEpisodeCommand(
@@ -558,6 +604,7 @@ class DiscordMessageListenerCog(BaseCog, name="Discord Message Listener"):
                         posts=(),
                         status="PENDING",
                         next_post_index=0,
+                        owner_id=str(message.author.id),
                     )
                     try:
                         saved_plan = await self._times_store.save(pending_plan)

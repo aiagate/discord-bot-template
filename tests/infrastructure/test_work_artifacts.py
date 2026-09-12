@@ -112,6 +112,27 @@ async def test_links_secrets_and_special_files_are_excluded(tmp_path: Path) -> N
 
 
 @pytest.mark.anyio
+async def test_codex_runtime_caches_do_not_consume_candidate_limit(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    task, directory, artifacts = _workspace(tmp_path)
+    cache = directory / ".local"
+    cache.mkdir()
+    for index in range(5):
+        (cache / f"cache-{index}").write_text("private cache")
+    (directory / "memo.md").write_text("public memo")
+    monkeypatch.setattr(work_artifacts, "MAX_CANDIDATES", 2)
+
+    snapshot = await artifacts.collect(task, directory, None, (), "done")
+
+    assert snapshot.file_count == 1
+    (attachment,) = await artifacts.load(replace(task, artifacts=snapshot))
+    records = {item["path"]: item for item in _manifest(attachment.data)["files"]}
+    assert records[".local"]["status"] == "excluded"
+    assert records["memo.md"]["status"] == "included"
+
+
+@pytest.mark.anyio
 async def test_changed_files_deleted_paths_and_traversal(tmp_path: Path) -> None:
     task, directory, artifacts = _workspace(tmp_path)
     (directory / "changed.py").write_text("ok = 1")

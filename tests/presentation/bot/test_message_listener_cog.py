@@ -214,24 +214,19 @@ async def test_own_bot_and_webhook_do_not_create_response_loops() -> None:
 @pytest.mark.anyio
 async def test_work_webhooks_are_ignored_without_character_chat() -> None:
     _, send, bot = _cog(enabled=False)
-    handler = AsyncMock(return_value=True)
     cog = message_listener_cog.DiscordMessageListenerCog(
         bot,
         MagicMock(send_async=send),
-        work_handler=handler,
         ignored_webhook_ids=(777,),
     )
     await cog.on_message(_message(webhook_id=777, bot=True, content="成果報告"))
     send.assert_not_awaited()
-    handler.assert_not_awaited()
     assert cog._queue.empty()
 
 
 @pytest.mark.anyio
-async def test_accepted_work_still_gets_the_ordinary_gemini_response() -> None:
+async def test_messages_always_reach_the_ordinary_gemini_response() -> None:
     cog, send, _ = _cog()
-    handler = AsyncMock(return_value=False)
-    cog._work_handler = handler
     await cog.cog_load()
     try:
         await cog.on_message(_message(content="Lilia、調べて"))
@@ -239,7 +234,6 @@ async def test_accepted_work_still_gets_the_ordinary_gemini_response() -> None:
     finally:
         await cog.cog_unload()
 
-    handler.assert_awaited_once()
     assert send.await_count == 2
     generated = send.await_args_list[1].args[0]
     assert isinstance(generated, GenerateCharacterResponseCommand)

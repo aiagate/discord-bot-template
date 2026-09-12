@@ -10,7 +10,11 @@ from flow_res import is_err, is_ok
 from google import genai
 from google.genai import types
 
-from app.contracts.messages import CharacterSelection, GeneratedCharacterResponse
+from app.contracts.messages import (
+    CharacterSelection,
+    CharacterWorkRequest,
+    GeneratedCharacterResponse,
+)
 from app.contracts.ports.character_response_generator import (
     CharacterGenerationErrorType,
 )
@@ -456,6 +460,281 @@ async def test_generate_times_episode_success() -> None:
 
 
 @pytest.mark.anyio
+async def test_generate_executes_work_tool_and_returns_character_response() -> None:
+    """The ordinary response owns the work decision and final dialogue."""
+    client, generate = _create_mock_client()
+    generate.side_effect = [
+        types.GenerateContentResponse(
+            candidates=[
+                types.Candidate(
+                    content=types.Content(
+                        parts=[
+                            types.Part(
+                                function_call=types.FunctionCall(
+                                    id="call-1",
+                                    name="request_character_work",
+                                    args={
+                                        "character_name": "Eris",
+                                        "objective": "公式資料を確認する",
+                                        "context": "前回の差分を再確認する",
+                                    },
+                                )
+                            )
+                        ]
+                    )
+                )
+            ]
+        ),
+        MagicMock(
+            spec=types.GenerateContentResponse,
+            candidates=[],
+            text=json.dumps(
+                {
+                    "content": "承知しました。確認しておきます。",
+                    "memory_candidates": [],
+                },
+                ensure_ascii=False,
+            ),
+            usage_metadata=None,
+        ),
+    ]
+    work_tool = AsyncMock(return_value='{"status":"accepted"}')
+    generator = GeminiCharacterResponseGenerator(client, "test")
+
+    result = await generator.generate(
+        system_instruction="通常の会話です。",
+        user_content="Eris、前回の差分をもう一度確認して",
+        character_name="Eris",
+        work_tool=work_tool,
+        work_character_names=("Dorothy", "Eris"),
+    )
+
+    assert is_ok(result)
+    assert result.value.content == "承知しました。確認しておきます。"
+    work_tool.assert_awaited_once_with(
+        CharacterWorkRequest(
+            character_name="Eris",
+            objective="公式資料を確認する",
+            context="前回の差分を再確認する",
+        )
+    )
+    assert generate.await_count == 2
+    first_config = generate.await_args_list[0].kwargs["config"]
+    assert first_config.tools[0].function_declarations[0].name == (
+        "request_character_work"
+    )
+    assert (
+        first_config.tool_config.function_calling_config.mode
+        is types.FunctionCallingConfigMode.AUTO
+    )
+    second_contents = generate.await_args_list[1].kwargs["contents"]
+    assert len(second_contents) == 3
+    assert second_contents[2].role == "user"
+    assert second_contents[2].parts[0].function_response.id == "call-1"
+    second_config = generate.await_args_list[1].kwargs["config"]
+    assert (
+        second_config.tool_config.function_calling_config.mode
+        is types.FunctionCallingConfigMode.NONE
+    )
+
+
+@pytest.mark.anyio
+async def test_generate_with_work_tool_leaves_casual_chat_unrouted() -> None:
+    """A normal response without a tool call does not start work."""
+    client, generate = _create_mock_client()
+    response = MagicMock(spec=types.GenerateContentResponse)
+    response.candidates = []
+    response.text = json.dumps(
+        {"content": "再設定お疲れさまです。", "memory_candidates": []},
+        ensure_ascii=False,
+    )
+    response.usage_metadata = None
+    generate.return_value = response
+    work_tool = AsyncMock()
+    generator = GeminiCharacterResponseGenerator(client, "test")
+
+    result = await generator.generate(
+        system_instruction="通常の会話です。",
+        user_content="Lilia、ごめん再設定した。",
+        character_name="Lilia",
+        work_tool=work_tool,
+        work_character_names=("Lilia", "Noa"),
+    )
+
+    assert is_ok(result)
+    assert result.value.content == "再設定お疲れさまです。"
+    work_tool.assert_not_awaited()
+
+
+@pytest.mark.anyio
+async def test_generate_times_episode_parses_one_work_intent_without_polluting_post() -> (
+    None
+):
+    """Keep a concrete Times commitment separate from visible dialogue text."""
+    mock_client, mock_generate = _create_mock_client()
+    mock_response = MagicMock(spec=types.GenerateContentResponse)
+    mock_response.candidates = []
+    mock_response.usage_metadata = None
+    mock_response.text = json.dumps(
+        {
+            "posts": [
+                {
+                    "character_name": "Dorothy",
+                    "content": "これは公式資料を確認した方がよさそうですね。",
+                },
+                {
+                    "character_name": "Eris",
+                    "content": "あっ、そうだね。私が調べてくる。",
+                    "work_intents": [
+                        {
+                            "character_name": "Eris",
+                            "objective": "公式資料を確認して差分を整理する",
+                            "context": "Timesで調査が必要だと合意した",
+                            "success_criteria": ["公式URLを記録する", "差分をまとめる"],
+                        }
+                    ],
+                },
+            ]
+        }
+    )
+    mock_generate.return_value = mock_response
+
+    generator = GeminiCharacterResponseGenerator(client=mock_client, model="test")
+    result = await generator.generate_times_episode(
+        system_instruction="instruction",
+        user_content="context",
+        character_names=("Dorothy", "Eris"),
+    )
+
+    assert is_ok(result)
+    assert len(result.value) == 2
+    assert result.value[1].content == "あっ、そうだね。私が調べてくる。"
+    assert result.value[1].work_intents[0].intent_id == ""
+    assert result.value[1].work_intents[0].character_name == "Eris"
+    assert result.value[1].work_intents[0].success_criteria == (
+        "公式URLを記録する",
+        "差分をまとめる",
+    )
+
+
+@pytest.mark.anyio
+async def test_generate_times_episode_accepts_flat_episode_work_intent() -> None:
+    """Work metadata lives beside posts so Gemini does not receive deep nesting."""
+    client, generate = _create_mock_client()
+    response = MagicMock(spec=types.GenerateContentResponse)
+    response.candidates = []
+    response.usage_metadata = None
+    response.text = json.dumps(
+        {
+            "posts": [{"character_name": "Eris", "content": "私が確認してくる。"}],
+            "work_intent": {
+                "character_name": "Eris",
+                "objective": "公式資料を確認する",
+                "context": "Timesで合意した",
+                "success_criteria": ["公式URLを記録する"],
+            },
+        }
+    )
+    generate.return_value = response
+
+    result = await GeminiCharacterResponseGenerator(
+        client, "test"
+    ).generate_times_episode(
+        system_instruction="instruction",
+        user_content="context",
+        character_names=("Dorothy", "Eris"),
+    )
+
+    assert is_ok(result)
+    assert result.value[0].work_intents[0].character_name == "Eris"
+    schema = generate.call_args.kwargs["config"].response_schema
+    assert "work_intent" in schema.properties
+    assert "work_intents" not in schema.properties["posts"].items.properties
+
+
+@pytest.mark.anyio
+async def test_generate_times_episode_rejects_multiple_work_intents() -> None:
+    """The first integration keeps one Times episode connected to one task."""
+    client, generate = _create_mock_client()
+    response = MagicMock(spec=types.GenerateContentResponse)
+    response.candidates = []
+    response.usage_metadata = None
+    response.text = json.dumps(
+        {
+            "posts": [
+                {
+                    "character_name": "Dorothy",
+                    "content": "調べてくる。",
+                    "work_intents": [
+                        {
+                            "character_name": "Dorothy",
+                            "objective": "一つ目",
+                        }
+                    ],
+                },
+                {
+                    "character_name": "Eris",
+                    "content": "私も調べてくる。",
+                    "work_intents": [
+                        {
+                            "character_name": "Eris",
+                            "objective": "二つ目",
+                        }
+                    ],
+                },
+            ]
+        }
+    )
+    generate.return_value = response
+    generator = GeminiCharacterResponseGenerator(client=client, model="test")
+
+    result = await generator.generate_times_episode(
+        system_instruction="instruction",
+        user_content="context",
+        character_names=("Dorothy", "Eris"),
+    )
+
+    assert is_err(result)
+    assert "Only one work intent" in result.error.message
+
+
+@pytest.mark.anyio
+async def test_generate_times_episode_rejects_intent_without_visible_content() -> None:
+    """A hidden commitment must not start work without a visible discussion."""
+    client, generate = _create_mock_client()
+    response = MagicMock(spec=types.GenerateContentResponse)
+    response.candidates = []
+    response.usage_metadata = None
+    response.text = json.dumps(
+        {
+            "posts": [
+                {
+                    "character_name": "Dorothy",
+                    "content": "",
+                    "work_intents": [
+                        {
+                            "character_name": "Dorothy",
+                            "objective": "一人で調べる",
+                        }
+                    ],
+                }
+            ]
+        }
+    )
+    generate.return_value = response
+    generator = GeminiCharacterResponseGenerator(client=client, model="test")
+
+    result = await generator.generate_times_episode(
+        system_instruction="instruction",
+        user_content="context",
+        character_names=("Dorothy",),
+    )
+
+    assert is_err(result)
+    assert "visible Times content" in result.error.message
+
+
+@pytest.mark.anyio
 @pytest.mark.parametrize(
     "memory_fields",
     [
@@ -508,6 +787,41 @@ async def test_generate_times_episode_empty_posts() -> None:
     )
     assert is_ok(res)
     assert res.value == ()
+
+
+@pytest.mark.anyio
+async def test_generate_times_episode_retries_schema_rejection_with_posts_only() -> (
+    None
+):
+    """A schema rejection still produces deliverable Times posts on retry."""
+    client, generate = _create_mock_client()
+    response = MagicMock(spec=types.GenerateContentResponse)
+    response.candidates = []
+    response.usage_metadata = None
+    response.text = json.dumps(
+        {"posts": [{"character_name": "Dorothy", "content": "続けます。"}]}
+    )
+    generate.side_effect = [RuntimeError("400 INVALID_ARGUMENT"), response]
+
+    result = await GeminiCharacterResponseGenerator(
+        client, "test"
+    ).generate_times_episode(
+        system_instruction="instruction",
+        user_content="context",
+        character_names=("Dorothy",),
+    )
+
+    assert is_ok(result)
+    assert result.value[0].content == "続けます。"
+    assert generate.await_count == 2
+    assert (
+        "work_intent"
+        in generate.await_args_list[0].kwargs["config"].response_schema.properties
+    )
+    assert (
+        "work_intent"
+        not in generate.await_args_list[1].kwargs["config"].response_schema.properties
+    )
 
 
 @pytest.mark.anyio

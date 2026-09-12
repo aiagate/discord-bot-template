@@ -1,6 +1,7 @@
 """Application port for generating character responses."""
 
 from abc import ABC, abstractmethod
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from enum import Enum, auto
 
@@ -8,6 +9,7 @@ from flow_res import Result
 
 from app.contracts.messages import (
     CharacterSelection,
+    CharacterWorkRequest,
     GeneratedCharacterResponse,
     TimesPost,
 )
@@ -31,6 +33,9 @@ class CharacterGenerationError(Exception):
     def __str__(self) -> str:
         """Return the generation error message."""
         return self.message
+
+
+CharacterWorkTool = Callable[[CharacterWorkRequest], Awaitable[str]]
 
 
 class ICharacterResponseGenerator(ABC):
@@ -59,8 +64,10 @@ class ICharacterResponseGenerator(ABC):
         system_instruction: str,
         user_content: str,
         character_name: str,
+        work_tool: CharacterWorkTool | None = None,
+        work_character_names: tuple[str, ...] = (),
     ) -> Result[GeneratedCharacterResponse, CharacterGenerationError]:
-        """Generate a response after a character has been selected."""
+        """Generate a response and optionally execute one work tool call."""
         pass
 
     @abstractmethod

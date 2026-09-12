@@ -17,7 +17,11 @@ from app.contracts.messages.character_work import (
     WorkAttachment,
     WorkEvent,
 )
-from app.contracts.ports.character_work import ICharacterWorkExecutor
+from app.contracts.messages.times_message import TimesEpisodePlan, TimesWorkIntent
+from app.contracts.ports.character_work import (
+    ICharacterWorkContextProvider,
+    ICharacterWorkExecutor,
+)
 from app.infrastructure.codex.work_store import FileCharacterWorkStore
 from app.usecases.chat.character_work import CharacterWorkService, WorkResult
 
@@ -72,7 +76,10 @@ class ControlledExecutor(ICharacterWorkExecutor):
 
 
 def _service(
-    tmp_path: Path, *, timeout: float = 10
+    tmp_path: Path,
+    *,
+    timeout: float = 10,
+    context_provider: ICharacterWorkContextProvider | None = None,
 ) -> tuple[CharacterWorkService, ControlledExecutor, FileCharacterWorkStore, AsyncMock]:
     store = FileCharacterWorkStore(tmp_path / "tasks")
     executor = ControlledExecutor()
@@ -83,6 +90,7 @@ def _service(
         load_ai_maid_definitions(),
         on_update=update,
         timeout_seconds=timeout,
+        context_provider=context_provider,
     )
     return service, executor, store, update
 
@@ -151,9 +159,144 @@ async def test_start_steer_complete_and_resume_same_session(tmp_path: Path) -> N
         assert executor.calls[1].prompt == "公式資料を優先して"
         assert "Lilia" in executor.instructions[0]
         assert "出典URL" in executor.instructions[0]
+        assert "作業時の固有方針:" in executor.instructions[0]
+        character = next(
+            item for item in service._roster.characters if item.character_id == "lilia"
+        )
+        assert character.work_guidance in executor.instructions[0]
     finally:
         await service.close()
     assert executor.closed == ["100", "100"]
+
+
+@pytest.mark.anyio
+async def test_submit_enforces_configured_work_scope(tmp_path: Path) -> None:
+    store = FileCharacterWorkStore(tmp_path / "tasks")
+    executor = ControlledExecutor()
+    service = CharacterWorkService(
+        store,
+        executor,
+        load_ai_maid_definitions(),
+        on_update=AsyncMock(),
+        allowed_guild_id="456",
+        allowed_channel_ids=frozenset({"123"}),
+        allowed_user_ids=frozenset({"2"}),
+    )
+
+    result = await service.submit(
+        guild_id="456",
+        channel_id="999",
+        owner_id="2",
+        message_id="100",
+        character_id="lilia",
+        prompt="調べて",
+        authorization_channel_id="999",
+    )
+
+    assert is_err(result)
+    assert "依頼できません" in str(result.error)
+    assert not executor.calls
+    assert service.can_submit("456", "123", "2")
+    assert service.can_submit("456", "999", "2", authorization_channel_id="123")
+    assert not service.can_submit("456", "123", "9")
+
+
+@pytest.mark.anyio
+async def test_context_reaches_initial_and_live_follow_up(tmp_path: Path) -> None:
+    context_provider = AsyncMock(spec=ICharacterWorkContextProvider)
+    context_provider.build.return_value = '{"conversation_history":[]}'
+    service, executor, _, _ = _service(
+        tmp_path,
+        context_provider=context_provider,
+    )
+    try:
+        assert is_ok(await _start(service))
+        await _ready(executor)
+        assert context_provider.build.await_count == 1
+        assert "<work_context>" in executor.instructions[0]
+        assert '{"conversation_history":[]}' in executor.instructions[0]
+
+        assert is_ok(await _follow(service))
+        assert context_provider.build.await_count == 2
+        assert executor.inputs[0][1].startswith("公式資料を優先して\n\n")
+        assert '<work_context>\n{"conversation_history":[]}' in executor.inputs[0][1]
+    finally:
+        await service.close()
+
+
+@pytest.mark.anyio
+async def test_times_intent_starts_isolated_work_with_report_destination(
+    tmp_path: Path,
+) -> None:
+    """Times work uses its report channel while retaining the Times origin."""
+    service, executor, _, _ = _service(tmp_path)
+    plan = TimesEpisodePlan(
+        source_message_id="times-100",
+        guild_id="456",
+        channel_id="123",
+        delivery_channel_id="999",
+        owner_id="2",
+        status="COMPLETED",
+    )
+    intent = TimesWorkIntent(
+        intent_id="times-100:0",
+        character_name="Lilia",
+        objective="公式資料を確認する",
+        context="Timesで調査が必要だと合意した",
+        success_criteria=("URLを記録する",),
+    )
+
+    result = await service.start_from_times(
+        plan=plan,
+        intent=intent,
+        report_channel_id="777",
+    )
+
+    assert is_ok(result)
+    task = result.value
+    assert task.id.isdecimal()
+    assert task.channel_id == "777"
+    assert task.origin == "times"
+    assert task.origin_key == intent.intent_id
+    assert task.origin_channel_id == "999"
+    assert task.times_episode_id == plan.source_message_id
+    assert "公式資料を確認する" in task.prompt
+    await _ready(executor)
+    await executor.events[task.id].put(WorkEvent("completed", text="確認結果"))
+    await _finish(service)
+    await service.close()
+
+
+@pytest.mark.anyio
+async def test_times_intent_is_idempotent(tmp_path: Path) -> None:
+    """A retried episode reuses the original task instead of starting twice."""
+    service, executor, _, _ = _service(tmp_path)
+    plan = TimesEpisodePlan(
+        source_message_id="times-100",
+        guild_id="456",
+        channel_id="123",
+        delivery_channel_id="999",
+        owner_id="2",
+        status="COMPLETED",
+    )
+    intent = TimesWorkIntent(
+        intent_id="times-100:0",
+        character_name="Lilia",
+        objective="公式資料を確認する",
+    )
+    try:
+        first = await service.start_from_times(
+            plan=plan, intent=intent, report_channel_id="777"
+        )
+        second = await service.start_from_times(
+            plan=plan, intent=intent, report_channel_id="777"
+        )
+        assert is_ok(first) and is_ok(second)
+        assert first.value.id == second.value.id
+        assert len(executor.calls) == 0
+        await _ready(executor)
+    finally:
+        await service.close()
 
 
 @pytest.mark.anyio
@@ -210,6 +353,35 @@ async def test_restart_pauses_without_replaying_and_preserves_result(
     assert executor.calls == []
     assert is_ok(await _follow(service, message="102"))
     await _ready(executor)
+    assert executor.calls[0].thread_id == "saved-thread"
+    await service.close()
+
+
+@pytest.mark.anyio
+async def test_restart_resumes_paused_times_work_with_saved_session(
+    tmp_path: Path,
+) -> None:
+    """Times work resumes its saved Codex session after a bot restart."""
+    service, executor, store, _ = _service(tmp_path)
+    record = CharacterWork(
+        "100",
+        "456",
+        "777",
+        "2",
+        "lilia",
+        "Timesの調査",
+        "100",
+        status="paused",
+        thread_id="saved-thread",
+        cwd=str(tmp_path / "workspaces" / "lilia" / "100"),
+        origin="times",
+        origin_key="episode-1:0",
+    )
+    await store.save(record)
+
+    await service.initialize()
+    await _ready(executor)
+
     assert executor.calls[0].thread_id == "saved-thread"
     await service.close()
 
@@ -287,6 +459,29 @@ async def test_discord_failure_does_not_lose_completed_result(tmp_path: Path) ->
     assert (await store.list_tasks())[0].result == "結果"
     assert (await store.list_tasks())[0].status == "completed"
     assert (await store.list_tasks())[0].artifacts == artifacts
+
+
+@pytest.mark.anyio
+async def test_review_is_saved_without_replacing_completed_result(
+    tmp_path: Path,
+) -> None:
+    service, executor, store, _ = _service(tmp_path)
+    try:
+        assert is_ok(await _start(service))
+        await _ready(executor)
+        await executor.events["100"].put(WorkEvent("completed", text="Codexの原文"))
+        await _finish(service)
+
+        reviewed = await service.save_review("100", "自然な完了報告")
+
+        assert is_ok(reviewed)
+        assert reviewed.value.review == "自然な完了報告"
+        assert reviewed.value.result == "Codexの原文"
+        saved = (await store.list_tasks())[0]
+        assert saved.review == "自然な完了報告"
+        assert saved.result == "Codexの原文"
+    finally:
+        await service.close()
 
 
 @pytest.mark.anyio
@@ -394,9 +589,7 @@ async def test_every_registered_character_can_research_and_code(
         assert "全員が調査・コーディング・文書作成・検証を行えます" in instructions
         assert "出典URL" in instructions and "コードのテスト" in instructions
         assert "目的・完了条件・前提・不確実性・次の確認" in instructions
-        if character_id == "astra":
-            assert "Astraは設計レビュー役" in instructions
-        else:
-            assert "Astraは設計レビュー役" not in instructions
+        assert "作業時の固有方針:" in instructions
+        assert character.work_guidance in instructions
     finally:
         await service.close()

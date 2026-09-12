@@ -117,7 +117,6 @@ async def test_optional_work_loads_independently_of_gemini(
     factory = MagicMock(return_value=reporter)
     monkeypatch.setattr(work_reporter, "DiscordWorkReporter", factory)
     monkeypatch.delenv("GEMINI_API_KEY", raising=False)
-    monkeypatch.delenv("CHARACTER_DEFINITIONS_PATH", raising=False)
     monkeypatch.setattr(bot_main, "PROJECT_ROOT", tmp_path / "bot")
     for key, value in {
         "CODEX_WORK_ROOT": "relative" if invalid else str(tmp_path / "work"),
@@ -156,8 +155,6 @@ def test_non_ai_entrypoints_import_without_loading_ai_settings_or_sdk(
     tmp_path: Path,
 ) -> None:
     """Use a fresh interpreter so cached modules cannot hide import side effects."""
-    invalid = tmp_path / "characters.override.json"
-    invalid.write_text("{invalid json", encoding="utf-8")
     environment = dict(os.environ)
     for key in (
         "GEMINI_API_KEY",
@@ -167,7 +164,6 @@ def test_non_ai_entrypoints_import_without_loading_ai_settings_or_sdk(
         environment.pop(key, None)
     environment.update(
         {
-            "CHARACTER_DEFINITIONS_PATH": str(invalid),
             "PYTHON_DOTENV_DISABLED": "1",
             "LINE_CHANNEL_SECRET": "local-test-secret",
             "LINE_CHANNEL_ACCESS_TOKEN": "local-test-token",
@@ -199,7 +195,7 @@ def test_non_ai_entrypoints_import_without_loading_ai_settings_or_sdk(
     ],
 )
 async def test_missing_ai_setting_keeps_all_normal_cogs_available(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, missing: str
+    monkeypatch: pytest.MonkeyPatch, missing: str
 ) -> None:
     for key in (
         "GEMINI_API_KEY",
@@ -210,9 +206,6 @@ async def test_missing_ai_setting_keeps_all_normal_cogs_available(
             key, '["configured"]' if key == bot_main.WEBHOOK_URLS_ENV else "configured"
         )
     monkeypatch.delenv(missing)
-    invalid = tmp_path / "invalid.json"
-    invalid.write_text("{", encoding="utf-8")
-    monkeypatch.setenv("CHARACTER_DEFINITIONS_PATH", str(invalid))
     bot = bot_main.MyBot()
     bot.mediator = MagicMock()
     add_cog = AsyncMock()
@@ -234,9 +227,10 @@ async def test_invalid_ai_settings_disable_only_ai(
         ("DISCORD_CHARACTER_GUILD_ID", "456"),
     ):
         monkeypatch.setenv(key, value)
-    invalid = tmp_path / "invalid.json"
-    invalid.write_text("{", encoding="utf-8")
-    monkeypatch.setenv("CHARACTER_DEFINITIONS_PATH", str(invalid))
+    monkeypatch.setattr(bot_main, "PROJECT_ROOT", tmp_path)
+    (tmp_path / bot_main.MASTER_CONTEXT_FILENAME).write_text(
+        "x" * 100_000, encoding="utf-8"
+    )
     bot = bot_main.MyBot()
     bot.mediator = MagicMock()
     add_cog = AsyncMock()
@@ -291,28 +285,10 @@ async def test_ai_resources_are_bound_only_after_destination_validation(
         ("DISCORD_CHARACTER_GUILD_ID", "456"),
     ):
         monkeypatch.setenv(key, value)
-    monkeypatch.delenv("CHARACTER_DEFINITIONS_PATH", raising=False)
     monkeypatch.delenv("GEMINI_MODEL", raising=False)
     monkeypatch.setattr(bot_main, "PROJECT_ROOT", tmp_path)
     (tmp_path / bot_main.MASTER_CONTEXT_FILENAME).write_text(
         "マスターは短い返答を好む。", encoding="utf-8"
-    )
-    (tmp_path / "characters.override.json").write_text(
-        json.dumps(
-            {
-                "characters": {
-                    "Dorothy": {
-                        "mcp_servers": {
-                            "notes": {
-                                "command": "unused-server",
-                                "allowed_tools": ["read_note"],
-                            }
-                        }
-                    }
-                }
-            }
-        ),
-        encoding="utf-8",
     )
     client_factory = MagicMock()
     monkeypatch.setattr(genai, "Client", client_factory)
@@ -354,9 +330,6 @@ async def test_ai_resources_are_bound_only_after_destination_validation(
     assert options.timeout == 20_000
     assert options.retry_options.attempts == 3
     assert generator_factory.call_args.kwargs["model"] == bot_main.DEFAULT_GEMINI_MODEL
-    mcp_servers = generator_factory.call_args.kwargs["mcp_servers"]
-    assert set(mcp_servers) == {"Dorothy"}
-    assert mcp_servers["Dorothy"][0].allowed_tools == ("read_note",)
     await bot.close()
 
 
@@ -377,7 +350,6 @@ async def test_configures_multiple_webhook_destinations(
         json.dumps(["local-test-webhook", "local-test-discussion-webhook"]),
     )
     monkeypatch.setenv("DISCORD_CHARACTER_GUILD_ID", "456")
-    monkeypatch.delenv("CHARACTER_DEFINITIONS_PATH", raising=False)
     monkeypatch.delenv("GEMINI_MODEL", raising=False)
     monkeypatch.setattr(bot_main, "PROJECT_ROOT", tmp_path)
     monkeypatch.setattr(genai, "Client", MagicMock())
@@ -471,7 +443,6 @@ async def test_configures_times_destination_and_validates(
     monkeypatch.setenv(bot_main.TIMES_WEBHOOK_URL_ENV, "local-test-times-webhook")
     monkeypatch.setenv("DISCORD_CHARACTER_GUILD_ID", "456")
     monkeypatch.setenv("DISCORD_CHARACTER_MASTER_USER_ID", master_id)
-    monkeypatch.delenv("CHARACTER_DEFINITIONS_PATH", raising=False)
     monkeypatch.delenv("GEMINI_MODEL", raising=False)
     monkeypatch.setattr(bot_main, "PROJECT_ROOT", tmp_path)
     monkeypatch.setattr(genai, "Client", MagicMock())

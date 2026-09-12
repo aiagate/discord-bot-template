@@ -71,6 +71,20 @@ class InMemoryTimesStore(ITimesEpisodeStore):
         ]
         return Ok(completed[-limit:])
 
+    async def get_completed_with_work(
+        self, destination: DiscordConversationScope
+    ) -> Result[list[TimesEpisodePlan], RepositoryError]:
+        return Ok(
+            [
+                plan
+                for plan in self.plans.values()
+                if plan.status == "COMPLETED"
+                and (plan.guild_id, plan.delivery_channel_id)
+                == (destination.guild_id, destination.channel_id)
+                and any(intent.work_id is None for intent in plan.work_intents)
+            ]
+        )
+
 
 async def _initialize(publisher: DiscordWebhookTimesPublisher) -> None:
     await publisher.initialize("456", character_channel_ids={"999"})
@@ -597,7 +611,7 @@ async def test_restart_recovers_a_multipart_post_without_resending_confirmed_chu
         DiscordConversationScope(guild_id="888", channel_id="123"),
     ],
 )
-async def test_recovery_leaves_other_boards_pending_without_blocking_this_board(
+async def test_recovery_leaves_other_times_destinations_pending_without_blocking_this_one(
     publisher_setup: tuple[
         DiscordWebhookTimesPublisher,
         InMemoryTimesStore,
@@ -613,19 +627,21 @@ async def test_recovery_leaves_other_boards_pending_without_blocking_this_board(
     publisher._store = store
     await _initialize(publisher)
     other_plan = TimesEpisodePlan(
-        source_message_id="other-board",
+        source_message_id="other-times-destination",
         guild_id=other_destination.guild_id,
         channel_id="999",
         delivery_channel_id=other_destination.channel_id,
-        posts=(TimesPost(character_name="Maid_A", content="Other board's post"),),
+        posts=(TimesPost(character_name="Maid_A", content="Other destination's post"),),
         status="DELIVERING",
     )
     current_plan = TimesEpisodePlan(
-        source_message_id="current-board",
+        source_message_id="current-times-destination",
         guild_id="456",
         channel_id="999",
         delivery_channel_id="123",
-        posts=(TimesPost(character_name="Maid_A", content="Current board's post"),),
+        posts=(
+            TimesPost(character_name="Maid_A", content="Current destination's post"),
+        ),
         status="DELIVERING",
     )
     assert is_ok(await store.save(other_plan))
@@ -633,7 +649,9 @@ async def test_recovery_leaves_other_boards_pending_without_blocking_this_board(
 
     await publisher.recover_pending()
 
-    assert [message["content"] for message in sent_messages] == ["Current board's post"]
+    assert [message["content"] for message in sent_messages] == [
+        "Current destination's post"
+    ]
     pending = (await store.get(other_plan.source_message_id)).unwrap()
     assert pending is not None and pending.status == "DELIVERING"
 

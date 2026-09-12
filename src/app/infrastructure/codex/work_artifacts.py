@@ -38,6 +38,9 @@ _PRIVATE = {
 }
 _CACHES = {
     ".tmp",
+    ".cache",
+    ".config",
+    ".local",
     ".venv",
     "venv",
     "node_modules",

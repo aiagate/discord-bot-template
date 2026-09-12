@@ -1,7 +1,7 @@
 """Discord controls and progress delivery for character work."""
 
 import logging
-import re
+from collections.abc import Awaitable, Callable
 from typing import Any
 
 import discord
@@ -10,13 +10,20 @@ from flow_res import is_err
 
 from app.application.character_work_settings import CharacterWorkSettings
 from app.application.mediator import ApplicationMediator
-from app.contracts.messages.character_work import CharacterWork, CharacterWorkError
+from app.contracts.messages.character_work import (
+    CharacterWork,
+    CharacterWorkError,
+    WorkAttachment,
+)
+from app.contracts.messages.times_message import TimesEpisodePlan, TimesWorkIntent
 from app.contracts.ports.character_work import (
+    ICharacterWorkContextProvider,
     ICharacterWorkExecutor,
     ICharacterWorkReporter,
+    ICharacterWorkRequester,
     ICharacterWorkStore,
 )
-from app.domain.characters import CharacterRoster
+from app.domain.characters import CharacterDefinition, CharacterRoster
 from app.presentation.bot.cogs.base_cog import BaseCog
 from app.usecases.chat.character_work import CharacterWorkService, WorkResult
 
@@ -29,27 +36,12 @@ _STATUS = {
     "failed": "失敗",
     "paused": "中断",
 }
-_CHARACTER_PREFIX = re.compile(r"^([^\s、,:：]+)[\s、,:：]+(.+)$", re.DOTALL)
-_EXPLICIT_WORK_PREFIX = re.compile(
-    r"^(?:作業|依頼|タスク)[\s]*[:：][\s]*(.+)$", re.DOTALL
-)
-_WORK_REQUEST_MARKERS = (
-    "調べて",
-    "調査して",
-    "実装して",
-    "作成して",
-    "修正して",
-    "検証して",
-    "比較して",
-    "分析して",
-    "まとめて",
-    "確認して",
-    "書いて",
-    "直して",
-    "作って",
-    "お願い",
-    "依頼",
-)
+WorkReviewer = Callable[
+    [CharacterWork, CharacterDefinition, tuple[WorkAttachment, ...]],
+    Awaitable[str | None],
+]
+TimesCompletionHandler = Callable[[CharacterWork], Awaitable[None]]
+WorkFinishedHandler = Callable[[CharacterWork], Awaitable[None]]
 
 
 class CharacterWorkCog(BaseCog, name="Character Work"):
@@ -64,11 +56,17 @@ class CharacterWorkCog(BaseCog, name="Character Work"):
         store: ICharacterWorkStore,
         executor: ICharacterWorkExecutor,
         reporter: ICharacterWorkReporter,
+        reviewer: WorkReviewer | None = None,
+        on_times_completion: TimesCompletionHandler | None = None,
+        on_work_finished: WorkFinishedHandler | None = None,
+        context_provider: ICharacterWorkContextProvider | None = None,
     ) -> None:
         super().__init__(bot, mediator)
         self._settings = settings
         self._executor = executor
         self._reporter = reporter
+        self._reviewer = reviewer
+        self._on_times_completion = on_times_completion
         self._characters = {item.character_id: item for item in roster.characters}
         self._names = {
             name.casefold(): item.character_id
@@ -81,6 +79,11 @@ class CharacterWorkCog(BaseCog, name="Character Work"):
             roster,
             timeout_seconds=settings.timeout_seconds,
             on_update=self._publish,
+            on_finished=on_work_finished,
+            context_provider=context_provider,
+            allowed_guild_id=settings.guild_id,
+            allowed_channel_ids=settings.channel_ids,
+            allowed_user_ids=settings.user_ids,
         )
 
     async def cog_load(self) -> None:
@@ -90,6 +93,49 @@ class CharacterWorkCog(BaseCog, name="Character Work"):
     async def cog_unload(self) -> None:
         """Interrupt runtimes and persist their resumable identities."""
         await self._service.close()
+
+    def set_times_completion_handler(
+        self, handler: TimesCompletionHandler | None
+    ) -> None:
+        """Set the callback that turns a reviewed Times task into a follow-up."""
+        self._on_times_completion = handler
+
+    def set_work_finished_handler(self, handler: WorkFinishedHandler | None) -> None:
+        """Set a callback run after a terminal task leaves the active slot."""
+        self._service.set_finished_handler(handler)
+
+    @property
+    def requester(self) -> ICharacterWorkRequester:
+        """Expose the service used by ordinary Gemini responses."""
+        return self._service
+
+    async def recover_times_completions(self) -> None:
+        """Replay reviewed Times results after a process restart."""
+        if self._on_times_completion is None:
+            return
+        for task in self._service.list_tasks():
+            if task.status == "completed" and task.origin == "times" and task.review:
+                try:
+                    await self._on_times_completion(task)
+                except Exception:
+                    logger.exception(
+                        "Could not recover Times follow-up for %s", task.id
+                    )
+
+    async def start_from_times(
+        self, plan: TimesEpisodePlan, intent: TimesWorkIntent
+    ) -> CharacterWork | None:
+        """Start a work intent using the configured work webhook destination."""
+        report_channel_id = min(self._settings.channel_ids, default="")
+        result = await self._service.start_from_times(
+            plan=plan,
+            intent=intent,
+            report_channel_id=report_channel_id,
+        )
+        if is_err(result):
+            logger.warning("Could not start Times work: %s", result.error)
+            return None
+        return result.value
 
     def _allowed(self, message: discord.Message) -> bool:
         if (
@@ -125,51 +171,6 @@ class CharacterWorkCog(BaseCog, name="Character Work"):
             await ctx.send("このユーザー・チャンネルでは作業を依頼できません。")
             return
         await super().cog_command_error(ctx, error)
-
-    async def handle_message(self, message: discord.Message) -> bool:
-        """Start or steer work without consuming the ordinary Gemini response."""
-        if not self._allowed(message):
-            return False
-        context = await self.bot.get_context(message)
-        if context.prefix is not None:
-            return False
-        prompt = message.content.strip()
-        if not prompt:
-            return False
-        current = self._current(message)
-        match = _CHARACTER_PREFIX.match(prompt)
-        character_id = self._names.get(match[1].casefold()) if match else None
-        if character_id is not None and match is not None:
-            request = match[2].strip()
-            work_prompt = self._work_prompt(request)
-            if work_prompt is not None and (
-                current is None or current.character_id != character_id
-            ):
-                return await self._submit(message, character_id, work_prompt)
-        else:
-            work_prompt = self._work_prompt(prompt)
-        if current is None or work_prompt is None:
-            return False
-        assert message.guild is not None
-        result = await self._service.follow_up(
-            guild_id=str(message.guild.id),
-            channel_id=str(message.channel.id),
-            owner_id=str(message.author.id),
-            message_id=str(message.id),
-            prompt=work_prompt,
-        )
-        return await self._report_error(message, result)
-
-    @staticmethod
-    def _work_prompt(prompt: str) -> str | None:
-        """Recognize an explicit work request while leaving casual chat to Gemini."""
-        explicit = _EXPLICIT_WORK_PREFIX.match(prompt)
-        if explicit is not None:
-            value = explicit[1].strip()
-            return value or None
-        if any(marker in prompt for marker in _WORK_REQUEST_MARKERS):
-            return prompt
-        return None
 
     async def _submit(
         self, message: discord.Message, character_id: str, prompt: str
@@ -257,29 +258,68 @@ class CharacterWorkCog(BaseCog, name="Character Work"):
             await ctx.send("保存された作業結果はまだありません。")
             return
         try:
-            await self._send(task, task.result, include_artifacts=True)
+            await self._deliver(task)
         except CharacterWorkError as error:
             await ctx.send(str(error), allowed_mentions=discord.AllowedMentions.none())
 
     async def _publish(self, task: CharacterWork) -> None:
-        await self._send(
-            task,
-            task.result if task.status == "completed" else task.summary,
-            include_artifacts=task.status == "completed",
+        if task.status not in {"completed", "failed", "stopped"}:
+            return
+        await self._deliver(task)
+
+    async def _deliver(self, task: CharacterWork) -> None:
+        """Review completed evidence and publish only the character-facing report."""
+        attachments = (
+            await self._executor.attachments(task) if task.status == "completed" else ()
         )
+        if (
+            task.status == "completed"
+            and not task.review
+            and self._reviewer is not None
+        ):
+            try:
+                review = await self._reviewer(
+                    task, self._characters[task.character_id], attachments
+                )
+            except Exception:
+                logger.exception("Could not review completed work %s", task.id)
+            else:
+                if review is not None:
+                    saved = await self._service.save_review(task.id, review)
+                    if is_err(saved):
+                        logger.warning(
+                            "Could not save review for work %s: %s",
+                            task.id,
+                            saved.error,
+                        )
+                    else:
+                        task = saved.value
+        text = (
+            (task.review or task.result) if task.status == "completed" else task.summary
+        )
+        try:
+            await self._send(task, text, attachments=attachments)
+        finally:
+            if (
+                task.status == "completed"
+                and task.origin == "times"
+                and task.review
+                and self._on_times_completion is not None
+            ):
+                try:
+                    await self._on_times_completion(task)
+                except Exception:
+                    logger.exception(
+                        "Could not publish Times follow-up for %s", task.id
+                    )
 
     async def _send(
         self,
         task: CharacterWork,
         text: str,
         *,
-        include_artifacts: bool = False,
+        attachments: tuple[WorkAttachment, ...] = (),
     ) -> None:
-        attachments = (
-            await self._executor.attachments(task) if include_artifacts else ()
-        )
-        if include_artifacts and task.artifacts is not None:
-            text = f"{task.artifacts.summary}\n\n{text}"
         await self._reporter.send(
             task,
             self._characters[task.character_id],

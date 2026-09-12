@@ -36,7 +36,7 @@ class WorkCommandEvidence:
 
 @dataclass(frozen=True, slots=True)
 class CharacterWork:
-    """One owner's task in one Discord conversation."""
+    """One owner's task with immutable execution result and optional review."""
 
     id: str
     guild_id: str
@@ -52,6 +52,11 @@ class CharacterWork:
     result: str = ""
     linked: bool = True
     artifacts: WorkArtifacts | None = None
+    review: str = ""
+    origin: Literal["discord", "times"] = "discord"
+    origin_key: str | None = None
+    origin_channel_id: str | None = None
+    times_episode_id: str | None = None
 
 
 @dataclass(frozen=True, slots=True)

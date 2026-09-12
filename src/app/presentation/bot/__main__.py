@@ -13,13 +13,17 @@ from injector import Injector
 
 from app.application.mediator import ApplicationMediator
 from app.contracts.messages.character_prompt import DiscordMaster
+from app.contracts.messages.times_message import TimesEpisodePlan
 from app.contracts.ports import (
     ICharacterMemoryStore,
     ICharacterResponseGenerator,
+    ICharacterWorkRequester,
+    ICharacterWorkStore,
     IChatHistoryQuery,
     ISpeechPublisher,
     ITimesEpisodeStore,
     ITimesPublisher,
+    IUserMemoryStore,
 )
 from app.domain.characters import CharacterRoster
 from app.infrastructure.database import init_db
@@ -77,6 +81,10 @@ class MyBot(commands.Bot):
         self._character_response_generator: ICharacterResponseGenerator | None = None
         self._times_destination: DiscordTimesDestination | None = None
         self._times_store: ITimesEpisodeStore | None = None
+        self._times_publisher: ITimesPublisher | None = None
+        self._times_work_handler: (
+            Callable[[TimesEpisodePlan], Awaitable[None]] | None
+        ) = None
         self._work_webhook_ids: tuple[int, ...] = ()
 
     async def setup_hook(self) -> None:
@@ -88,7 +96,7 @@ class MyBot(commands.Bot):
         from app import container
 
         db_url = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///./bot.db")
-        init_db(db_url, echo=True)
+        init_db(db_url, echo=False)
 
         # Initialize Mediator with dependency injection container
         injector = Injector([container.configure])
@@ -103,9 +111,8 @@ class MyBot(commands.Bot):
             injector.get(IChatHistoryQuery) if injector is not None else None
         )
         destinations = await self._configure_characters()
-        work_handler = None
         if os.getenv("CODEX_WORK_ROOT", "").strip():
-            work_handler = await self._configure_work()
+            await self._configure_work()
         await self.add_cog(TeamsCog(self, mediator))
         await self.add_cog(UsersCog(self, mediator))
         await self.add_cog(MembershipsCog(self, mediator))
@@ -117,15 +124,15 @@ class MyBot(commands.Bot):
                 times_destination=self._times_destination,
                 times_store=self._times_store,
                 history_query=history_query,
-                work_handler=work_handler,
+                times_work_handler=self._times_work_handler,
                 ignored_webhook_ids=self._work_webhook_ids,
             )
         )
 
     async def _configure_work(
         self,
-    ) -> Callable[[discord.Message], Awaitable[bool]] | None:
-        """Enable work independently of the optional Gemini response generator."""
+    ) -> None:
+        """Enable Codex work for the ordinary Gemini response tool."""
         try:
             from app.application.character_settings import load_ai_maid_definitions
             from app.application.character_work_settings import CharacterWorkSettings
@@ -135,21 +142,14 @@ class MyBot(commands.Bot):
             from app.infrastructure.codex.work_store import FileCharacterWorkStore
             from app.infrastructure.discord.work_reporter import DiscordWorkReporter
             from app.presentation.bot.cogs.character_work_cog import CharacterWorkCog
+            from app.usecases.chat.character_work_context import (
+                CharacterWorkContextProvider,
+            )
 
             settings = CharacterWorkSettings.from_env(os.environ, PROJECT_ROOT)
             if settings is None:
                 return None
-            override = os.getenv("CHARACTER_DEFINITIONS_PATH", "").strip()
-            path = (
-                Path(override)
-                if override
-                else PROJECT_ROOT / "characters.override.json"
-            )
-            if not path.is_absolute():
-                path = PROJECT_ROOT / path
-            roster = load_ai_maid_definitions(
-                path if override or path.exists() else None
-            )
+            roster = load_ai_maid_definitions()
             urls = (
                 _load_character_webhook_urls("CODEX_WORK_WEBHOOK_URLS_JSON")
                 or _load_character_webhook_urls()
@@ -158,12 +158,33 @@ class MyBot(commands.Bot):
             available_channel_ids = await reporter.initialize(settings.channel_ids)
             if not settings.channel_ids:
                 settings = replace(settings, channel_ids=available_channel_ids)
+            reviewer = None
+            if self._character_response_generator is not None:
+                from app.infrastructure.gemini.work_reviewer import GeminiWorkReviewer
+
+                reviewer = GeminiWorkReviewer(
+                    self._character_response_generator, roster
+                )
+            work_store = FileCharacterWorkStore(settings.root / "tasks")
+            context_provider = None
+            if getattr(self, "injector", None) is not None:
+                self.injector.binder.bind(ICharacterWorkStore, to=work_store)
+                try:
+                    context_provider = CharacterWorkContextProvider(
+                        self.injector.get(IChatHistoryQuery),
+                        self.injector.get(ICharacterMemoryStore),
+                        self.injector.get(IUserMemoryStore),
+                        work_store,
+                        self.injector.get(DiscordMaster),
+                    )
+                except Exception:
+                    logger.exception("Character work context is unavailable")
             cog = CharacterWorkCog(
                 self,
                 self.mediator,
                 settings,
                 roster,
-                FileCharacterWorkStore(settings.root / "tasks"),
+                work_store,
                 CodexCharacterWorkExecutor(
                     settings.root,
                     settings.repository,
@@ -171,15 +192,39 @@ class MyBot(commands.Bot):
                     settings.reasoning_effort,
                 ),
                 reporter,
+                reviewer=reviewer,
+                context_provider=context_provider,
             )
+            if getattr(self, "injector", None) is not None:
+                self.injector.binder.bind(ICharacterWorkRequester, to=cog.requester)
+            if (
+                self._times_destination is not None
+                and self._times_publisher is not None
+            ):
+                from app.presentation.bot.times_work_dispatcher import (
+                    TimesWorkDispatcher,
+                )
+
+                if self._times_store is None:
+                    raise RuntimeError("Times store is not initialized.")
+                dispatcher = TimesWorkDispatcher(
+                    self._times_store,
+                    self._times_publisher,
+                    roster,
+                    self._times_destination.scope.channel_id,
+                    cog.start_from_times,
+                )
+                cog.set_times_completion_handler(dispatcher.publish_completion)
+                cog.set_work_finished_handler(dispatcher.retry_pending)
+                self._times_work_handler = dispatcher.dispatch
             await self.add_cog(cog)
+            await cog.recover_times_completions()
             self._work_webhook_ids = reporter.webhook_ids
             logger.info(
                 "Character work enabled for guild %s in %s webhook destinations",
                 settings.guild_id,
                 len(reporter.webhook_ids),
             )
-            return cog.handle_message
         except Exception as error:
             logger.error("Character work disabled (%s)", type(error).__name__)
             return None
@@ -203,7 +248,7 @@ class MyBot(commands.Bot):
                 or len(character_guild_id) > 20
             ):
                 raise ValueError("Character guild ID must be a Discord snowflake.")
-            from app.application.character_settings import load_character_settings
+            from app.application.character_settings import load_ai_maid_definitions
             from app.application.master_context import load_master_context
 
             master_context_path = PROJECT_ROOT / MASTER_CONTEXT_FILENAME
@@ -214,18 +259,7 @@ class MyBot(commands.Bot):
                 os.getenv("DISCORD_CHARACTER_MASTER_USER_ID", "").strip() or None,
                 master_context,
             )
-            override = os.getenv("CHARACTER_DEFINITIONS_PATH", "").strip()
-            override_path = (
-                Path(override)
-                if override
-                else PROJECT_ROOT / "characters.override.json"
-            )
-            if not override_path.is_absolute():
-                override_path = PROJECT_ROOT / override_path
-            character_settings = load_character_settings(
-                override_path if override or override_path.exists() else None
-            )
-            roster = character_settings.roster
+            roster = load_ai_maid_definitions()
             stage = "Gemini initialization"
             from google import genai
             from google.genai import types
@@ -253,7 +287,6 @@ class MyBot(commands.Bot):
                     ),
                 ),
                 model=os.getenv("GEMINI_MODEL", "").strip() or DEFAULT_GEMINI_MODEL,
-                mcp_servers=character_settings.mcp_servers,
             )
             self._character_response_generator = generator
             stage = "webhook destination validation"
@@ -324,16 +357,17 @@ class MyBot(commands.Bot):
                         webhook_id=times_publisher.webhook_id,
                     )
                     self._times_store = times_store
+                    self._times_publisher = times_publisher
                     self.injector.binder.bind(ITimesPublisher, to=times_publisher)
                     self.injector.binder.bind(ITimesEpisodeStore, to=times_store)
                     logger.info(
-                        "Times board enabled for guild %s at channel %s",
+                        "Times enabled for guild %s at channel %s",
                         character_guild_id,
                         times_scope.channel_id,
                     )
                 except Exception as error:
                     logger.error(
-                        "Times board disabled during %s (%s)",
+                        "Times disabled during %s (%s)",
                         times_stage,
                         type(error).__name__,
                     )
@@ -345,6 +379,8 @@ class MyBot(commands.Bot):
             )
             self._times_destination = None
             self._times_store = None
+            self._times_publisher = None
+            self._times_work_handler = None
             if self._character_response_generator is not None:
                 try:
                     await self._character_response_generator.aclose()
@@ -395,6 +431,9 @@ def configure_logging(log_path: Path) -> logging.FileHandler:
     filename = (log_path / LOG_FILENAME).resolve()
     root_logger = logging.getLogger()
     root_logger.setLevel(logging.DEBUG)
+    logging.getLogger("sqlalchemy").setLevel(logging.WARNING)
+    logging.getLogger("aiosqlite").setLevel(logging.WARNING)
+    logging.getLogger("google_genai").setLevel(logging.WARNING)
 
     handler = next(
         (

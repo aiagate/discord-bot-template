@@ -1,6 +1,6 @@
 # LLM入力コンテキストの改善計画
 
-作成日: 2026-09-12。状態: 計画のみ、未実装。
+作成日: 2026-09-12。状態: 一部実装済み。添付対応は計画のみ。
 [前回の調査](../architecture/llm_context_review.md)で残った3項目を対象とする。
 
 本文・識別子・内部UTCを保持し、LLMには表示名、JST日時、投票の内容、
@@ -12,8 +12,8 @@
 | --- | --- | --- |
 | 1 | Discordのメンション・時刻記法を補足する | 原文とIDを残したまま、取得済みの表示名とJST日時が選定・通常応答・Timesに届く。未知のIDや不正な時刻は推測しない。 |
 | 2 | 投票・添付情報を保存し、本文のない投稿も受け付ける | 投票の設問・選択肢と添付の存在が履歴から復元でき、画像のみ・投票のみの投稿でも応答処理に進む。 |
-| 3 | MCP結果の重複と不要な表現を除く | 構造化結果と同一のテキストだけを除き、補足文・出典・エラーを保つ。未対応メディアや過大な結果が通常の応答全体を失敗させない。 |
-| 4 | 添付とMCPの対応メディアを専用入力へ渡す | 画像・PDF・テキストの中身が、元投稿またはツール呼び出しとの対応を保ってモデルに届く。取得失敗や上限超過は未読として伝わる。 |
+| 3 | Codex作業へキャラクター固有の方針を渡す | 担当・口調だけでなく、キャラクターごとの判断と進め方が作業へ反映される。 |
+| 4 | 添付情報を専用入力へ渡す | 画像・PDF・テキストの中身が、元投稿との対応を保ってモデルに届く。取得失敗や上限超過は未読として伝わる。 |
 
 原則は1PR・1コミットで上の順に実装・検証する。メディア対応が独立して大きくなる
 場合だけ1〜3と4の2PRへの分割を提案し、途中で全項目完了とは扱わない。
@@ -51,24 +51,9 @@
 - 初期上限案: 生成1回につき添付3件、1件5MiB、メディア合計10MiB、添付テキスト合計32,000文字、
   取得全体10秒。取得前後とエンコード後の累積サイズを確認する。上限値は実API試験で確定する。
 - 画像・PDFはJSON文字列へ埋めず、Geminiの `Part.from_bytes` へ渡す。選定・通常応答・Timesの
-  3経路とMCP通常応答の初回入力を対応させ、各メディア前に投稿ID・添付IDラベルを添える。
+  3経路の初回入力を対応させ、各メディア前に投稿ID・添付IDラベルを添える。
 - 省略・未対応・取得失敗は入力に理由を付ける。本文が空でも添付または投票があれば
   処理を継続し、未対応の添付だけでも未読理由を返せるよう空入力判定を揃える。
-
-## 3. MCP結果の整形
-
-- `structuredContent` を保ち、テキストをJSONとして読んだ値が型も含めて完全一致する場合だけ、
-  その重複テキストを除く。補足説明・URL・警告・`isError`・呼び出しID/名前・履歴は残す。
-- `content` は種類別に扱う。テキストと埋め込みテキスト資源は本文として渡し、
-  資源リンクはURIと説明を渡す。任意のURIを自動取得しない。
-- 対応する画像・PDFはbase64を検証・デコードし、`FunctionResponse.parts` の
-  `FunctionResponsePart.from_bytes` へ渡す。同じデータを文字列として残さない。
-  音声等の未対応形式やモデル未対応時も未読と明示する。
-- 正規化後テキスト上限は既存32,000文字を使い、JSONを途中で切断しない。超過時は上限超過の
-  エラーをツール結果として返し、既存8回制限内で再試行できるようにする。
-  画像等の累積量は上記メディア予算に含め、base64もデコード前にサイズを確認する。
-- 外部JSONの日時文字列は一律変換せず、形式保証された日時だけにJST補足を付け、
-  元の値・タイムゾーンを保持する。
 
 ## 配置と検証
 
@@ -78,7 +63,7 @@ Discord抽出・取得とGemini SDK変換は各アダプターに閉じる。共
 外部SDKへ依存させず、既存JSON保存とSDKのPartsを使い新規の外部依存や専用基盤は追加しない。
 
 主な変更先: `message_listener_cog.py`、`save_discord_chat.py`、`character_prompt.py`、
-両生成ユースケース、`character_response_generator.py`、`mcp_tools.py`。
+両生成ユースケース、`character_response_generator.py`。
 必要なDTO・ポートとDiscord添付取得アダプターを追加する。
 
 回帰テスト項目:
@@ -87,13 +72,11 @@ Discord抽出・取得とGemini SDK変換は各アダプターに閉じる。共
 - 旧JSONの読み込み、メタデータの保存往復、投票の未集計・暫定・確定状態。
 - 本文なし投稿、履歴・返信先対応、別会話除外、再起動後取得、期限切れURL・削除・権限不足・
   過大サイズ・不正MIME/UTF-8/base64・時間切れの処理。
-- MCP完全一致の重複除去、補足情報・エラー保持、混在結果、上限超過からの再試行、
-  呼び出しIDとPartsの対応、累積入力上限。
-- SDKへ渡す実引数を3生成経路とMCP経路で検査し、メディアが文字列化されていないことを確認。
+- SDKへ渡す実引数を3生成経路で検査し、メディアが文字列化されていないことを確認。
   Ruff → Pyright → lint → `uv run --frozen pytest` を実行する。
 
 最後に小さな画像・PDF・テキストを用いて実APIで内容を参照できることを確認する
 （入力トークン数・遅延比較を含め、Discordへの投稿は伴わせない）。
 
-仕様確認: [Discord記法・添付URL](https://docs.discord.com/developers/reference)、[discord.pyのMessage](https://discordpy.readthedocs.io/en/stable/api.html#discord.Message)、[MCP結果仕様](https://modelcontextprotocol.io/specification/2025-11-25/server/tools)、
+仕様確認: [Discord記法・添付URL](https://docs.discord.com/developers/reference)、[discord.pyのMessage](https://discordpy.readthedocs.io/en/stable/api.html#discord.Message)、
 [Gemini画像入力](https://ai.google.dev/gemini-api/docs/generate-content/image-understanding) / [PDF入力](https://ai.google.dev/gemini-api/docs/generate-content/document-processing) / [関数結果のメディア入力](https://ai.google.dev/gemini-api/docs/generate-content/function-calling?authuser=0&hl=en#multimodal)。

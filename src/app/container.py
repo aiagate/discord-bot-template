@@ -12,6 +12,8 @@ from app.application.mediator import (
 )
 from app.contracts.ports import (
     ICharacterMemoryStore,
+    ICharacterWorkRequester,
+    ICharacterWorkStore,
     IChatHistoryQuery,
     IUnitOfWork,
     IUserIdentityQuery,
@@ -96,6 +98,20 @@ class DatabaseModule(injector.Module):
         configured_root = os.getenv("USER_MEMORY_ROOT", "").strip()
         root = Path(configured_root) if configured_root else DEFAULT_USER_MEMORY_ROOT
         return MarkdownUserMemoryStore(root)
+
+    @injector.provider
+    def provide_character_work_store(self) -> ICharacterWorkStore:
+        """Provide an empty store until optional Codex work is configured."""
+        from app.infrastructure.codex.work_store import NullCharacterWorkStore
+
+        return NullCharacterWorkStore()
+
+    @injector.provider
+    def provide_character_work_requester(self) -> ICharacterWorkRequester:
+        """Leave the ordinary response tool disabled until Codex is configured."""
+        from app.infrastructure.codex.work_store import NullCharacterWorkRequester
+
+        return NullCharacterWorkRequester()
 
 
 class ApplicationModule(injector.Module):

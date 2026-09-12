@@ -109,7 +109,7 @@ def listener_setup() -> tuple[
 
 
 @pytest.mark.anyio
-async def test_user_message_in_character_destination_triggers_both_character_and_times(
+async def test_user_message_in_character_destination_does_not_trigger_times(
     listener_setup: tuple[
         DiscordMessageListenerCog,
         AsyncMock,
@@ -125,30 +125,45 @@ async def test_user_message_in_character_destination_triggers_both_character_and
     # Save command is sent immediately
     assert isinstance(send_async.call_args_list[0].args[0], SaveDiscordChatCommand)
 
-    # Times pending plan was durably saved
-    times_store_save.assert_awaited_once()
-    plan_arg: TimesEpisodePlan = times_store_save.call_args.args[0]
-    assert plan_arg.source_message_id == "100"
-    assert plan_arg.guild_id == "456"
-    assert plan_arg.channel_id == "123"
-    assert plan_arg.delivery_channel_id == "789"
-    assert plan_arg.status == "PENDING"
-
-    # Queues: character response queue has 1 item, times queue has 1 item
+    times_store_save.assert_not_awaited()
     assert cog._queue.qsize() == 1
     char_item = cog._queue.get_nowait()
     assert char_item.command.content == "Good morning"
     assert char_item.command.source_message_id == "100"
-
-    assert cog._times_queue.qsize() == 1
-    times_cmd = cog._times_queue.get_nowait()
-    assert times_cmd.source_message_id == "100"
-    assert times_cmd.channel_id == "123"
-    assert times_cmd.delivery_channel_id == "789"
+    assert cog._times_queue.empty()
 
 
 @pytest.mark.anyio
-async def test_user_message_outside_character_destination_triggers_times_only(
+async def test_user_message_in_times_destination_triggers_times_only(
+    listener_setup: tuple[
+        DiscordMessageListenerCog,
+        AsyncMock,
+        AsyncMock,
+        MagicMock,
+    ],
+) -> None:
+    cog, _, times_store_save, _ = listener_setup
+    msg = _message(125, channel_id=789, content="Timesの話題")
+
+    await cog.on_message(msg)
+
+    assert cog._queue.empty()
+    times_store_save.assert_awaited_once()
+    plan_arg: TimesEpisodePlan = times_store_save.call_args.args[0]
+    assert plan_arg.source_message_id == "125"
+    assert plan_arg.channel_id == "789"
+    assert plan_arg.delivery_channel_id == "789"
+    times_command = cog._times_queue.get_nowait()
+    assert times_command == GenerateTimesEpisodeCommand(
+        source_message_id="125",
+        guild_id="456",
+        channel_id="789",
+        delivery_channel_id="789",
+    )
+
+
+@pytest.mark.anyio
+async def test_user_message_in_other_channel_does_not_trigger_times(
     listener_setup: tuple[
         DiscordMessageListenerCog,
         AsyncMock,
@@ -162,16 +177,9 @@ async def test_user_message_outside_character_destination_triggers_times_only(
     await cog.on_message(msg)
 
     assert cog._queue.qsize() == 0
-    assert cog._times_queue.qsize() == 1
+    assert cog._times_queue.qsize() == 0
     assert isinstance(send_async.call_args.args[0], SaveDiscordChatCommand)
-    times_store_save.assert_awaited_once()
-    times_command = cog._times_queue.get_nowait()
-    assert times_command == GenerateTimesEpisodeCommand(
-        source_message_id="150",
-        guild_id="456",
-        channel_id="456",
-        delivery_channel_id="789",
-    )
+    times_store_save.assert_not_awaited()
 
 
 @pytest.mark.anyio
@@ -437,10 +445,10 @@ async def test_recover_times_queue_restores_heartbeat_source_context(
     cog._times_queue.task_done()
 
 
-def _heartbeat_source(occurred_at: datetime) -> ChatMessage:
+def _heartbeat_source(occurred_at: datetime, *, channel_id: str = "789") -> ChatMessage:
     return ChatMessage.create_discord(
         guild_id="456",
-        channel_id="123",
+        channel_id=channel_id,
         external_sender_id="2",
         external_message_id="501",
         author_name="Alice",
@@ -456,7 +464,7 @@ async def test_times_heartbeat_queues_one_delayed_follow_up() -> None:
     store = AsyncMock(spec=ITimesEpisodeStore)
     history_query = AsyncMock(spec=IChatHistoryQuery)
     store.pending.return_value = Ok([])
-    history_query.get_recent_discord_user_messages.return_value = Ok(
+    history_query.get_recent_history.return_value = Ok(
         [_heartbeat_source(datetime(2026, 9, 12, 1, 0, tzinfo=UTC))]
     )
     store.get.return_value = Ok(None)
@@ -480,7 +488,7 @@ async def test_times_heartbeat_queues_one_delayed_follow_up() -> None:
     assert command == GenerateTimesEpisodeCommand(
         source_message_id="501",
         guild_id="456",
-        channel_id="123",
+        channel_id="789",
         delivery_channel_id="789",
         episode_id="heartbeat:789:501",
     )
@@ -494,7 +502,7 @@ async def test_times_heartbeat_waits_until_topic_is_twenty_minutes_old() -> None
     store = AsyncMock(spec=ITimesEpisodeStore)
     history_query = AsyncMock(spec=IChatHistoryQuery)
     store.pending.return_value = Ok([])
-    history_query.get_recent_discord_user_messages.return_value = Ok(
+    history_query.get_recent_history.return_value = Ok(
         [_heartbeat_source(datetime(2026, 9, 12, 1, 0, tzinfo=UTC))]
     )
     cog = DiscordMessageListenerCog(
@@ -520,7 +528,7 @@ async def test_times_heartbeat_skips_a_topic_older_than_thirty_minutes() -> None
     store = AsyncMock(spec=ITimesEpisodeStore)
     history_query = AsyncMock(spec=IChatHistoryQuery)
     store.pending.return_value = Ok([])
-    history_query.get_recent_discord_user_messages.return_value = Ok(
+    history_query.get_recent_history.return_value = Ok(
         [_heartbeat_source(datetime(2026, 9, 12, 1, 0, tzinfo=UTC))]
     )
     cog = DiscordMessageListenerCog(
@@ -533,6 +541,32 @@ async def test_times_heartbeat_skips_a_topic_older_than_thirty_minutes() -> None
 
     await cog._run_times_heartbeat(
         now=datetime(2026, 9, 12, 1, 31, tzinfo=UTC),
+    )
+
+    store.save.assert_not_awaited()
+    assert cog._times_queue.empty()
+
+
+@pytest.mark.anyio
+async def test_times_heartbeat_ignores_main_conversation_messages() -> None:
+    bot = MagicMock(spec=commands.Bot)
+    mediator = MagicMock()
+    store = AsyncMock(spec=ITimesEpisodeStore)
+    history_query = AsyncMock(spec=IChatHistoryQuery)
+    store.pending.return_value = Ok([])
+    history_query.get_recent_history.return_value = Ok(
+        [_heartbeat_source(datetime(2026, 9, 12, 1, 0, tzinfo=UTC), channel_id="123")]
+    )
+    cog = DiscordMessageListenerCog(
+        bot,
+        mediator,
+        times_destination=DiscordTimesDestination(TIMES_SCOPE, webhook_id=888),
+        times_store=store,
+        history_query=history_query,
+    )
+
+    await cog._run_times_heartbeat(
+        now=datetime(2026, 9, 12, 1, 20, tzinfo=UTC),
     )
 
     store.save.assert_not_awaited()

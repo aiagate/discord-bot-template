@@ -184,8 +184,6 @@ cython_debug/
 # Keep local agent instruction overrides out of version control.
 AGENTS.override.md
 
-# Keep local AI character overrides out of version control.
-characters.override.json
 
 # Keep the master's private personalization context out of version control.
 master_context.md

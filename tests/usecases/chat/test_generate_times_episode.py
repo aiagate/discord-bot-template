@@ -8,7 +8,11 @@ import pytest
 from flow_res import Err, Ok, is_ok
 
 from app.contracts.messages.character_prompt import DiscordMaster
-from app.contracts.messages.times_message import TimesEpisodePlan, TimesPost
+from app.contracts.messages.times_message import (
+    TimesEpisodePlan,
+    TimesPost,
+    TimesWorkIntent,
+)
 from app.contracts.ports.character_memory_store import ICharacterMemoryStore
 from app.contracts.ports.character_response_generator import (
     ICharacterResponseGenerator,
@@ -36,7 +40,7 @@ from app.usecases.chat.generate_times_episode import (
 )
 
 
-def test_times_instruction_preserves_maid_identity_and_board_rules() -> None:
+def test_times_instruction_preserves_maid_identity_and_times_rules() -> None:
     """Times keeps the maid identities, dialogue style and factual boundaries."""
     instruction = _build_times_instruction(
         CharacterRoster(
@@ -58,7 +62,7 @@ def test_times_instruction_preserves_maid_identity_and_board_rules() -> None:
     )
     assert "「次にこれが来そう」などの推測は可" in instruction
     assert "推測だと分かる表現に" in instruction
-    assert "board_memory 内の推測も事実として扱わない" in instruction
+    assert "times_memory 内の推測も事実として扱わない" in instruction
     profiles = json.loads(
         instruction.split("キャラクター一覧:\n", 1)[1].split("\nTimes専用上書き:", 1)[0]
     )
@@ -276,7 +280,7 @@ async def test_generate_times_episode_continuity_and_point_in_time_bounding(
         before=(source.occurred_at, source.id.to_primitive()),
     )
 
-    # Board memory is bounded by episode creation order, not source message time.
+    # Times memory is bounded by episode creation order, not source message time.
     times_store.get_recent_completed.assert_awaited_once_with(
         DiscordConversationScope(guild_id="456", channel_id="999"),
         limit=20,
@@ -285,7 +289,7 @@ async def test_generate_times_episode_continuity_and_point_in_time_bounding(
     assert history_query.get_recent_history.await_args.kwargs["before"][0].tzinfo is UTC
     assert times_store.get_recent_completed.await_args.kwargs["before"].tzinfo is UTC
 
-    # Check generated prompt contained explicitly labeled board_memory and source_history
+    # Check generated prompt contained explicitly labeled times_memory and source_history
     gen_call = generator.generate_times_episode.call_args.kwargs
     payload = json.loads(gen_call["user_content"])
     character_memory_store.get_selection_summaries.assert_awaited_once_with(
@@ -305,13 +309,13 @@ async def test_generate_times_episode_continuity_and_point_in_time_bounding(
         else None
     )
     assert payload["current"]["author_id"] == "alice"
-    assert "board_memory" in payload
-    assert len(payload["board_memory"]) == 1
-    assert payload["board_memory"][0]["source_message_id"] == "80"
-    assert payload["board_memory"][0]["created_at"] == (
+    assert "times_memory" in payload
+    assert len(payload["times_memory"]) == 1
+    assert payload["times_memory"][0]["source_message_id"] == "80"
+    assert payload["times_memory"][0]["created_at"] == (
         "2026-09-12 00:30:00 JST" if has_creation_time else None
     )
-    assert payload["board_memory"][0]["posts"][0]["content"] == "Past discussion note"
+    assert payload["times_memory"][0]["posts"][0]["content"] == "Past discussion note"
     assert "source_history" in payload
     assert payload["source_history"][0]["message_id"] == "99"
     assert payload["source_history"][0]["occurred_at"] == "2026-09-12 10:59:00 JST"
@@ -330,6 +334,96 @@ async def test_generate_times_episode_continuity_and_point_in_time_bounding(
     assert delivered_plan.status == "DELIVERING"
     assert delivered_plan.created_at is not None
     assert delivered_plan.created_at.tzinfo is UTC
+
+
+@pytest.mark.anyio
+async def test_times_work_intent_is_persisted_with_episode_and_owner(
+    times_setup: tuple[
+        GenerateTimesEpisodeHandler,
+        AsyncMock,
+        AsyncMock,
+        AsyncMock,
+        AsyncMock,
+        ChatMessage,
+    ],
+) -> None:
+    """Assign a stable intent key after the episode has a durable ID."""
+    _, generator, publisher, times_store, _, source = times_setup
+    generator.generate_times_episode.return_value = Ok(
+        (
+            TimesPost(
+                character_name="Dorothy",
+                content="調べてくる。",
+                work_intents=(
+                    TimesWorkIntent(
+                        intent_id="",
+                        character_name="Dorothy",
+                        objective="公式資料を確認する",
+                        context="相談で必要になった",
+                        success_criteria=("URLを記録する",),
+                    ),
+                ),
+            ),
+        )
+    )
+
+    result = await times_setup[0].handle(
+        GenerateTimesEpisodeCommand(
+            source_message_id="100",
+            guild_id="456",
+            channel_id="123",
+            delivery_channel_id="999",
+        )
+    )
+
+    assert is_ok(result)
+    saved: TimesEpisodePlan = times_store.save.call_args_list[-1].args[0]
+    assert saved.owner_id == source.external_sender_id.to_primitive()
+    assert saved.work_intents[0].intent_id == "100:0"
+    assert saved.work_intents[0].objective == "公式資料を確認する"
+    publisher.deliver.assert_awaited_once_with(saved)
+
+
+@pytest.mark.anyio
+async def test_failed_times_generation_can_be_retried_and_published(
+    times_setup: tuple[
+        GenerateTimesEpisodeHandler,
+        AsyncMock,
+        AsyncMock,
+        AsyncMock,
+        AsyncMock,
+        ChatMessage,
+    ],
+) -> None:
+    """A transient generation failure must not make the episode permanent dead data."""
+    handler, generator, publisher, times_store, _, source = times_setup
+    failed = TimesEpisodePlan(
+        source_message_id="100",
+        guild_id="456",
+        channel_id="123",
+        delivery_channel_id="999",
+        status="FAILED",
+        failure="Gemini returned 400 INVALID_ARGUMENT",
+    )
+    times_store.get.return_value = Ok(failed)
+    generator.generate_times_episode.return_value = Ok(
+        (TimesPost(character_name="Dorothy", content="再試行できました。"),)
+    )
+
+    result = await handler.handle(
+        GenerateTimesEpisodeCommand(
+            source_message_id=source.external_message_id or "",
+            guild_id="456",
+            channel_id="123",
+            delivery_channel_id="999",
+        )
+    )
+
+    assert is_ok(result)
+    reopened = times_store.save.call_args_list[0].args[0]
+    assert reopened.failure is None
+    assert reopened.status == "PENDING"
+    publisher.deliver.assert_awaited_once()
 
 
 @pytest.mark.anyio

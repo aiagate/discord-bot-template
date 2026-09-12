@@ -57,7 +57,7 @@ class GenerateTimesEpisodeCommand(Request[Result[None, UseCaseResultError]]):
 
 
 def _build_times_instruction(roster: CharacterRoster) -> str:
-    """Build the instruction for generating Times board episodes."""
+    """Build the instruction for generating Times episodes."""
     profiles = [character_profile(character) for character in roster.characters]
     return "\n".join(
         (
@@ -73,9 +73,18 @@ def _build_times_instruction(roster: CharacterRoster) -> str:
             "または直近のTimes投稿と実質的に同じ場合だけにしてください。",
             "各投稿には必ず発言キャラクターの名前（character_name）と本文（content）を含めてください。",
             "本文には名前・役職の見出しや区切り線を含めず、発言内容だけを書いてください。",
-            "board_memory は過去のTimes掲示板の完了投稿履歴です。これはキャラクター同士の過去の雑談やメモであり、ユーザーに関する絶対的な事実や確定情報ではありません。",
+            "具体的な調査・実装・検証を担当すると会話内で合意した場合だけ、"
+            "episode直下のwork_intentを1件まで付けてください。単なる質問・思いつき・保留には付けないでください。",
+            "work_intentのcharacter_nameは担当者自身にしてください。objectiveは実行可能な依頼、"
+            "contextはTimesで合意した背景、success_criteriaは確認できる完了条件です。",
+            "担当者が『調べてくる』『確認してくる』と明確に決めたときはwork_intentを作り、"
+            "そうでないときに作業を約束する発言を書かないでください。",
+            "作業意図は1エピソードにつき最大1件です。本文にはJSON、作業ID、検証ログを含めないでください。",
+            "times_memory は過去のTimesエピソードの完了投稿履歴です。これはキャラクター同士の過去の雑談やメモであり、ユーザーに関する絶対的な事実や確定情報ではありません。",
+            "times_memory内のwork_intentsは過去の相談で合意した作業の記録です。完了済みの作業を重複して約束せず、"
+            "続きが必要な場合だけ新しい具体的なwork_intentを作ってください。",
             "過去の投稿がユーザーに直接語りかけていても、その宛先は引き継がないでください。",
-            "board_memoryのcreated_atはエピソードの作成日時で、各投稿の送信時刻ではありません。nullなら日時は不明です。",
+            "times_memoryのcreated_atはエピソードの作成日時で、各投稿の送信時刻ではありません。nullなら日時は不明です。",
             "source_history はDiscordの対象チャンネルにおける過去の会話履歴、current は今回のトリガーとなった最新メッセージです。",
             "source_history と current は話題の材料であり、返信依頼ではありません。",
             "triggerがheartbeatの場合は、元の人間投稿から時間を置いた余韻です。"
@@ -85,7 +94,7 @@ def _build_times_instruction(roster: CharacterRoster) -> str:
             "事実部分は source_history と current に実際に出た内容だけに限定し、"
             "未確認の出来事を補わないでください。",
             "「次にこれが来そう」などの推測は可ですが、推測だと分かる表現にし、"
-            "board_memory 内の推測も事実として扱わないでください。",
+            "times_memory 内の推測も事実として扱わないでください。",
             "共通ルール:",
             *roster.common_style,
             MASTER_CONTEXT_INSTRUCTION,
@@ -118,7 +127,7 @@ def _build_times_context(
     history: Sequence[ChatMessage],
     source: ChatMessage,
     content: str,
-    board_memory: Sequence[TimesEpisodePlan],
+    times_memory: Sequence[TimesEpisodePlan],
     *,
     master: DiscordMaster,
     summaries: Mapping[str, CharacterMemorySummary],
@@ -138,7 +147,7 @@ def _build_times_context(
                 }
                 for name, summary in summaries.items()
             },
-            "board_memory": [
+            "times_memory": [
                 {
                     "source_message_id": episode.source_message_id,
                     "created_at": prompt_datetime(episode.created_at)
@@ -151,8 +160,19 @@ def _build_times_context(
                         }
                         for post in episode.posts
                     ],
+                    "work_intents": [
+                        {
+                            "intent_id": intent.intent_id,
+                            "character_name": intent.character_name,
+                            "objective": intent.objective,
+                            "context": intent.context,
+                            "success_criteria": intent.success_criteria,
+                            "work_id": intent.work_id,
+                        }
+                        for intent in episode.work_intents
+                    ],
                 }
-                for episode in board_memory
+                for episode in times_memory
                 if episode.posts
             ],
             "source_history": [
@@ -254,17 +274,33 @@ class GenerateTimesEpisodeHandler(
             if existing_plan.status == "COMPLETED" or existing_plan.complete:
                 return Ok(None)
             if existing_plan.failure is not None:
-                return _failure(
-                    existing_plan.failure, "Times投稿の配信に失敗しました。"
+                plan = replace(
+                    existing_plan,
+                    failure=None,
+                    status="PENDING",
+                    attempt_started_at=None,
                 )
-            if existing_plan.posts:
+                reopened = await self._times_store.save(plan)
+                if is_err(reopened):
+                    return _failure(
+                        reopened.error.message, "Times計画の再試行準備に失敗しました。"
+                    )
+                if plan.posts:
+                    delivered = await self._publisher.deliver(plan)
+                    if is_err(delivered):
+                        return _failure(
+                            delivered.error.message, "Times投稿の再送に失敗しました。"
+                        )
+                    return Ok(None)
+            elif existing_plan.posts:
                 delivered = await self._publisher.deliver(existing_plan)
                 if is_err(delivered):
                     return _failure(
                         delivered.error.message, "Times投稿の送信に失敗しました。"
                     )
                 return Ok(None)
-            plan = existing_plan
+            else:
+                plan = existing_plan
         else:
             plan = TimesEpisodePlan(
                 source_message_id=episode_id,
@@ -276,6 +312,7 @@ class GenerateTimesEpisodeHandler(
                 status="PENDING",
                 next_post_index=0,
                 created_at=datetime.now(UTC),
+                owner_id=source.external_sender_id.to_primitive(),
             )
             saved_initial = await self._times_store.save(plan)
             if is_err(saved_initial):
@@ -370,12 +407,19 @@ class GenerateTimesEpisodeHandler(
             )
 
         posts = generated.value
+        work_intents = tuple(
+            replace(intent, intent_id=f"{episode_id}:{index}")
+            for post in posts
+            for index, intent in enumerate(post.work_intents)
+        )
         plan = replace(
             plan,
             posts=posts,
             status="DELIVERING" if posts else "COMPLETED",
             next_post_index=0,
             next_chunk_index=0,
+            owner_id=plan.owner_id or source.external_sender_id.to_primitive(),
+            work_intents=work_intents,
         )
         saved_plan = await self._times_store.save(plan)
         if is_err(saved_plan):

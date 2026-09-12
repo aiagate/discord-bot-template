@@ -172,7 +172,7 @@ async def test_mediator_connects_saved_bot_context_and_human_response(
 
 
 @pytest.mark.anyio
-async def test_mediator_delivers_times_to_a_separate_board_without_regeneration(
+async def test_mediator_delivers_times_to_a_separate_times_destination_without_regeneration(
     session_factory: async_sessionmaker[AsyncSession],
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,

@@ -68,7 +68,10 @@ class SQLAlchemyTimesEpisodeStore(ITimesEpisodeStore):
                     if previous.status == "COMPLETED" and plan.status != "COMPLETED":
                         raise ValueError("A completed episode cannot be reopened.")
                     if previous.failure is not None and plan.failure is None:
-                        raise ValueError("A failed episode cannot be reopened.")
+                        if previous.posts != plan.posts:
+                            raise ValueError(
+                                "A failed episode can only be retried with the same posts."
+                            )
                     if previous.next_post_index > plan.next_post_index or (
                         previous.next_post_index == plan.next_post_index
                         and previous.next_chunk_index is not None
@@ -108,7 +111,7 @@ class SQLAlchemyTimesEpisodeStore(ITimesEpisodeStore):
     async def pending(
         self, destination: DiscordConversationScope
     ) -> Result[list[TimesEpisodePlan], RepositoryError]:
-        """Return unfinished plans for one board in creation order."""
+        """Return unfinished plans for one Times destination in creation order."""
         try:
             async with self._session_factory() as session:
                 table = cast(Any, TimesEpisodeORM).__table__
@@ -119,7 +122,6 @@ class SQLAlchemyTimesEpisodeStore(ITimesEpisodeStore):
                         table.c.payload["delivery_channel_id"].as_string()
                         == destination.channel_id,
                         table.c.status != "COMPLETED",
-                        table.c.failure.is_(None),
                     )
                     .order_by(table.c.created_at, table.c.source_message_id)
                 )
@@ -134,7 +136,7 @@ class SQLAlchemyTimesEpisodeStore(ITimesEpisodeStore):
         *,
         before: datetime | None = None,
     ) -> Result[list[TimesEpisodePlan], RepositoryError]:
-        """Return completed plans belonging to one board for continuity memory."""
+        """Return completed plans for one Times destination for continuity memory."""
         try:
             async with self._session_factory() as session:
                 table = cast(Any, TimesEpisodeORM).__table__
@@ -151,5 +153,33 @@ class SQLAlchemyTimesEpisodeStore(ITimesEpisodeStore):
                 plans = [_PLAN.validate_python(row.payload) for row in rows]
                 plans.reverse()
                 return Ok(plans)
+        except (SQLAlchemyError, ValueError, TypeError) as error:
+            return Err(_failure(error))
+
+    async def get_completed_with_work(
+        self, destination: DiscordConversationScope
+    ) -> Result[list[TimesEpisodePlan], RepositoryError]:
+        """Return all completed plans with at least one unlinked intent."""
+        try:
+            async with self._session_factory() as session:
+                table = cast(Any, TimesEpisodeORM).__table__
+                rows = await session.scalars(
+                    select(TimesEpisodeORM)
+                    .where(
+                        table.c.guild_id == destination.guild_id,
+                        table.c.payload["delivery_channel_id"].as_string()
+                        == destination.channel_id,
+                        table.c.status == "COMPLETED",
+                    )
+                    .order_by(table.c.created_at, table.c.source_message_id)
+                )
+                plans = [_PLAN.validate_python(row.payload) for row in rows]
+                return Ok(
+                    [
+                        plan
+                        for plan in plans
+                        if any(intent.work_id is None for intent in plan.work_intents)
+                    ]
+                )
         except (SQLAlchemyError, ValueError, TypeError) as error:
             return Err(_failure(error))

@@ -12,12 +12,16 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from discord.ext import commands
-from flow_res import Ok
+from flow_res import Ok, is_ok
 from openai_codex.generated.v2_all import MessagePhase
 
 from app.application.character_settings import load_ai_maid_definitions
 from app.application.character_work_settings import CharacterWorkSettings
-from app.contracts.messages.character_work import CharacterWork, WorkAttachment
+from app.contracts.messages.character_work import (
+    CharacterWork,
+    CharacterWorkError,
+    WorkAttachment,
+)
 from app.contracts.messages.speech_message import PublishedSpeech
 from app.contracts.ports.character_work import (
     ICharacterWorkExecutor,
@@ -32,7 +36,6 @@ from app.presentation.bot.cogs.character_work_cog import CharacterWorkCog
 from tests.infrastructure.test_codex_work_executor import _client, _completed
 from tests.infrastructure.test_codex_work_executor import _message as _codex_message
 from tests.infrastructure.test_discord_work_reporter import _reporter
-from tests.presentation.bot.test_message_listener_cog import _cog as _listener
 from tests.presentation.bot.test_message_listener_cog import _message
 
 
@@ -96,7 +99,7 @@ def _cog(tmp_path: Path) -> tuple[CharacterWorkCog, MagicMock, MagicMock]:
     load_ai_maid_definitions().characters,
     ids=[item.character_id for item in load_ai_maid_definitions().characters],
 )
-async def test_named_start_then_ordinary_followup(
+async def test_requester_starts_then_continues_linked_work(
     tmp_path: Path,
     character: CharacterDefinition,
 ) -> None:
@@ -104,8 +107,16 @@ async def test_named_start_then_ordinary_followup(
     start = cog._service.start
     follow = cog._service.follow_up
     assert isinstance(start, AsyncMock) and isinstance(follow, AsyncMock)
-    message = _message(content=f"{character.name}、公式資料を調べて")
-    assert not await cog.handle_message(message)
+
+    first = await cog.requester.submit(
+        guild_id="456",
+        channel_id="123",
+        owner_id="2",
+        message_id="100",
+        character_id=character.character_id,
+        prompt="公式資料を調べて",
+    )
+    assert is_ok(first)
     start.assert_awaited_once_with(
         guild_id="456",
         channel_id="123",
@@ -114,8 +125,17 @@ async def test_named_start_then_ordinary_followup(
         character_id=character.character_id,
         prompt="公式資料を調べて",
     )
+
     cog._service._records["100"] = replace(_task(), character_id=character.character_id)
-    assert not await cog.handle_message(_message(101, content="Python版も比較して"))
+    second = await cog.requester.submit(
+        guild_id="456",
+        channel_id="123",
+        owner_id="2",
+        message_id="101",
+        character_id=character.character_id,
+        prompt="Python版も比較して",
+    )
+    assert is_ok(second)
     follow.assert_awaited_once_with(
         guild_id="456",
         channel_id="123",
@@ -123,12 +143,10 @@ async def test_named_start_then_ordinary_followup(
         message_id="101",
         prompt="Python版も比較して",
     )
-    message.reply.assert_not_awaited()
 
 
-@pytest.mark.anyio
 @pytest.mark.parametrize("scope", ["dm", "guild", "channel", "user", "bot", "webhook"])
-async def test_work_is_never_started_outside_allowlist(
+def test_work_commands_are_never_allowed_outside_allowlist(
     tmp_path: Path, scope: str
 ) -> None:
     cog, _, _ = _cog(tmp_path)
@@ -145,45 +163,17 @@ async def test_work_is_never_started_outside_allowlist(
         message.author.bot = True
     else:
         message.webhook_id = 789
-    assert not await cog.handle_message(message)
-    assert isinstance(cog._service.start, AsyncMock)
-    cog._service.start.assert_not_awaited()
     context = MagicMock(spec=commands.Context)
     context.message = message
     assert not cog.cog_check(context)
 
 
-@pytest.mark.anyio
-async def test_threads_in_allowed_parent_and_commands_route_separately(
-    tmp_path: Path,
-) -> None:
+def test_threads_in_allowed_parent_pass_the_command_check(tmp_path: Path) -> None:
     cog, bot, _ = _cog(tmp_path)
-    assert not await cog.handle_message(
-        _message(content="lilia 作業: 調査", channel_id=124, parent_id=123)
-    )
-    bot.get_context.return_value = SimpleNamespace(prefix="!")
-    cog._service._records["100"] = _task()
-    assert not await cog.handle_message(_message(content="!work stop"))
-    assert isinstance(cog._service.follow_up, AsyncMock)
-    cog._service.follow_up.assert_not_awaited()
-
-
-@pytest.mark.anyio
-async def test_casual_named_chat_is_left_for_gemini(tmp_path: Path) -> None:
-    cog, _, _ = _cog(tmp_path)
-    message = _message(content="Lilia、ごめん再設定した。")
-    assert not await cog.handle_message(message)
-    start = cog._service.start
-    assert isinstance(start, AsyncMock)
-    start.assert_not_awaited()
-    message.reply.assert_not_awaited()
-
-
-@pytest.mark.anyio
-async def test_ordinary_chat_without_link_is_unchanged(tmp_path: Path) -> None:
-    cog, _, _ = _cog(tmp_path)
-    assert not await cog.handle_message(_message(content="こんにちは"))
-    assert not await cog.handle_message(_message(content=""))
+    assert isinstance(bot.get_context, AsyncMock)
+    context = MagicMock(spec=commands.Context)
+    context.message = _message(content="!work stop", channel_id=124, parent_id=123)
+    assert cog.cog_check(context)
 
 
 @pytest.mark.anyio
@@ -206,6 +196,87 @@ async def test_result_upload_is_bounded_and_saved_with_character_identity(
     assert report.await_args is not None
     assert report.await_args.args[3] == ()
     mediator.send_async.assert_not_awaited()
+
+
+@pytest.mark.anyio
+async def test_codex_progress_is_not_published_as_a_webhook_message(
+    tmp_path: Path,
+) -> None:
+    cog, _, _ = _cog(tmp_path)
+    task = replace(_task(), status="running", summary="Codexの生の進捗")
+
+    await cog._publish(task)
+
+    report = cog._reporter.send
+    assert isinstance(report, AsyncMock)
+    report.assert_not_awaited()
+    attachments = cog._executor.attachments
+    assert isinstance(attachments, AsyncMock)
+    attachments.assert_not_awaited()
+
+
+@pytest.mark.anyio
+async def test_completed_work_uses_gemini_review_and_keeps_archive_attachment(
+    tmp_path: Path,
+) -> None:
+    cog, _, mediator = _cog(tmp_path)
+    task = replace(_task(), status="completed", result="Codexの機械的な原文")
+    cog._service._records[task.id] = task
+    reviewer = AsyncMock(return_value="自然な完了報告")
+    cog._reviewer = reviewer
+
+    await cog._publish(task)
+
+    reviewer.assert_awaited_once()
+    report = cog._reporter.send
+    assert isinstance(report, AsyncMock)
+    assert report.await_args is not None
+    assert report.await_args.args[2] == "自然な完了報告"
+    assert report.await_args.args[3] == (WorkAttachment("source.zip", b"archive"),)
+    assert cog._service._records[task.id].review == "自然な完了報告"
+    assert cog._service._records[task.id].result == "Codexの機械的な原文"
+    mediator.send_async.assert_not_awaited()
+
+
+@pytest.mark.anyio
+async def test_reviewed_times_work_notifies_followup_handler(tmp_path: Path) -> None:
+    cog, _, _ = _cog(tmp_path)
+    followup = AsyncMock()
+    cog.set_times_completion_handler(followup)
+    task = replace(
+        _task(),
+        status="completed",
+        origin="times",
+        review="Timesへ返す自然な報告",
+    )
+    cog._service._records[task.id] = task
+
+    await cog._publish(task)
+
+    followup.assert_awaited_once_with(task)
+
+
+@pytest.mark.anyio
+async def test_reviewed_times_work_keeps_followup_when_report_webhook_fails(
+    tmp_path: Path,
+) -> None:
+    cog, _, _ = _cog(tmp_path)
+    followup = AsyncMock()
+    cog.set_times_completion_handler(followup)
+    reporter = cog._reporter.send
+    assert isinstance(reporter, AsyncMock)
+    reporter.side_effect = CharacterWorkError("webhook unavailable")
+    task = replace(
+        _task(),
+        status="completed",
+        origin="times",
+        review="Timesへ返す自然な報告",
+    )
+
+    with pytest.raises(CharacterWorkError):
+        await cog._deliver(task)
+
+    followup.assert_awaited_once_with(task)
 
 
 @pytest.mark.anyio
@@ -273,9 +344,15 @@ async def test_generated_memo_is_saved_then_attached_and_retrieved_after_restart
     cog = fresh_cog()
     await cog.cog_load()
     try:
-        assert not await cog.handle_message(
-            _message(content=f"{character.name}、調べて")
+        started = await cog.requester.submit(
+            guild_id="456",
+            channel_id="123",
+            owner_id="2",
+            message_id="100",
+            character_id=character_id,
+            prompt=f"{character.name}、調べて",
         )
+        assert is_ok(started)
         async with asyncio.timeout(3):
             await asyncio.gather(*cog._service._active.values())
         record = (await store.list_tasks())[0]
@@ -284,7 +361,10 @@ async def test_generated_memo_is_saved_then_attached_and_retrieved_after_restart
         archive_bytes = delivered[0][f"{character_id}-100-100.zip"]
         with zipfile.ZipFile(io.BytesIO(archive_bytes)) as archive:
             assert archive.read("files/work-report.md") == original
-        assert "SHA-256" in webhook.send.await_args.kwargs["content"]
+        assert "SHA-256" not in webhook.send.await_args.kwargs["content"]
+        assert webhook.send.await_args.kwargs["content"].endswith(
+            "出典を確認しました。"
+        )
         assert webhook.send.await_args.kwargs["username"] == character.display_name
         assert webhook.send.await_args.kwargs["avatar_url"] == character.avatar_url
         assert mediator.send_async.await_count == 0
@@ -304,26 +384,3 @@ async def test_generated_memo_is_saved_then_attached_and_retrieved_after_restart
         assert mediator.send_async.await_count == 0
     finally:
         await restored.cog_unload()
-
-
-@pytest.mark.anyio
-@pytest.mark.parametrize("enabled", [False, True])
-async def test_listener_routes_work_before_optional_gemini(enabled: bool) -> None:
-    listener, save, _ = _listener(enabled=enabled)
-    handler = AsyncMock(return_value=True)
-    listener._work_handler = handler
-    message = _message(content="Lilia、調べて")
-    await listener.on_message(message)
-    save.assert_awaited_once()
-    handler.assert_awaited_once_with(message)
-    assert listener._queue.empty()
-
-
-@pytest.mark.anyio
-async def test_work_routing_failure_does_not_fall_through_to_second_agent() -> None:
-    listener, _, _ = _listener()
-    listener._work_handler = AsyncMock(side_effect=RuntimeError("offline"))
-    message = _message(content="Lilia、調べて")
-    await listener.on_message(message)
-    assert listener._queue.empty()
-    assert "状態を確認" in message.reply.await_args.args[0]

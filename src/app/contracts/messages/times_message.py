@@ -5,6 +5,18 @@ from datetime import datetime
 
 
 @dataclass(frozen=True, slots=True)
+class TimesWorkIntent:
+    """One concrete work commitment made during a Times discussion."""
+
+    intent_id: str
+    character_name: str
+    objective: str
+    context: str = ""
+    success_criteria: tuple[str, ...] = ()
+    work_id: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
 class TimesPost:
     """One Times post with private memory updates for its speaker."""
 
@@ -12,6 +24,7 @@ class TimesPost:
     content: str
     memory_candidates: tuple[str, ...] = ()
     selection_summary: str | None = None
+    work_intents: tuple[TimesWorkIntent, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -35,6 +48,8 @@ class TimesEpisodePlan:
     failure: str | None = None
     created_at: datetime | None = None
     attempt_started_at: datetime | None = None
+    owner_id: str | None = None
+    work_intents: tuple[TimesWorkIntent, ...] = ()
 
     @property
     def complete(self) -> bool:

@@ -3,15 +3,19 @@
 import json
 from dataclasses import replace
 from datetime import UTC, datetime
-from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from flow_res import Err, Ok, is_err, is_ok
 
 from app.application.character_settings import load_ai_maid_definitions
-from app.contracts.messages import CharacterSelection, GeneratedCharacterResponse
+from app.contracts.messages import (
+    CharacterSelection,
+    CharacterWorkRequest,
+    GeneratedCharacterResponse,
+)
 from app.contracts.messages.character_prompt import UNCONFIGURED_MASTER, DiscordMaster
+from app.contracts.messages.character_work import CharacterWork
 from app.contracts.messages.user_memory import (
     UserMemoryContext,
     UserMemoryProfile,
@@ -21,6 +25,8 @@ from app.contracts.ports import (
     CharacterGenerationErrorType,
     ICharacterMemoryStore,
     ICharacterResponseGenerator,
+    ICharacterWorkRequester,
+    ICharacterWorkStore,
     IChatHistoryQuery,
     ISpeechPublisher,
     IUnitOfWork,
@@ -51,6 +57,7 @@ def _source(
     author: str = "alice",
     content: str = "私の依頼は？",
     user_id: UserId | None = None,
+    author_kind: AuthorKind = AuthorKind.USER,
 ) -> ChatMessage:
     return ChatMessage.create_discord(
         guild_id=SCOPE.guild_id,
@@ -61,6 +68,7 @@ def _source(
         content=MessageContent.text(content),
         occurred_at=datetime(2026, 9, 12, 1, 0, tzinfo=UTC),
         user_id=user_id,
+        author_kind=author_kind,
     )
 
 
@@ -71,6 +79,8 @@ def _handler(
     content: str = "状況を整理しました。",
     master: DiscordMaster = UNCONFIGURED_MASTER,
     user_memory_store: IUserMemoryStore | None = None,
+    work_store: ICharacterWorkStore | None = None,
+    work_requester: ICharacterWorkRequester | None = None,
 ) -> tuple[
     GenerateCharacterResponseHandler,
     MagicMock,
@@ -123,6 +133,8 @@ def _handler(
             load_ai_maid_definitions(),
             master,
             user_memory_store,
+            work_store,
+            work_requester,
         ),
         generator,
         publisher,
@@ -329,46 +341,6 @@ async def test_explicit_memory_candidates_are_saved_with_source_provenance() -> 
 
 
 @pytest.mark.anyio
-async def test_character_guidance_reaches_generator_with_local_voice_override(
-    tmp_path: Path,
-) -> None:
-    """Preserve full personas and local dialogue examples through prompt assembly."""
-    path = tmp_path / "characters.override.json"
-    voice = '短く率直に話す。\n会話例: 「完了した」→「終わった！ "完了"です。」'
-    path.write_text(
-        json.dumps({"characters": {"Eris": {"speech_style": voice}}}),
-        encoding="utf-8",
-    )
-    roster = load_ai_maid_definitions(path)
-    _, generator, publisher, history, memory, uow, command = _handler()
-    handler = GenerateCharacterResponseHandler(
-        generator, publisher, history, memory, uow, roster
-    )
-
-    assert is_ok(await handler.handle(command))
-
-    selection_arguments = generator.select_character.await_args.kwargs
-    selection_instruction = selection_arguments["system_instruction"]
-    profiles = json.loads(selection_instruction.split("キャラクター一覧:\n", 1)[1])
-    by_name = {profile["name"]: profile for profile in profiles}
-    defaults = load_ai_maid_definitions()
-    assert set(by_name) == {character.name for character in defaults.characters}
-    for character in defaults.characters:
-        assert by_name[character.name]["persona"] == character.persona
-        assert by_name[character.name]["speech_style"] == (
-            voice if character.name == "Eris" else character.speech_style
-        )
-    assert all(rule in selection_instruction for rule in roster.common_style)
-    response_instruction = generator.generate.await_args.kwargs["system_instruction"]
-    assert "キャラクター一覧:" not in response_instruction
-    assert "Dorothy" in response_instruction
-    assert (
-        json.loads(generator.generate.await_args.kwargs["user_content"])["history"]
-        == []
-    )
-
-
-@pytest.mark.anyio
 async def test_external_bot_results_are_separate_from_current_user_content() -> None:
     handler, generator, _, history, _, _, command = _handler()
     report = ChatMessage.create_discord(
@@ -453,6 +425,125 @@ async def test_master_context_reaches_selection_and_response_prompts() -> None:
     assert (
         "master.context" in generator.generate.await_args.kwargs["system_instruction"]
     )
+
+
+@pytest.mark.anyio
+async def test_recent_reviewed_work_reaches_normal_character_context() -> None:
+    work_store = MagicMock(spec=ICharacterWorkStore)
+    work_store.recent_reviewed_work = AsyncMock(
+        return_value=[
+            CharacterWork(
+                "77",
+                SCOPE.guild_id,
+                SCOPE.channel_id,
+                "alice",
+                "lilia",
+                "前の依頼",
+                "77",
+                status="completed",
+                review="前回の調査で公式資料を確認しました。",
+            )
+        ]
+    )
+    handler, generator, _, _, _, _, command = _handler(work_store=work_store)
+
+    assert is_ok(await handler.handle(command))
+
+    selection = json.loads(generator.select_character.await_args.kwargs["user_content"])
+    response = json.loads(generator.generate.await_args.kwargs["user_content"])
+    assert selection["recent_work"][0]["summary"] == (
+        "前回の調査で公式資料を確認しました。"
+    )
+    assert response["recent_work"] == selection["recent_work"]
+    work_store.recent_reviewed_work.assert_awaited_once_with(
+        SCOPE.guild_id, SCOPE.channel_id, "alice", limit=3
+    )
+
+
+@pytest.mark.anyio
+async def test_normal_response_receives_scoped_work_tool_and_current_work() -> None:
+    current = CharacterWork(
+        "77",
+        SCOPE.guild_id,
+        SCOPE.channel_id,
+        "alice",
+        "lilia",
+        "前の依頼",
+        "77",
+        status="completed",
+        summary="前回の作業は完了しました。",
+        review="公式資料を確認しました。",
+    )
+    requester = MagicMock(spec=ICharacterWorkRequester)
+    requester.current.return_value = current
+    requester.can_submit.return_value = True
+    requester.submit = AsyncMock(return_value=Ok(current))
+    handler, generator, _, _, _, _, command = _handler(work_requester=requester)
+
+    assert is_ok(await handler.handle(command))
+
+    selection = json.loads(generator.select_character.await_args.kwargs["user_content"])
+    response = json.loads(generator.generate.await_args.kwargs["user_content"])
+    expected = {
+        "character_name": "Lilia",
+        "status": "completed",
+        "request": "前の依頼",
+        "summary": "前回の作業は完了しました。",
+        "review": "公式資料を確認しました。",
+    }
+    assert selection["current_work"] == expected
+    assert response["current_work"] == expected
+    assert "作業用Tool" in generator.generate.await_args.kwargs["system_instruction"]
+    assert generator.generate.await_args.kwargs["work_character_names"]
+
+    work_tool = generator.generate.await_args.kwargs["work_tool"]
+    assert work_tool is not None
+    tool_result = await work_tool(
+        CharacterWorkRequest(
+            character_name="Lilia",
+            objective="もう一度確認する",
+            context="前回の結果を踏まえる",
+        )
+    )
+    assert json.loads(tool_result) == {
+        "status": "accepted",
+        "action": "continued",
+        "character_name": "Lilia",
+    }
+    requester.submit.assert_awaited_once_with(
+        guild_id=SCOPE.guild_id,
+        channel_id=SCOPE.channel_id,
+        owner_id="alice",
+        message_id="123456789012345678",
+        character_id="lilia",
+        prompt="もう一度確認する\n背景・追加条件: 前回の結果を踏まえる",
+        authorization_channel_id=SCOPE.channel_id,
+    )
+
+
+@pytest.mark.anyio
+async def test_normal_response_hides_work_tool_outside_configured_scope() -> None:
+    requester = MagicMock(spec=ICharacterWorkRequester)
+    requester.can_submit.return_value = False
+    handler, generator, _, _, _, _, command = _handler(work_requester=requester)
+
+    assert is_ok(await handler.handle(command))
+
+    assert generator.generate.await_args.kwargs["work_tool"] is None
+    requester.current.assert_not_called()
+
+
+@pytest.mark.anyio
+async def test_webhook_response_never_exposes_work_tool() -> None:
+    requester = MagicMock(spec=ICharacterWorkRequester)
+    requester.can_submit.return_value = True
+    source = _source(author_kind=AuthorKind.WEBHOOK)
+    handler, generator, _, _, _, _, command = _handler(source, work_requester=requester)
+
+    assert is_ok(await handler.handle(command))
+
+    assert generator.generate.await_args.kwargs["work_tool"] is None
+    requester.current.assert_not_called()
 
 
 @pytest.mark.anyio

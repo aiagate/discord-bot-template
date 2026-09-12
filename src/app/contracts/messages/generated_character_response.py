@@ -18,3 +18,12 @@ class GeneratedCharacterResponse:
     content: str
     memory_candidates: tuple[str, ...] = ()
     selection_summary: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class CharacterWorkRequest:
+    """A work request selected during Gemini's normal character response."""
+
+    character_name: str
+    objective: str
+    context: str = ""

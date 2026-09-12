@@ -30,14 +30,21 @@ def test_each_character_has_scope_and_voice_guidance() -> None:
     assert all(character.responsibilities for character in AI_MAID_CHARACTERS)
     assert all(character.persona for character in AI_MAID_CHARACTERS)
     assert all(character.speech_style for character in AI_MAID_CHARACTERS)
+    assert all(character.work_guidance for character in AI_MAID_CHARACTERS)
+    assert len({character.work_guidance for character in AI_MAID_CHARACTERS}) == len(
+        AI_MAID_CHARACTERS
+    )
 
 
-def test_common_style_preserves_the_board_rules() -> None:
-    """Shared board behavior is defined once for every character."""
+def test_common_style_has_one_rule_per_entry() -> None:
+    """Shared behavior rules remain separate so each can guide the model."""
+    assert len(AI_MAID_COMMON_STYLE) == 19
     assert "マスター" in AI_MAID_COMMON_STYLE[0]
     assert "忖度せず" in AI_MAID_COMMON_STYLE[1]
-    assert "メイド同士" in AI_MAID_COMMON_STYLE[2]
-    assert "事実" in AI_MAID_COMMON_STYLE[3]
+    assert "矛盾" in AI_MAID_COMMON_STYLE[2]
+    assert "メイド同士" in AI_MAID_COMMON_STYLE[3]
+    assert "現在のキャラクター設定" in AI_MAID_COMMON_STYLE[-2]
+    assert "過去の自己紹介" in AI_MAID_COMMON_STYLE[-1]
 
 
 def test_domain_definitions_do_not_depend_on_avatar_services() -> None:
