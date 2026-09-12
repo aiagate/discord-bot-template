@@ -32,6 +32,9 @@ ai = [
     "httpx2>=2.12.0",
     "mcp>=2.2.0",
 ]
+codex = [
+    "openai-codex>=0.154.0",
+]
 
 [dependency-groups]
 dev = [
@@ -39,6 +42,7 @@ dev = [
     "google-genai>=2.23.0",
     "httpx2>=2.12.0",
     "mcp>=2.2.0",
+    "openai-codex>=0.154.0",
     "pre-commit>=4.5.0",
     "pyright>=1.1.407",
     "pytest>=8.3.5",

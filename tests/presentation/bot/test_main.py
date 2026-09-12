@@ -97,6 +97,54 @@ async def test_bot_closes_character_response_generator(
     base_close.assert_awaited_once_with()
 
 
+@pytest.mark.anyio
+@pytest.mark.parametrize("invalid", [False, True])
+@pytest.mark.parametrize("shared_webhook", [False, True])
+async def test_optional_work_loads_independently_of_gemini(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    invalid: bool,
+    shared_webhook: bool,
+) -> None:
+    from app.infrastructure.discord import work_reporter
+
+    reporter = MagicMock(spec=work_reporter.DiscordWorkReporter)
+    reporter.initialize = AsyncMock()
+    reporter.webhook_ids = (999,)
+    factory = MagicMock(return_value=reporter)
+    monkeypatch.setattr(work_reporter, "DiscordWorkReporter", factory)
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+    monkeypatch.delenv("CHARACTER_DEFINITIONS_PATH", raising=False)
+    monkeypatch.setattr(bot_main, "PROJECT_ROOT", tmp_path / "bot")
+    for key, value in {
+        "CODEX_WORK_ROOT": "relative" if invalid else str(tmp_path / "work"),
+        "CODEX_WORK_GUILD_ID": "456",
+        "CODEX_WORK_CHANNEL_IDS": "123",
+        "CODEX_WORK_USER_IDS": "2",
+        "CODEX_WORK_REPOSITORY": "",
+        "CODEX_WORK_WEBHOOK_URLS_JSON": "" if shared_webhook else '["work-webhook"]',
+        "DISCORD_CHARACTER_WEBHOOK_URLS_JSON": '["shared-webhook"]',
+    }.items():
+        monkeypatch.setenv(key, value)
+    bot = bot_main.MyBot()
+    bot.mediator = MagicMock()
+    try:
+        await bot.load_cogs()
+        assert bot.get_cog("Discord Message Listener") is not None
+        assert bot._character_response_generator is None
+        assert (bot.get_command("work") is None) == invalid
+        work = bot.get_cog("Character Work")
+        assert (work is None) == invalid
+        if not invalid:
+            factory.assert_called_once_with(
+                ("shared-webhook" if shared_webhook else "work-webhook",), bot, "456"
+            )
+            reporter.initialize.assert_awaited_once_with(frozenset({"123"}))
+            assert bot._work_webhook_ids == (999,)
+    finally:
+        await bot.close()
+
+
 def test_non_ai_entrypoints_import_without_loading_ai_settings_or_sdk(
     tmp_path: Path,
 ) -> None:
@@ -123,7 +171,7 @@ def test_non_ai_entrypoints_import_without_loading_ai_settings_or_sdk(
         [
             sys.executable,
             "-c",
-            "import sys; import app.container; import app.presentation.bot.__main__; import app.presentation.api.__main__; import app.presentation.line.__main__; assert 'google.genai' not in sys.modules; assert 'app.application.character_settings' not in sys.modules",
+            "import sys; import app.container; import app.presentation.bot.__main__; import app.presentation.api.__main__; import app.presentation.line.__main__; assert 'google.genai' not in sys.modules; assert 'openai_codex' not in sys.modules; assert 'app.application.character_settings' not in sys.modules",
         ],
         cwd=tmp_path,
         env=environment,

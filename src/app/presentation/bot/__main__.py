@@ -2,6 +2,7 @@ import json
 import logging
 import os
 import sys
+from collections.abc import Awaitable, Callable
 from pathlib import Path
 
 import discord
@@ -39,17 +40,17 @@ WEBHOOK_URLS_ENV = "DISCORD_CHARACTER_WEBHOOK_URLS_JSON"
 TIMES_WEBHOOK_URL_ENV = "DISCORD_CHARACTER_TIMES_WEBHOOK_URL"
 
 
-def _load_character_webhook_urls() -> tuple[str, ...]:
+def _load_character_webhook_urls(variable: str = WEBHOOK_URLS_ENV) -> tuple[str, ...]:
     """Read the configured JSON webhook URL list."""
-    configured = os.getenv(WEBHOOK_URLS_ENV, "").strip()
+    configured = os.getenv(variable, "").strip()
     if not configured:
         return ()
     try:
         values = json.loads(configured)
     except json.JSONDecodeError as error:
-        raise ValueError(f"{WEBHOOK_URLS_ENV} must contain a JSON array.") from error
+        raise ValueError(f"{variable} must contain a JSON array.") from error
     if not isinstance(values, list):
-        raise ValueError(f"{WEBHOOK_URLS_ENV} must contain a JSON array.")
+        raise ValueError(f"{variable} must contain a JSON array.")
     urls = []
     for value in values:
         if not isinstance(value, str) or not value.strip():
@@ -72,6 +73,7 @@ class MyBot(commands.Bot):
         self._character_response_generator: ICharacterResponseGenerator | None = None
         self._times_destination: DiscordTimesDestination | None = None
         self._times_store: ITimesEpisodeStore | None = None
+        self._work_webhook_ids: tuple[int, ...] = ()
 
     async def setup_hook(self) -> None:
         await self._init_database()
@@ -93,6 +95,9 @@ class MyBot(commands.Bot):
     async def load_cogs(self) -> None:
         mediator = self.mediator
         destinations = await self._configure_characters()
+        work_handler = None
+        if os.getenv("CODEX_WORK_ROOT", "").strip():
+            work_handler = await self._configure_work()
         await self.add_cog(TeamsCog(self, mediator))
         await self.add_cog(UsersCog(self, mediator))
         await self.add_cog(MembershipsCog(self, mediator))
@@ -103,8 +108,62 @@ class MyBot(commands.Bot):
                 ai_response_destinations=destinations,
                 times_destination=self._times_destination,
                 times_store=self._times_store,
+                work_handler=work_handler,
+                ignored_webhook_ids=self._work_webhook_ids,
             )
         )
+
+    async def _configure_work(
+        self,
+    ) -> Callable[[discord.Message], Awaitable[bool]] | None:
+        """Enable work independently of the optional Gemini response generator."""
+        try:
+            from app.application.character_settings import load_ai_maid_definitions
+            from app.application.character_work_settings import CharacterWorkSettings
+            from app.infrastructure.codex.work_executor import (
+                CodexCharacterWorkExecutor,
+            )
+            from app.infrastructure.codex.work_store import FileCharacterWorkStore
+            from app.infrastructure.discord.work_reporter import DiscordWorkReporter
+            from app.presentation.bot.cogs.character_work_cog import CharacterWorkCog
+
+            settings = CharacterWorkSettings.from_env(os.environ, PROJECT_ROOT)
+            if settings is None:
+                return None
+            override = os.getenv("CHARACTER_DEFINITIONS_PATH", "").strip()
+            path = (
+                Path(override)
+                if override
+                else PROJECT_ROOT / "characters.override.json"
+            )
+            if not path.is_absolute():
+                path = PROJECT_ROOT / path
+            roster = load_ai_maid_definitions(
+                path if override or path.exists() else None
+            )
+            urls = (
+                _load_character_webhook_urls("CODEX_WORK_WEBHOOK_URLS_JSON")
+                or _load_character_webhook_urls()
+            )
+            reporter = DiscordWorkReporter(urls, self, settings.guild_id)
+            await reporter.initialize(settings.channel_ids)
+            cog = CharacterWorkCog(
+                self,
+                self.mediator,
+                settings,
+                roster,
+                FileCharacterWorkStore(settings.root / "tasks"),
+                CodexCharacterWorkExecutor(
+                    settings.root, settings.repository, settings.model
+                ),
+                reporter,
+            )
+            await self.add_cog(cog)
+            self._work_webhook_ids = reporter.webhook_ids
+            return cog.handle_message
+        except Exception as error:
+            logger.error("Character work disabled (%s)", type(error).__name__)
+            return None
 
     async def _configure_characters(self) -> tuple[DiscordResponseDestination, ...]:
         """Initialize optional AI resources after the ordinary application is ready."""
@@ -272,6 +331,7 @@ class MyBot(commands.Bot):
         """Close application resources before closing the Discord client."""
         try:
             await self.remove_cog("Discord Message Listener")
+            await self.remove_cog("Character Work")
             if self._character_response_generator is not None:
                 await self._character_response_generator.aclose()
         finally:

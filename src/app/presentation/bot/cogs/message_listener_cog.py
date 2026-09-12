@@ -3,6 +3,7 @@
 import asyncio
 import logging
 import re
+from collections.abc import Awaitable, Callable
 from contextlib import suppress
 from dataclasses import dataclass
 
@@ -78,12 +79,18 @@ class DiscordMessageListenerCog(BaseCog, name="Discord Message Listener"):
         ai_response_destinations: tuple[DiscordResponseDestination, ...] = (),
         times_destination: DiscordTimesDestination | None = None,
         times_store: ITimesEpisodeStore | None = None,
+        work_handler: Callable[[discord.Message], Awaitable[bool]] | None = None,
+        ignored_webhook_ids: tuple[int, ...] = (),
     ) -> None:
         super().__init__(bot, mediator)
         self._destinations = ai_response_destinations
         self._times_destination = times_destination
         self._times_store = times_store
-        webhook_ids = [dest.webhook_id for dest in ai_response_destinations]
+        self._work_handler = work_handler
+        webhook_ids = [
+            *ignored_webhook_ids,
+            *(dest.webhook_id for dest in ai_response_destinations),
+        ]
         if times_destination is not None:
             webhook_ids.append(times_destination.webhook_id)
         self._webhook_ids = frozenset(webhook_ids)
@@ -300,6 +307,19 @@ class DiscordMessageListenerCog(BaseCog, name="Discord Message Listener"):
         if is_err(saved):
             await self._notify(message, "メッセージの保存に失敗しました。")
             return
+        if not is_bot and content.strip() and self._work_handler is not None:
+            try:
+                if await self._work_handler(message):
+                    return
+            except Exception:
+                logger.exception(
+                    "Could not route character work for message %s", message.id
+                )
+                await self._notify(
+                    message,
+                    "作業の受付を確認できませんでした。状態を確認してください。",
+                )
+                return
         if delivery_channel_id is None or is_bot or not content.strip():
             return
         context = await self.bot.get_context(message)

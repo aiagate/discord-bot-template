@@ -157,6 +157,22 @@ async def test_own_bot_and_webhook_do_not_create_response_loops() -> None:
 
 
 @pytest.mark.anyio
+async def test_work_webhooks_are_ignored_without_character_chat() -> None:
+    _, send, bot = _cog(enabled=False)
+    handler = AsyncMock(return_value=True)
+    cog = message_listener_cog.DiscordMessageListenerCog(
+        bot,
+        MagicMock(send_async=send),
+        work_handler=handler,
+        ignored_webhook_ids=(777,),
+    )
+    await cog.on_message(_message(webhook_id=777, bot=True, content="成果報告"))
+    send.assert_not_awaited()
+    handler.assert_not_awaited()
+    assert cog._queue.empty()
+
+
+@pytest.mark.anyio
 async def test_prefix_commands_are_saved_without_character_response() -> None:
     cog, send, bot = _cog()
     bot.get_context.return_value = SimpleNamespace(prefix="!")

@@ -100,6 +100,9 @@
 
 ## 必要な環境
 
+DiscordからLiliaに調査、Noaにコーディングを依頼する場合は、
+[キャラクター作業の設定と使い方](docs/character-work.md)を参照してください。
+
 - Python 3.13 以上
 - パッケージ管理 [uv](https://github.com/astral-sh/uv)
 - 必要な依存関係は`pyproject.toml`に記載されています。
