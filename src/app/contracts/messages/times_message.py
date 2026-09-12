@@ -16,7 +16,11 @@ class TimesPost:
 
 @dataclass(frozen=True, slots=True)
 class TimesEpisodePlan:
-    """Durable episode plan with its source conversation and explicit delivery channel."""
+    """Durable episode plan with its source conversation and delivery channel.
+
+    Heartbeat plans use ``source_message_id`` as their idempotency key and keep
+    the real human message used for context in ``context_message_id``.
+    """
 
     source_message_id: str
     guild_id: str
@@ -25,6 +29,7 @@ class TimesEpisodePlan:
     posts: tuple[TimesPost, ...] = ()
     status: str = "PENDING"
     next_post_index: int = 0
+    context_message_id: str | None = None
     next_chunk_index: int | None = None  # Older plans tracked only whole posts.
     last_message_id: str | None = None
     failure: str | None = None

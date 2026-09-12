@@ -59,6 +59,8 @@ class SQLAlchemyTimesEpisodeStore(ITimesEpisodeStore):
                         raise ValueError(
                             "An episode already belongs to a different destination."
                         )
+                    if previous.context_message_id != plan.context_message_id:
+                        raise ValueError("An episode source context cannot change.")
                     if previous.posts and previous.posts != plan.posts:
                         raise ValueError(
                             "An episode already has a different generated plan."

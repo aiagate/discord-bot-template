@@ -50,6 +50,7 @@ def test_times_instruction_preserves_maid_identity_and_board_rules() -> None:
     assert "メイド同士の会話・ツッコミ・意見交換を多めに" in instruction
     assert "原則として3〜8件の短い投稿" in instruction
     assert "話題の提示、別の視点からの反応、ツッコミや補足、余韻" in instruction
+    assert "triggerがheartbeatの場合は" in instruction
     assert "postsを空配列 [] にするのは" in instruction
     assert "単一話者・他のメイドの台詞を代作しない制約は適用しません" in instruction
     assert (
@@ -369,6 +370,45 @@ async def test_master_context_reaches_times_prompt(
         generator.generate_times_episode.await_args.kwargs["user_content"]
     )
     assert payload["master"]["context"] == "マスターは結論を先に知りたい。"
+
+
+@pytest.mark.anyio
+async def test_heartbeat_uses_a_separate_episode_id_and_source_context(
+    times_setup: tuple[
+        GenerateTimesEpisodeHandler,
+        AsyncMock,
+        AsyncMock,
+        AsyncMock,
+        AsyncMock,
+        ChatMessage,
+    ],
+) -> None:
+    handler, generator, publisher, times_store, _history_query, source = times_setup
+    generator.generate_times_episode.return_value = Ok(
+        (TimesPost(character_name="Dorothy", content="少し遅れて拾いました。"),)
+    )
+
+    result = await handler.handle(
+        GenerateTimesEpisodeCommand(
+            source_message_id=source.external_message_id or "",
+            guild_id="456",
+            channel_id="123",
+            delivery_channel_id="999",
+            episode_id="heartbeat:999:100",
+        )
+    )
+
+    assert is_ok(result)
+    times_store.get.assert_awaited_once_with("heartbeat:999:100")
+    saved_plan: TimesEpisodePlan = times_store.save.call_args_list[0].args[0]
+    assert saved_plan.source_message_id == "heartbeat:999:100"
+    assert saved_plan.context_message_id == "100"
+    payload = json.loads(
+        generator.generate_times_episode.await_args.kwargs["user_content"]
+    )
+    assert payload["trigger"] == "heartbeat"
+    delivered_plan: TimesEpisodePlan = publisher.deliver.call_args.args[0]
+    assert delivered_plan.source_message_id == "heartbeat:999:100"
 
 
 @pytest.mark.anyio

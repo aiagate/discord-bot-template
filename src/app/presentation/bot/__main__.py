@@ -16,6 +16,7 @@ from app.contracts.messages.character_prompt import DiscordMaster
 from app.contracts.ports import (
     ICharacterMemoryStore,
     ICharacterResponseGenerator,
+    IChatHistoryQuery,
     ISpeechPublisher,
     ITimesEpisodeStore,
     ITimesPublisher,
@@ -97,6 +98,10 @@ class MyBot(commands.Bot):
 
     async def load_cogs(self) -> None:
         mediator = self.mediator
+        injector = getattr(self, "injector", None)
+        history_query = (
+            injector.get(IChatHistoryQuery) if injector is not None else None
+        )
         destinations = await self._configure_characters()
         work_handler = None
         if os.getenv("CODEX_WORK_ROOT", "").strip():
@@ -111,6 +116,7 @@ class MyBot(commands.Bot):
                 ai_response_destinations=destinations,
                 times_destination=self._times_destination,
                 times_store=self._times_store,
+                history_query=history_query,
                 work_handler=work_handler,
                 ignored_webhook_ids=self._work_webhook_ids,
             )

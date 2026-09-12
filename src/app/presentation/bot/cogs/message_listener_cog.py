@@ -6,6 +6,8 @@ import re
 from collections.abc import Awaitable, Callable
 from contextlib import suppress
 from dataclasses import dataclass
+from datetime import UTC, datetime, timedelta
+from zoneinfo import ZoneInfo
 
 import discord
 from discord.ext import commands
@@ -13,8 +15,13 @@ from flow_res import is_err
 
 from app.application.mediator import ApplicationMediator
 from app.contracts.messages.times_message import TimesEpisodePlan
+from app.contracts.ports.chat_history_query import IChatHistoryQuery
 from app.contracts.ports.times_episode_store import ITimesEpisodeStore
-from app.domain.value_objects import AuthorKind, DiscordConversationScope
+from app.domain.value_objects import (
+    AuthorKind,
+    ChatPlatform,
+    DiscordConversationScope,
+)
 from app.presentation.bot.cogs.base_cog import BaseCog
 from app.usecases.chat.generate_character_response import (
     GenerateCharacterResponseCommand,
@@ -30,6 +37,10 @@ MAX_QUEUE_WAIT_SECONDS = 120.0
 RESPONSE_TIMEOUT_SECONDS = 210.0
 SAVE_TIMEOUT_SECONDS = 10.0
 NOTICE_TIMEOUT_SECONDS = 5.0
+TIMES_HEARTBEAT_INTERVAL_SECONDS = 300.0
+TIMES_HEARTBEAT_MIN_AGE = timedelta(minutes=20)
+TIMES_HEARTBEAT_HISTORY_LIMIT = 20
+TIMES_HEARTBEAT_TIMEZONE = ZoneInfo("Asia/Tokyo")
 
 
 @dataclass(frozen=True, slots=True)
@@ -79,6 +90,7 @@ class DiscordMessageListenerCog(BaseCog, name="Discord Message Listener"):
         ai_response_destinations: tuple[DiscordResponseDestination, ...] = (),
         times_destination: DiscordTimesDestination | None = None,
         times_store: ITimesEpisodeStore | None = None,
+        history_query: IChatHistoryQuery | None = None,
         work_handler: Callable[[discord.Message], Awaitable[bool]] | None = None,
         ignored_webhook_ids: tuple[int, ...] = (),
     ) -> None:
@@ -94,6 +106,7 @@ class DiscordMessageListenerCog(BaseCog, name="Discord Message Listener"):
         )
         self._times_destination = times_destination
         self._times_store = times_store
+        self._history_query = history_query
         self._work_handler = work_handler
         webhook_ids = [
             *ignored_webhook_ids,
@@ -109,8 +122,10 @@ class DiscordMessageListenerCog(BaseCog, name="Discord Message Listener"):
             maxsize=MAX_PENDING_RESPONSES
         )
         self._ingest_lock = asyncio.Lock()
+        self._times_trigger_lock = asyncio.Lock()
         self._worker: asyncio.Task[None] | None = None
         self._times_worker: asyncio.Task[None] | None = None
+        self._times_heartbeat_task: asyncio.Task[None] | None = None
         self._overloaded = False
 
     async def cog_load(self) -> None:
@@ -124,6 +139,10 @@ class DiscordMessageListenerCog(BaseCog, name="Discord Message Listener"):
                 self._consume_times(), name="times-episodes"
             )
             await self._recover_times_queue()
+            if self._history_query is not None:
+                self._times_heartbeat_task = asyncio.create_task(
+                    self._run_times_heartbeat_loop(), name="times-heartbeat"
+                )
 
     async def _recover_times_queue(self) -> None:
         """Requeue durable Times episodes that were not consumed before a restart."""
@@ -142,10 +161,17 @@ class DiscordMessageListenerCog(BaseCog, name="Discord Message Listener"):
         for plan in pending.value:
             await self._times_queue.put(
                 GenerateTimesEpisodeCommand(
-                    source_message_id=plan.source_message_id,
+                    source_message_id=(
+                        plan.context_message_id or plan.source_message_id
+                    ),
                     guild_id=plan.guild_id,
                     channel_id=plan.channel_id,
                     delivery_channel_id=plan.delivery_channel_id,
+                    episode_id=(
+                        plan.source_message_id
+                        if plan.context_message_id is not None
+                        else None
+                    ),
                 )
             )
 
@@ -161,6 +187,11 @@ class DiscordMessageListenerCog(BaseCog, name="Discord Message Listener"):
             with suppress(asyncio.CancelledError):
                 await self._times_worker
             self._times_worker = None
+        if self._times_heartbeat_task is not None:
+            self._times_heartbeat_task.cancel()
+            with suppress(asyncio.CancelledError):
+                await self._times_heartbeat_task
+            self._times_heartbeat_task = None
         while not self._queue.empty():
             self._queue.get_nowait()
             self._queue.task_done()
@@ -222,23 +253,114 @@ class DiscordMessageListenerCog(BaseCog, name="Discord Message Listener"):
                 async with asyncio.timeout(RESPONSE_TIMEOUT_SECONDS):
                     result = await self.mediator.send_async(command)
                 if is_err(result):
+                    episode_id = command.episode_id or command.source_message_id
                     logger.error(
                         "Times episode generation failed for message %s: %s",
-                        command.source_message_id,
+                        episode_id,
                         result.error.message,
                     )
             except TimeoutError:
+                episode_id = command.episode_id or command.source_message_id
                 logger.warning(
                     "Times episode timed out for source message %s",
-                    command.source_message_id,
+                    episode_id,
                 )
             except Exception:
+                episode_id = command.episode_id or command.source_message_id
                 logger.exception(
                     "Times episode failed unexpectedly for source message %s",
-                    command.source_message_id,
+                    episode_id,
                 )
             finally:
                 self._times_queue.task_done()
+
+    async def _run_times_heartbeat_loop(self) -> None:
+        """Check for one delayed follow-up to the latest human Times topic."""
+        await self.bot.wait_until_ready()
+        while True:
+            try:
+                await self._run_times_heartbeat()
+            except asyncio.CancelledError:
+                raise
+            except Exception:
+                logger.exception("Times heartbeat check failed")
+            await asyncio.sleep(TIMES_HEARTBEAT_INTERVAL_SECONDS)
+
+    async def _run_times_heartbeat(self, *, now: datetime | None = None) -> None:
+        """Queue one idempotent heartbeat episode when a topic is old enough."""
+        if (
+            self._times_destination is None
+            or self._times_store is None
+            or self._history_query is None
+            or not self._times_queue.empty()
+        ):
+            return
+
+        destination = self._times_destination.scope
+        async with self._times_trigger_lock:
+            pending = await self._times_store.pending(destination)
+            if is_err(pending) or pending.value:
+                return
+
+            completed = await self._times_store.get_recent_completed(
+                destination,
+                limit=TIMES_HEARTBEAT_HISTORY_LIMIT,
+            )
+            if is_err(completed) or not completed.value:
+                return
+
+            latest = completed.value[-1]
+            if latest.context_message_id is not None:
+                return
+
+            source_id = latest.source_message_id
+            source_result = await self._history_query.get_by_external_id(
+                ChatPlatform.DISCORD, source_id
+            )
+            if is_err(source_result) or source_result.value is None:
+                return
+            source = source_result.value
+            if source.author_kind is not AuthorKind.USER:
+                return
+
+            current_time = now or datetime.now(UTC)
+            if current_time.astimezone(TIMES_HEARTBEAT_TIMEZONE).hour < 9:
+                return
+            if current_time - source.occurred_at < TIMES_HEARTBEAT_MIN_AGE:
+                return
+
+            episode_id = f"heartbeat:{destination.channel_id}:{source_id}"
+            existing = await self._times_store.get(episode_id)
+            if is_err(existing) or existing.value is not None:
+                return
+
+            plan = TimesEpisodePlan(
+                source_message_id=episode_id,
+                guild_id=destination.guild_id,
+                channel_id=latest.channel_id,
+                delivery_channel_id=destination.channel_id,
+                context_message_id=source_id,
+                posts=(),
+                status="PENDING",
+                next_post_index=0,
+            )
+            saved = await self._times_store.save(plan)
+            if is_err(saved):
+                logger.error(
+                    "Could not persist Times heartbeat for source %s: %s",
+                    source_id,
+                    saved.error.message,
+                )
+                return
+            await self._times_queue.put(
+                GenerateTimesEpisodeCommand(
+                    source_message_id=source_id,
+                    guild_id=destination.guild_id,
+                    channel_id=latest.channel_id,
+                    delivery_channel_id=destination.channel_id,
+                    episode_id=episode_id,
+                )
+            )
 
     def _response_target(
         self,
@@ -377,37 +499,39 @@ class DiscordMessageListenerCog(BaseCog, name="Discord Message Listener"):
             and author_kind is AuthorKind.USER
             and scope.guild_id == self._times_destination.scope.guild_id
         ):
-            times_command = GenerateTimesEpisodeCommand(
-                source_message_id=str(message.id),
-                guild_id=scope.guild_id,
-                channel_id=scope.channel_id,
-                delivery_channel_id=self._times_destination.scope.channel_id,
-            )
-            if self._times_store is not None:
-                pending_plan = TimesEpisodePlan(
+            async with self._times_trigger_lock:
+                times_command = GenerateTimesEpisodeCommand(
                     source_message_id=str(message.id),
                     guild_id=scope.guild_id,
                     channel_id=scope.channel_id,
                     delivery_channel_id=self._times_destination.scope.channel_id,
-                    posts=(),
-                    status="PENDING",
-                    next_post_index=0,
                 )
-                try:
-                    saved_plan = await self._times_store.save(pending_plan)
-                    if is_err(saved_plan):
-                        logger.error(
-                            "Could not persist Times episode for message %s: %s",
-                            message.id,
-                            saved_plan.error.message,
-                        )
-                except Exception:
-                    logger.exception(
-                        "Could not persist Times episode for message %s", message.id
+                if self._times_store is not None:
+                    pending_plan = TimesEpisodePlan(
+                        source_message_id=str(message.id),
+                        guild_id=scope.guild_id,
+                        channel_id=scope.channel_id,
+                        delivery_channel_id=self._times_destination.scope.channel_id,
+                        posts=(),
+                        status="PENDING",
+                        next_post_index=0,
                     )
-            # Durable plans make backpressure safe: keep accepting the episode
-            # once a worker slot is available instead of leaving it for a restart.
-            await self._times_queue.put(times_command)
+                    try:
+                        saved_plan = await self._times_store.save(pending_plan)
+                        if is_err(saved_plan):
+                            logger.error(
+                                "Could not persist Times episode for message %s: %s",
+                                message.id,
+                                saved_plan.error.message,
+                            )
+                    except Exception:
+                        logger.exception(
+                            "Could not persist Times episode for message %s",
+                            message.id,
+                        )
+                # Durable plans make backpressure safe: keep accepting the episode
+                # once a worker slot is available instead of leaving it for a restart.
+                await self._times_queue.put(times_command)
 
         if delivery_channel_id is None or is_bot:
             return

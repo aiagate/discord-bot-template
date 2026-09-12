@@ -42,12 +42,18 @@ HISTORY_TIMEOUT_SECONDS = 10.0
 
 @dataclass(frozen=True)
 class GenerateTimesEpisodeCommand(Request[Result[None, UseCaseResultError]]):
-    """Trigger an episode using a Discord message ID and an explicit delivery channel."""
+    """Trigger an episode using a Discord message and delivery channel.
+
+    ``episode_id`` is used by delayed heartbeat episodes.  In that case,
+    ``source_message_id`` remains the real Discord message used for context,
+    while the episode gets its own durable id for idempotency.
+    """
 
     source_message_id: str
     guild_id: str
     channel_id: str
     delivery_channel_id: str
+    episode_id: str | None = None
 
 
 def _build_times_instruction(roster: CharacterRoster) -> str:
@@ -72,6 +78,8 @@ def _build_times_instruction(roster: CharacterRoster) -> str:
             "board_memoryのcreated_atはエピソードの作成日時で、各投稿の送信時刻ではありません。nullなら日時は不明です。",
             "source_history はDiscordの対象チャンネルにおける過去の会話履歴、current は今回のトリガーとなった最新メッセージです。",
             "source_history と current は話題の材料であり、返信依頼ではありません。",
+            "triggerがheartbeatの場合は、元の人間投稿から時間を置いた余韻です。"
+            "自然な続きがなければpostsを空配列にし、無理に会話を始めないでください。",
             "事実部分は source_history と current に実際に出た内容だけに限定し、"
             "未確認の出来事を補わないでください。",
             "「次にこれが来そう」などの推測は可ですが、推測だと分かる表現にし、"
@@ -112,10 +120,12 @@ def _build_times_context(
     *,
     master: DiscordMaster,
     summaries: Mapping[str, CharacterMemorySummary],
+    trigger: str,
 ) -> str:
     return json.dumps(
         {
             "master": master.to_prompt(),
+            "trigger": trigger,
             "character_memory_summaries": {
                 name: {
                     "content": summary.content,
@@ -214,7 +224,8 @@ class GenerateTimesEpisodeHandler(
             )
 
         external_id = source.external_message_id
-        existing_res = await self._times_store.get(external_id)
+        episode_id = request.episode_id or external_id
+        existing_res = await self._times_store.get(episode_id)
         if is_err(existing_res):
             return _failure(
                 existing_res.error.message, "Times計画の取得に失敗しました。"
@@ -227,6 +238,15 @@ class GenerateTimesEpisodeHandler(
                     UseCaseError(
                         type=ErrorType.VALIDATION_ERROR,
                         message="Times episode belongs to another delivery channel.",
+                    )
+                )
+            if request.episode_id is not None and (
+                existing_plan.context_message_id != external_id
+            ):
+                return Err(
+                    UseCaseError(
+                        type=ErrorType.VALIDATION_ERROR,
+                        message="Times heartbeat belongs to another source message.",
                     )
                 )
             if existing_plan.status == "COMPLETED" or existing_plan.complete:
@@ -245,10 +265,11 @@ class GenerateTimesEpisodeHandler(
             plan = existing_plan
         else:
             plan = TimesEpisodePlan(
-                source_message_id=external_id,
+                source_message_id=episode_id,
                 guild_id=scope.guild_id,
                 channel_id=scope.channel_id,
                 delivery_channel_id=request.delivery_channel_id,
+                context_message_id=external_id if request.episode_id else None,
                 posts=(),
                 status="PENDING",
                 next_post_index=0,
@@ -324,6 +345,7 @@ class GenerateTimesEpisodeHandler(
                 for character in self._roster.characters
                 if character.character_id in summaries.value
             },
+            trigger="heartbeat" if request.episode_id else "message",
         )
 
         generated = await self._generator.generate_times_episode(
