@@ -180,3 +180,6 @@ cython_debug/
 
 # Local agent data is not part of the bot template.
 /memory/
+/.collective/
+/master_context.md
+/AGENTS.override.md

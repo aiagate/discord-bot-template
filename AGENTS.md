@@ -1,129 +1,53 @@
-# 開発ガイドライン (Development Guidelines)
+# 開発ガイドライン
 
-本ドキュメントは、このコードベースで作業する際の重要な情報をまとめたものです。これらの指針を厳密に遵守してください。
+## 目的から変更を決める
 
-## 開発の基本ルール
+`docs/purpose.md` → `docs/use-cases.md` → `docs/architecture.md` →
+`docs/acceptance.md`の順に確認する。ハイレベルユースケースにはHowを入れない。
+変更する挙動が、どの目的とユースケースを実現するのかを説明する。
+必要な要素は「無いと何が困るか」で点検する。
 
-### 1\. パッケージ管理
+旧Discord Botテンプレートとの後方互換性は不要。
+モデルのターン終了を支援の達成と同一視しない。人間の新しい発言がなくても、
+保存された目的と再確認条件から支援を進められることを維持する。
 
-- `uv` のみを使用すること。 `pip` は絶対に使用しないこと。
-- インストール: `uv add package`
-- ツールの実行: `uv run tool`
-- アップグレード: `uv add --dev package --upgrade-package package`
-- 禁止事項
-  - `pyproject.toml` を直接変更してライブラリを追加する行為
-  - `uv pip install` コマンドの使用
-  - `@latest` 構文の使用
+## 境界
 
-### 2\. コード品質
+- 入口 → ユースケース → 契約。外部アダプタも契約に依存する。
+- 共有型は`src/app/contracts/messages`、外部境界は`src/app/contracts/ports`。
+- ユースケースからモデルSDKやDiscordを直接呼ばない。
+- 判断と実行、表現、配信の責務を分ける。表現の失敗で作業の保存を取り消さない。
+- 記憶の解釈と原資料を分け、出典・訂正・結果不明の試行を追えるようにする。
 
-- 型ヒント: すべてのコードに必須とする。
-- ドキュメント: 公開API（Public APIs）には必ずDocstringを記述すること。
-- 関数: 単一の責務に集中させ、小さく保つこと。
-- パターン: 既存のコードパターンに正確に従うこと。
-- 行の長さ: 最大88文字（Ruff/Black標準）。
+## 品質と依存管理
 
-### 3\. テスト要件
+uvのみを使う。依存追加・削除は`uv add`・`uv remove`で行い、pipは使わない。
+ライブラリの機能を変更するときは最新の公式ドキュメントを確認する。
+型ヒント、公開APIのDocstring、88文字以内の行を守る。
 
-- フレームワーク: `uv run --frozen pytest` を使用。
-- 非同期テスト: `asyncio` ではなく、`anyio` を使用すること。
-  非同期テストは `@pytest.mark.anyio` を付け、`tests/conftest.py` の
-  `anyio_backend` fixture で `asyncio` バックエンドを選択する。
-- カバレッジ: エッジケースとエラー処理のテストを網羅すること。
-- 新機能: 必ずテストを追加すること。
-- バグ修正: 必ずリグレッションテスト（回帰テスト）を追加すること。
+```bash
+uv run --frozen ruff format .
+uv run --frozen ruff check .
+uv run --frozen pyright
+uv run --frozen pytest
+```
 
-### Gitコミットに関する規定
+非同期テストは`pytest.mark.anyio`を使い、`anyio_backend`でasyncioを選ぶ。
+新機能とバグ修正には、目的・失敗・中断・再開を確認するテストを付ける。
+anyioのmarkを認識しない環境では`PYTEST_DISABLE_PLUGIN_AUTOLOAD=''`を付ける。
+外部モデルのテストダブルと、実サービスで確認した結果を区別して報告する。
 
-- ユーザー報告に基づくバグ修正や機能追加の場合、以下をコミットメッセージに追加する：
+## 運用と変更の公開
 
-  ```bash
-  git commit --trailer "Reported-by:<name>"
-  ```
+起動・認証・データ配置・停止は`docs/operations.md`を参照する。
+一データディレクトリにつき実行プロセスは一つ。個人設定と実行データをGitに含めない。
+元の作業場所や稼働中プロセスをworktreeの変更に巻き込まない。
 
-  ※ `<name>` にはユーザー名を記述。
+コミット前に`git status`を確認する。1PR1コミットとし、追加修正はamendする。
+リモートへの公開は`git push --force-with-lease`を使う。
+ユーザー報告に基づく変更には`Reported-by`、Issue関連なら`Github-Issue`のtrailerを付ける。
+共同作者trailerや、変更の作成に使ったツールへの言及をコミット・PRに含めない。
 
-- GitHub Issueに関連するコミットの場合、以下を追加する：
-
-  ```bash
-  git commit --trailer "Github-Issue:#<number>"
-  ```
-
-- 禁止事項: `co-authored-by` やそれに類する記述は絶対に含めないこと。特に、コミットメッセージやPRの作成に使用したAIツール（LLM等）については一切言及しないこと。
-
-## Pythonツール群
-
-### コードフォーマット
-
-#### 1\. Ruff
-
-- フォーマット実行: `uv run --frozen ruff format .`
-- チェック実行: `uv run --frozen ruff check .`
-- 自動修正: `uv run --frozen ruff check . --fix`
-- 重要なチェック項目:
-  - 行の長さ（88文字）
-  - インポートのソート（I001）
-  - 未使用のインポート
-- 行の折り返しルール:
-  - 文字列: 括弧 `()` を使用して折り返す。
-  - 関数呼び出し: 適切なインデントを用いた複数行表記にする。
-  - インポート: 複数行に分割する。
-
-#### 2\. 型チェック (Type Checking)
-
-- ツール: `uv run --frozen pyright`
-- 要件:
-  - `Optional` 型に対しては明示的な `None` チェックを行うこと。
-  - 文字列に対する型ナローイング（Type narrowing）を行うこと。
-  - チェック自体がパスしていれば、ツールのバージョン警告は無視してよい。
-
-#### 3\. Pre-commit
-
-- 設定ファイル: `.pre-commit-config.yaml`
-- 実行タイミング: `git commit` 時
-- ツール構成: Prettier (YAML/JSON用)、Ruff (Python用)
-- Ruffの更新手順:
-  - PyPIのバージョンを確認する。
-  - 設定ファイルの `rev` を更新する。
-  - 更新した設定ファイルを最初にコミットする。
-
-## エラー解決 (Error Resolution)
-
-### 1\. CI失敗時の対応
-
-- 修正順序:
-  1. フォーマット (Formatting)
-  2. 型エラー (Type errors)
-  3. リント (Linting)
-- 型エラーの対処:
-  - 完全な行コンテキスト（前後の文脈）を確認する。
-  - `Optional` 型の扱いを確認する。
-  - 型ナローイングを追加する。
-  - 関数シグネチャが正しいか検証する。
-
-### 2\. よくある問題
-
-- 行の長さ:
-  - 文字列は括弧で囲んで改行する。
-  - 関数呼び出しを複数行にする。
-  - インポート文を分割する。
-- 型:
-  - `None` チェックを追加する。
-  - 文字列型のナローイングを行う。
-  - 既存のパターンに合わせる。
-- Pytest:
-  - テストが `anyio` のpytest markを見つけられない場合、pytest実行コマンドの先頭に `PYTEST_DISABLE_PLUGIN_AUTOLOAD=""` を追加して試すこと。
-    例: `PYTEST_DISABLE_PLUGIN_AUTOLOAD="" uv run --frozen pytest`
-
-### 3\. ベストプラクティス
-
-- コミット前に必ず `git status` を確認する。
-- 型チェックを行う前に、フォーマッターを実行する。
-- 変更は「目的を達成できる最小限」の形にとどめる。
-  古い実装を残すかどうかは「目的」を考えること。多くの場合はレガシーになったコードは即削除する(Gitからいつでも復元可能であるため)
-- 既存のアーキテクチャに従う。
-- 依存の方向性をまず確認すること。何かを置く前に「どこからどこへ依存してよいか」を仮定として明示し、その方向に合わせて配置を決める。
-  `IEventBus` のようなアプリケーション境界のインターフェース契約は `src/app/contracts/ports` に置く。
-  複数レイヤーから参照されるDTO・イベントトピック・ペイロードビルダーは `src/app/contracts/messages` に置く。
-  `domain/interfaces` を汎用的な契約置き場として使わない。ドメイン固有の抽象だけをドメイン配下に残し、ユースケース固有でない共有境界型を `usecases` に逃がさない。
-- 徹底的に型チェックとテストを行う。
+文書やコメントなどの永続的な文章はagy-workに添削を依頼する。
+ルートの`AGENTS.override.md`がある場合は後から読み、衝突する項目のみ上書きする。
+上書きファイルはGit管理外とし、明示的なユーザー指示は常に優先する。

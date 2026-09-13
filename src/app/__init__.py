@@ -1,1 +1,1 @@
-"""Discord Bot application built with clean architecture."""
+"""Autonomous support with durable purpose, evidence, and character identity."""

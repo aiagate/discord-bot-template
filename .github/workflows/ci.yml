@@ -27,6 +27,14 @@ jobs:
       - name: Install dependencies
         run: uv sync --frozen
 
+      - name: Install ghq for repository tests
+        working-directory: ${{ runner.temp }}
+        run: |
+          curl -fsSL https://github.com/x-motemen/ghq/releases/download/v1.10.1/ghq_linux_amd64.zip -o ghq.zip
+          echo '32e380aa8ac76fdd58758cc06174d9ee5db7270bd0cbcc18138b5d36def91b6b  ghq.zip' | sha256sum --check
+          unzip -q ghq.zip -d ghq
+          echo "$RUNNER_TEMP/ghq/ghq_linux_amd64" >> "$GITHUB_PATH"
+
       - name: Run ruff format check
         run: uv run --frozen ruff format --check .
 
