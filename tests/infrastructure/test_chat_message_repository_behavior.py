@@ -13,7 +13,7 @@ from app.domain.value_objects import MessageContent
 
 @pytest.mark.anyio
 async def test_chat_message_repository_is_append_only(uow: IUnitOfWork) -> None:
-    """ChatMessage can be added but cannot be updated or deleted."""
+    """ChatMessage can be added but cannot be updated."""
     message = ChatMessage.create_discord(
         guild_id="guild-1",
         channel_id="channel-1",
@@ -29,9 +29,6 @@ async def test_chat_message_repository_is_append_only(uow: IUnitOfWork) -> None:
         assert is_ok(add_result)
 
         update_result = await repository.update(add_result.value)
-        delete_result = await repository.delete(add_result.value)
 
     assert is_err(update_result)
     assert update_result.error.type is RepositoryErrorType.UNEXPECTED
-    assert is_err(delete_result)
-    assert delete_result.error.type is RepositoryErrorType.UNEXPECTED

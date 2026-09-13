@@ -81,7 +81,7 @@ parser = WebhookParser(channel_secret)
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     db_url = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///./bot.db")
-    init_db(db_url, echo=True)
+    init_db(db_url, echo=False)
     injector = Injector([container.configure])
     app.state.mediator = injector.get(ApplicationMediator)
 

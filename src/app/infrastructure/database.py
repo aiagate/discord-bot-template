@@ -1,7 +1,6 @@
 """Database configuration and session management."""
 
 import json
-from collections.abc import AsyncGenerator
 from typing import Any
 
 from sqlalchemy.ext.asyncio import (
@@ -33,19 +32,3 @@ def init_db(database_url: str, **engine_kwargs: Any) -> None:
         class_=AsyncSession,
         expire_on_commit=False,
     )
-
-
-def get_engine() -> AsyncEngine:
-    """Get the global database engine."""
-    if _engine is None:
-        raise RuntimeError("Database not initialized. Call init_db() first.")
-    return _engine
-
-
-async def get_session() -> AsyncGenerator[AsyncSession]:
-    """Get database session for dependency injection."""
-    if _session_factory is None:
-        raise RuntimeError("Database not initialized. Call init_db() first.")
-
-    async with _session_factory() as session:
-        yield session

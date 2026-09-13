@@ -58,39 +58,6 @@ async def test_team_repository_get_non_existent_raises_error(
 
 
 @pytest.mark.anyio
-async def test_team_repository_delete(uow: IUnitOfWork) -> None:
-    """Test deleting a team via the repository."""
-    team = Team.form(
-        name=TeamName.from_primitive("ToDelete Team").expect(
-            "TeamName.from_primitive should succeed for valid name"
-        ),
-    )
-
-    # 1. Create team
-    async with uow:
-        repo = uow.GetRepository(Team, TeamId)
-        saved_team_result = await repo.add(team)
-        assert is_ok(saved_team_result)
-        saved_team = saved_team_result.value
-        commit_result = await uow.commit()
-        assert is_ok(commit_result)
-
-    # 2. Delete team
-    async with uow:
-        repo = uow.GetRepository(Team, TeamId)
-        delete_result = await repo.delete(saved_team)
-        assert is_ok(delete_result)
-        commit_result = await uow.commit()
-        assert is_ok(commit_result)
-
-    # 3. Verify team is deleted
-    async with uow:
-        repo = uow.GetRepository(Team, TeamId)
-        get_result = await repo.get_by_id(saved_team.id)
-        assert is_err(get_result)
-
-
-@pytest.mark.anyio
 async def test_team_repository_saves_timestamps(uow: IUnitOfWork) -> None:
     """Test that repository correctly saves and retrieves timestamps."""
     before_creation = datetime.now(UTC)

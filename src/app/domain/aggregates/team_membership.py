@@ -145,13 +145,6 @@ class TeamMembership:
         self._status = MembershipStatus.ACTIVE
         return self
 
-    def activate(self) -> TeamMembership:
-        """Activate a pending membership.
-
-        Kept as a compatibility alias for callers using the former name.
-        """
-        return self.approve()
-
     def leave(self) -> TeamMembership:
         """User leaves the team."""
         if self._status is MembershipStatus.LEAVED:

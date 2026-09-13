@@ -180,3 +180,14 @@ cython_debug/
 
 # Local agent data is not part of the bot template.
 /memory/
+
+# Keep local agent instruction overrides out of version control.
+AGENTS.override.md
+
+
+# Keep the master's private personalization context out of version control.
+master_context.md
+
+# Runtime application logs.
+log/*
+!log/.gitkeep

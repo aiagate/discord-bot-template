@@ -1,16 +1,12 @@
 """Create User use case."""
 
-import asyncio
-import logging
 from dataclasses import dataclass
 
 from flow_med import Request, RequestHandler
 from flow_res import Err, Ok, Result, combine_all, is_err
 from injector import inject
 
-from app.contracts.messages import USER_CREATED_TOPIC, UserCreatedEvent
 from app.contracts.ports import IUnitOfWork
-from app.contracts.ports.event_bus import IEventBus
 from app.domain.aggregates.user import User
 from app.domain.value_objects import DisplayName, Email
 from app.usecases.result import (
@@ -18,8 +14,6 @@ from app.usecases.result import (
     UseCaseError,
     UseCaseResultError,
 )
-
-logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -41,9 +35,8 @@ class CreateUserHandler(
     """Handler for CreateUser command."""
 
     @inject
-    def __init__(self, uow: IUnitOfWork, event_bus: IEventBus) -> None:
+    def __init__(self, uow: IUnitOfWork) -> None:
         self._uow = uow
-        self._event_bus = event_bus
 
     async def handle(
         self, request: CreateUserCommand
@@ -78,17 +71,5 @@ class CreateUserHandler(
                 return Err(commit_result.error)
 
             user_id = user.id.to_primitive()
-
-        try:
-            event = UserCreatedEvent(user_id=user_id)
-            await self._event_bus.publish(USER_CREATED_TOPIC, event.to_payload())
-        except asyncio.CancelledError:
-            raise
-        except Exception:
-            logger.exception(
-                "Failed to publish %s for user %s",
-                USER_CREATED_TOPIC,
-                user_id,
-            )
 
         return Ok(CreateUserResult(id=user_id))

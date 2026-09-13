@@ -39,27 +39,6 @@ class MessageContent:
         """Create text message content."""
         return cls(_type=MessageContentType.TEXT, _payload={"text": text})
 
-    @classmethod
-    def image(cls, image_id: str, url: str | None = None) -> MessageContent:
-        """Create image message content."""
-        payload: dict[str, Any] = {"image_id": image_id}
-        if url is not None:
-            payload["url"] = url
-        return cls(_type=MessageContentType.IMAGE, _payload=payload)
-
-    @classmethod
-    def sticker(cls, sticker_id: str, package_id: str | None = None) -> MessageContent:
-        """Create sticker message content."""
-        payload: dict[str, Any] = {"sticker_id": sticker_id}
-        if package_id is not None:
-            payload["package_id"] = package_id
-        return cls(_type=MessageContentType.STICKER, _payload=payload)
-
-    @classmethod
-    def emoji(cls, emoji: str) -> MessageContent:
-        """Create emoji message content."""
-        return cls(_type=MessageContentType.EMOJI, _payload={"emoji": emoji})
-
     @property
     def type(self) -> MessageContentType:
         """Return the message content type."""

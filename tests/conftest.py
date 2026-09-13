@@ -1,13 +1,12 @@
 """Pytest configuration and fixtures."""
 
 from collections.abc import AsyncGenerator
-from unittest.mock import AsyncMock
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlmodel import SQLModel
 
-from app.contracts.ports import IChatHistoryQuery, IEventBus, IUnitOfWork
+from app.contracts.ports import IChatHistoryQuery, IUnitOfWork
 from app.infrastructure.orm_registry import init_orm_mappings
 from app.infrastructure.queries.chat_history_query import SQLAlchemyChatHistoryQuery
 from app.infrastructure.unit_of_work import SQLAlchemyUnitOfWork
@@ -59,14 +58,8 @@ async def session_factory(
 
 @pytest.fixture(scope="function")
 def anyio_backend() -> str:
-    """Specify anyio backend for pytest-anyio."""
+    """Use the asyncio backend for AnyIO's pytest plugin."""
     return "asyncio"
-
-
-@pytest.fixture
-def event_bus() -> AsyncMock:
-    """Provide a mock event bus for tests."""
-    return AsyncMock(spec=IEventBus)
 
 
 @pytest.fixture
