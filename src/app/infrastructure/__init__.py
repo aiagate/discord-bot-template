@@ -1,1 +1,1 @@
-"""Infrastructure layer for persistence and external services."""
+"""Adapters for local state and external runtimes."""
