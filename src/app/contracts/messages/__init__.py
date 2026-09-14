@@ -1,5 +1,10 @@
 """Shared application messages."""
 
+from app.contracts.messages.character_mcp import (
+    CharacterMcpServer,
+    McpToolDefinition,
+    McpToolResult,
+)
 from app.contracts.messages.character_prompt import (
     CharacterConversationContext,
     CharacterConversationMessage,
@@ -12,6 +17,7 @@ from app.contracts.messages.generated_character_response import (
     CharacterSelection,
     GeneratedCharacterResponse,
 )
+from app.contracts.messages.llm import TextGenerationRequest, TextGenerationResponse
 from app.contracts.messages.master_context import (
     MAX_MASTER_CONTEXT_LENGTH,
     UNCONFIGURED_MASTER,
@@ -30,14 +36,19 @@ from app.contracts.messages.user_events import (
 __all__ = [
     "CharacterConversationContext",
     "CharacterConversationMessage",
+    "CharacterMcpServer",
     "CharacterSelection",
     "CharacterSelectionContext",
     "CharacterSpeechMessage",
     "DiscordMaster",
     "GeneratedCharacterResponse",
     "MAX_MASTER_CONTEXT_LENGTH",
+    "McpToolDefinition",
+    "McpToolResult",
     "PublishedSpeech",
     "SpeechDeliveryPlan",
+    "TextGenerationRequest",
+    "TextGenerationResponse",
     "UNCONFIGURED_MASTER",
     "USER_CREATED_TOPIC",
     "UserCreatedEvent",
