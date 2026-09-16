@@ -48,6 +48,17 @@ class MyBot(commands.Bot):
         await self.add_cog(UsersCog(self, mediator))
         await self.add_cog(MembershipsCog(self, mediator))
         await self.add_cog(DirectMessageResponseCog(self, mediator))
+        collective_config = os.getenv("COLLECTIVE_CONFIG")
+        if collective_config:
+            from app.application.collective_settings import BotCollectiveConfig
+            from app.presentation.bot.cogs.collective_cog import CollectiveCog
+
+            config = BotCollectiveConfig.model_validate_json(
+                Path(collective_config).read_text()
+            )
+            config.root = config.root.expanduser().resolve()
+            config.agy_skill = config.agy_skill.expanduser().resolve()
+            await self.add_cog(CollectiveCog(self, config))
 
 
 def load_environment() -> None:
@@ -70,7 +81,7 @@ def load_environment() -> None:
 
 def main() -> None:
     logging.basicConfig(
-        level=logging.DEBUG,
+        level=logging.INFO,
         format=(
             "[ %(levelname)-8s] %(asctime)s | %(name)-16s %(funcName)-16s| %(message)s"
         ),
