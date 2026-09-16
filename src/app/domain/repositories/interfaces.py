@@ -54,7 +54,7 @@ class IRepository[T](ABC):
 
     @abstractmethod
     async def delete(self, entity: T) -> Result[None, RepositoryError]:
-        """Delete entity."""
+        """Delete an entity, returning NOT_FOUND if absent or VERSION_CONFLICT if stale."""
         pass
 
 

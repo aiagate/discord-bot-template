@@ -1,11 +1,29 @@
 """Tests for Team aggregate."""
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from flow_res import is_err, is_ok
 
 from app.domain.aggregates.team import Team
-from app.domain.value_objects import TeamId, TeamName
+from app.domain.value_objects import TeamId, TeamName, Version
+
+
+def test_team_identity_survives_name_and_version_changes() -> None:
+    """Restored representations remain the same team after renaming."""
+    team = Team.form(TeamName("Original"))
+    restored = Team.restore(
+        team_id=team.id,
+        name=TeamName("Renamed"),
+        version=Version(1),
+        created_at=team.created_at,
+        updated_at=team.updated_at + timedelta(seconds=1),
+    )
+
+    assert team is not restored
+    assert team == restored
+    assert restored == team
+    assert team != Team.form(team.name)
+    assert team != object()
 
 
 def test_create_team_with_empty_name_returns_err() -> None:

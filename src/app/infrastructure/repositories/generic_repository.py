@@ -5,7 +5,7 @@ from datetime import UTC, datetime
 from typing import TypeVar
 
 from flow_res import Err, Ok, Result, is_err
-from sqlalchemy import select, update
+from sqlalchemy import delete, select, update
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -274,7 +274,7 @@ class GenericRepository[T, K](IRepositoryWithId[T, K]):
             return Err(err)
 
     async def delete(self, entity: T) -> Result[None, RepositoryError]:
-        """Delete entity."""
+        """Delete an entity, rejecting stale versions and append-only entities."""
         if isinstance(entity, IAppendOnly) and entity.is_append_only:
             return Err(
                 RepositoryError(
@@ -292,7 +292,18 @@ class GenericRepository[T, K](IRepositoryWithId[T, K]):
             # Convert value object to primitive type for database query
             id_value = self._to_primitive_id(entity_id)  # type: ignore[arg-type]
 
-            # Fetch the ORM instance from the database
+            delete_statement = delete(self._orm_type).where(
+                self._orm_type.id == id_value  # type: ignore[attr-defined]
+            )
+            if isinstance(entity, IVersionable):
+                delete_statement = delete_statement.where(
+                    self._orm_type.version == entity.version.to_primitive()  # type: ignore[attr-defined]
+                )
+
+            delete_result = await self._session.execute(delete_statement)
+            if delete_result.rowcount > 0:  # type: ignore[attr-defined]
+                return Ok(None)
+
             statement = select(self._orm_type).where(self._orm_type.id == id_value)  # type: ignore[attr-defined]
             result = await self._session.execute(statement)
             orm_instance = result.scalar_one_or_none()
@@ -300,9 +311,15 @@ class GenericRepository[T, K](IRepositoryWithId[T, K]):
             if orm_instance is None:
                 return Err(self._not_found_error(entity_id))
 
-            # Delete the ORM instance
-            await self._session.delete(orm_instance)
-            return Ok(None)
+            return Err(
+                RepositoryError(
+                    type=RepositoryErrorType.VERSION_CONFLICT,
+                    message=(
+                        f"Concurrent modification detected for "
+                        f"{self._entity_type.__name__} with id {entity_id}"
+                    ),
+                )
+            )
         except SQLAlchemyError as e:
             logger.exception("Database error occurred in delete")
             err = RepositoryError(type=RepositoryErrorType.UNEXPECTED, message=str(e))

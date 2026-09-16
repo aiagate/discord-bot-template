@@ -14,7 +14,46 @@ from app.domain.value_objects import (
     LineConversationScope,
     MessageContent,
     MessageContentType,
+    MessageId,
 )
+
+
+def test_message_identity_and_hash_depend_on_id_not_content() -> None:
+    """Restoration uses identity equality without treating content as equal."""
+    message = ChatMessage.create_discord(
+        guild_id="guild-1",
+        channel_id="channel-1",
+        external_sender_id="sender-1",
+        content=MessageContent.text("original"),
+        occurred_at=datetime(2026, 9, 5, 9, 0, tzinfo=UTC),
+    )
+    restored = ChatMessage.restore(
+        message_id=message.id,
+        platform=message.platform,
+        conversation_scope=message.conversation_scope,
+        external_sender_id=message.external_sender_id,
+        author_kind=message.author_kind,
+        content=MessageContent.text("different representation"),
+        occurred_at=message.occurred_at,
+    )
+    another = ChatMessage.restore(
+        message_id=MessageId.generate().expect("valid id"),
+        platform=message.platform,
+        conversation_scope=message.conversation_scope,
+        external_sender_id=message.external_sender_id,
+        author_kind=message.author_kind,
+        content=message.content,
+        occurred_at=message.occurred_at,
+    )
+
+    assert message is not restored
+    assert message == restored
+    assert restored == message
+    assert message.content != restored.content
+    assert hash(message) == hash(restored)
+    assert len({message, restored, another}) == 2
+    assert message != another
+    assert message != object()
 
 
 def test_discord_message_captures_all_message_data() -> None:

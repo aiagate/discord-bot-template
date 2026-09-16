@@ -8,7 +8,54 @@ from flow_res import is_err, is_ok
 
 from app.contracts.ports import IUnitOfWork
 from app.domain.aggregates.user import User
+from app.domain.repositories import RepositoryErrorType
 from app.domain.value_objects import DisplayName, Email, UserId
+
+
+@pytest.mark.anyio
+async def test_delete_rejects_stale_version_and_preserves_latest_state(
+    uow: IUnitOfWork,
+) -> None:
+    """A stale deletion cannot erase a committed update from another session."""
+    user = User.register(DisplayName("Alice"), Email("alice@example.com"))
+    async with uow:
+        repo = uow.GetRepository(User, UserId)
+        assert is_ok(await repo.add(user))
+        assert is_ok(await uow.commit())
+
+    async with uow:
+        repo = uow.GetRepository(User, UserId)
+        loaded = await repo.get_by_id(user.id)
+        assert is_ok(loaded)
+        loaded.value.change_email(Email("updated@example.com"))
+        updated = await repo.update(loaded.value)
+        assert is_ok(updated)
+        assert is_ok(await uow.commit())
+
+    async with uow:
+        repo = uow.GetRepository(User, UserId)
+        stale_delete = await repo.delete(user)
+        assert is_err(stale_delete)
+        assert stale_delete.error.type is RepositoryErrorType.VERSION_CONFLICT
+        assert is_ok(await uow.commit())
+
+    async with uow:
+        repo = uow.GetRepository(User, UserId)
+        remaining = await repo.get_by_id(user.id)
+        assert is_ok(remaining)
+        assert remaining.value.email == Email("updated@example.com")
+        assert remaining.value.version == updated.value.version
+        assert is_ok(await repo.delete(remaining.value))
+        assert is_ok(await uow.commit())
+
+    async with uow:
+        repo = uow.GetRepository(User, UserId)
+        missing = await repo.get_by_id(user.id)
+        assert is_err(missing)
+        assert missing.error.type is RepositoryErrorType.NOT_FOUND
+        repeated_delete = await repo.delete(user)
+        assert is_err(repeated_delete)
+        assert repeated_delete.error.type is RepositoryErrorType.NOT_FOUND
 
 
 @pytest.mark.anyio
