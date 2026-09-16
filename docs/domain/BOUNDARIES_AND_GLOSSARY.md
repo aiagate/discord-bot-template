@@ -1,6 +1,6 @@
 # 現行のドメイン境界と用語集
 
-最終更新日: 2026-09-06
+最終更新日: 2026-09-16
 
 この文書は、現在のコードから確認できるモデル境界と前提を記録する。将来の
 サービス分割、コアドメインの順位付け、または未確定の業務ルールを先取りして
@@ -26,9 +26,9 @@
 - 終了状態はドメイン語彙として `MembershipStatus.LEAVED` と表現する。
 - `PENDING` から `ACTIVE` への承認条件は集約の `approve()` が保証する。
 
-一意性はアプリケーションの事前確認だけに頼らず、SQLite/PostgreSQLの部分一意
-インデックスでも保証する。既存データに現在期間の重複がある場合、前方マイグレー
-ションは停止し、データを削除または自動選択しない。
+一意性はSQLite/PostgreSQLの部分一意インデックスで保証する。既存データに
+現在期間の重複がある場合、前方マイグレーションは停止し、データを削除または
+自動選択しない。
 
 ### Messaging history
 
@@ -38,6 +38,10 @@
 に記録している。
 
 ## 用語集
+
+集約の `==` は具象型とIDによる同一性比較とする。属性・Version・監査日時の
+変更は同一性に影響しない。Value Objectは値で比較し、集約の状態を確認する際も
+個々の属性を比較する。
 
 | 用語 | 意味 |
 | --- | --- |
@@ -59,6 +63,8 @@
   `src/app/contracts/ports/` に置く。
 - InfrastructureはSQLAlchemy、ORM、明示的マッピング、セッションライフサイクルを
   担当する。
+- Versionを持つ集約の更新・削除は、IDとVersionを条件に実行する。古いVersionなら
+  `VERSION_CONFLICT`、対象が存在しなければ `NOT_FOUND` を返す。
 - チャット履歴Queryは呼び出しごとにsession factoryから読み取りセッションを作り、
   自身で閉じる。書き込み用Unit of WorkのQuery accessorは持たない。
 - User、Team、Membership、ChatMessageの永続化変換はInfrastructureの明示的

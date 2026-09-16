@@ -1,6 +1,6 @@
 """Tests for TeamMembership aggregate."""
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -13,7 +13,33 @@ from app.domain.value_objects import (
     MembershipStatus,
     TeamId,
     UserId,
+    Version,
 )
+
+
+def test_membership_identity_survives_status_role_and_version_changes() -> None:
+    """A changed period keeps its identity; reenrollment receives a new one."""
+    membership = TeamMembership.request_join(
+        TeamId.generate().expect("valid id"), UserId.generate().expect("valid id")
+    )
+    restored = TeamMembership.restore(
+        membership_id=membership.id,
+        team_id=membership.team_id,
+        user_id=membership.user_id,
+        role=MembershipRole.ADMIN,
+        status=MembershipStatus.LEAVED,
+        version=Version(2),
+        created_at=membership.created_at,
+        updated_at=membership.updated_at + timedelta(seconds=1),
+    )
+
+    assert membership is not restored
+    assert membership == restored
+    assert restored == membership
+    assert membership != TeamMembership.request_join(
+        membership.team_id, membership.user_id
+    )
+    assert membership != object()
 
 
 def test_team_membership_join() -> None:

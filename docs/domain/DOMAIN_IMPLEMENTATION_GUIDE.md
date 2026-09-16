@@ -1,6 +1,6 @@
 # Domain層実装ガイド
 
-最終更新日: 2025-11-26
+最終更新日: 2026-09-16
 
 このドキュメントは、Domain層（ドメイン層）の実装方法と、プロジェクトで使用するパターンを説明します。
 
@@ -42,7 +42,7 @@ src/app/domain/
 ├── interfaces/          # ドメインインターフェース
 │   ├── __init__.py
 │   └── auditable.py    # IAuditableプロトコル
-└── value_objects/       # 値オブジェクト（将来追加）
+└── value_objects/       # Email、TeamName、ConversationScopeなど
     └── __init__.py
 ```
 
@@ -58,90 +58,57 @@ src/app/domain/
 
 ### 基本構造
 
-集約は `@dataclass` デコレータを使用して実装します。
+集約は `@dataclass` を使い、状態の変更をドメインメソッドに集めます。
+実装例は [User](../../src/app/domain/aggregates/user.py)、
+[TeamMembership](../../src/app/domain/aggregates/team_membership.py) を参照してください。
+以下は既存モデルの利用例です。
 
 ```python
-from dataclasses import dataclass
+from app.domain.aggregates.user import User
+from app.domain.value_objects import DisplayName, Email
 
-
-@dataclass
-class User:
-    """User aggregate root.
-
-    Represents a user in the system with name and email.
-    """
-
-    id: int
-    name: str
-    email: str
-
-    def __post_init__(self) -> None:
-        """Validate user data."""
-        if not self.name:
-            raise ValueError("User name cannot be empty.")
-        if not self.email:
-            raise ValueError("User email cannot be empty.")
+user = User.register(DisplayName("Alice"), Email("alice@example.com"))
 ```
 
 ### 主要な設計原則
 
-#### 1. **イミュータビリティ（不変性）の原則**
+#### 1. **カプセル化と不変性**
 
-ドメインオブジェクトの状態は、ドメインメソッドを通じてのみ変更します。
-
-✅ **良い例**:
-
-```python
-@dataclass
-class User:
-    id: int
-    name: str
-    email: str
-
-    def change_email(self, new_email: str) -> "User":
-        """ビジネスルールに従ってメールアドレスを変更"""
-        if not new_email:
-            raise ValueError("Email cannot be empty.")
-        if "@" not in new_email:
-            raise ValueError("Invalid email format.")
-
-        self.email = new_email
-        return self
-```
-
-❌ **悪い例**:
+`User` や `TeamMembership` は状態が変わるEntityです。変更をドメインメソッドに
+集め、読み取り用propertyを公開することはカプセル化であり、不変性ではありません。
 
 ```python
-# ドメインメソッドを経由せず、直接変更
-user.email = "new@example.com"  # バリデーションがスキップされる！
+old_email = user.email
+user.change_email(Email("new@example.com"))
+assert old_email == Email("alice@example.com")
+assert user.email == Email("new@example.com")
 ```
+
+`Email` などのValue Objectは不変であり、変更時は新しい値に置き換えます。
+上の例でも古いEmailの値は変わりません。`_email` などの内部フィールドへ直接代入
+するとカプセル化を破るため、呼び出し側では使用しません。
+`ChatMessage` はEntityですが、追記専用というルールにより集約全体を不変にしています。
 
 #### 2. **不変条件（Invariants）の保証**
 
-集約は常に有効な状態を保ちます。
+不変条件は、状態が変わっても守られるべき業務ルールです。
+例えば `TeamMembership.approve()` は `PENDING` からの承認だけを許可します。
 
 ```python
-@dataclass
-class Order:
-    id: int
-    items: list[OrderItem]
-    status: OrderStatus
+from app.domain.aggregates.team_membership import TeamMembership
+from app.domain.value_objects import MembershipStatus, TeamId
 
-    def __post_init__(self) -> None:
-        """不変条件の検証"""
-        if not self.items:
-            raise ValueError("Order must have at least one item.")
-        if self.status == OrderStatus.SHIPPED and not self.shipping_address:
-            raise ValueError("Shipped order must have shipping address.")
-
-    def add_item(self, item: OrderItem) -> "Order":
-        """アイテムを追加（ビジネスルールを適用）"""
-        if self.status != OrderStatus.DRAFT:
-            raise ValueError("Cannot add items to non-draft order.")
-
-        self.items.append(item)
-        return self
+team_id = TeamId.generate().expect("valid id")
+membership = TeamMembership.request_join(team_id, user.id)
+membership.approve()
+assert membership.status is MembershipStatus.ACTIVE
+# 再度approve()を呼ぶとMembershipTransitionErrorになる。
 ```
+
+「同じteam/userの現在の加入期間は一つ」というルールは、複数の集約にまたがります。
+事前検索だけでは同時加入を防げないため、部分一意インデックスで保証し、
+Repositoryが競合を返します。これは業務ルールをInfrastructureで保証する例です。
+詳細は[現行のドメイン境界](./BOUNDARIES_AND_GLOSSARY.md)を参照してください。
 
 #### 3. **集約境界の尊重**
 
@@ -166,6 +133,16 @@ class Order:
     user: User  # 集約境界を越えた参照
     items: list[OrderItem]
 ```
+
+#### 4. **Entityの同一性と状態比較**
+
+`User`、`Team`、`TeamMembership`、`ChatMessage` の `==` は、同じ具象型かつ同じID
+なら真になります。属性、Version、監査日時は比較に含めません。Value Objectの
+`==` は値の比較です。Entityの状態を検証するときは `user.email` などを明示的に
+比較します。永続化の往復テストも、Entity同士の `==` だけで済ませません。
+
+可変の集約はハッシュ化できません。不変な `ChatMessage` は型とIDでハッシュ化し、
+`==` と整合させています。
 
 ---
 

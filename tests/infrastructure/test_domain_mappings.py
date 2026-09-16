@@ -40,6 +40,8 @@ def test_user_mapping_restores_id_version_and_audit_state() -> None:
     restored = user_from_orm(user_to_orm(user))
 
     assert restored == user
+    assert restored.display_name == user.display_name
+    assert restored.email == user.email
     assert restored.version == Version(4)
     assert restored.created_at == created_at
     assert restored.updated_at == updated_at
@@ -60,6 +62,7 @@ def test_team_mapping_restores_id_version_and_audit_state() -> None:
     restored = team_from_orm(team_to_orm(team))
 
     assert restored == team
+    assert restored.name == team.name
     assert restored.version == Version(3)
     assert restored.created_at == created_at
     assert restored.updated_at == updated_at
@@ -83,6 +86,9 @@ def test_membership_mapping_restores_enrollment_period_state() -> None:
     restored = team_membership_from_orm(team_membership_to_orm(membership))
 
     assert restored == membership
+    assert restored.team_id == membership.team_id
+    assert restored.user_id == membership.user_id
+    assert restored.role == membership.role
     assert restored.status is MembershipStatus.LEAVED
     assert restored.version == Version(2)
     assert restored.created_at == created_at

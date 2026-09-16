@@ -72,6 +72,16 @@ class ChatMessage:
     _content: MessageContent
     _occurred_at: datetime
 
+    def __eq__(self, other: object) -> bool:
+        """Compare message identity, independently of its content."""
+        if not isinstance(other, ChatMessage) or type(self) is not type(other):
+            return NotImplemented
+        return self.id == other.id
+
+    def __hash__(self) -> int:
+        """Hash the same immutable identity used by equality."""
+        return hash((type(self), self.id))
+
     def __post_init__(self) -> None:
         """Validate the complete message consistency boundary."""
         if self._conversation_scope.platform != self._platform:

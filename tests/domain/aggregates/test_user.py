@@ -1,11 +1,30 @@
 """Tests for domain models."""
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from flow_res import is_err
 
 from app.domain.aggregates.user import User
-from app.domain.value_objects import DisplayName, Email
+from app.domain.value_objects import DisplayName, Email, Version
+
+
+def test_user_identity_survives_profile_and_version_changes() -> None:
+    """Restored representations remain the same user after profile changes."""
+    user = User.register(DisplayName("Alice"), Email("alice@example.com"))
+    restored = User.restore(
+        user_id=user.id,
+        display_name=DisplayName("Alicia"),
+        email=Email("new@example.com"),
+        version=Version(1),
+        created_at=user.created_at,
+        updated_at=user.updated_at + timedelta(seconds=1),
+    )
+
+    assert user is not restored
+    assert user == restored
+    assert restored == user
+    assert user != User.register(user.display_name, user.email)
+    assert user != object()
 
 
 def test_create_user_with_empty_name_raises_error() -> None:

@@ -31,6 +31,12 @@ class Team:
     _created_at: datetime = field(init=False, default_factory=lambda: datetime.now(UTC))
     _updated_at: datetime = field(init=False, default_factory=lambda: datetime.now(UTC))
 
+    def __eq__(self, other: object) -> bool:
+        """Compare entity identity, independently of its current state."""
+        if not isinstance(other, Team) or type(self) is not type(other):
+            return NotImplemented
+        return self.id == other.id
+
     @classmethod
     def form(cls, name: TeamName) -> Team:
         """Factory method to create a new Team."""
