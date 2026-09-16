@@ -1,153 +1,25 @@
 # Domain層ドキュメント
 
-このディレクトリには、Domain層（ドメイン層）の設計と実装に関するドキュメントが含まれています。
+このプロジェクトの戦術的DDDを、現行コードとテストから学ぶための入口です。
 
-## ドキュメント一覧
+- [実装ガイド](./DOMAIN_IMPLEMENTATION_GUIDE.md): カプセル化、不変性、同一性、永続化の責務。
+- [境界と用語集](./BOUNDARIES_AND_GLOSSARY.md): 各集約の不変条件と業務上の前提。
+- [ChatMessageのADR](../adr/0001-chat-message-aggregate-and-conversation-scope.md): メッセージ一件を集約とする理由。
+- [アーキテクチャ](../ARCHITECTURE.md): アプリケーション全体の依存関係と構成。
 
-### [Domain実装ガイド](./DOMAIN_IMPLEMENTATION_GUIDE.md)
+## 読み始める順序
 
-Domain層の実装方法を詳細に説明した総合ガイドです。
+1. [TeamMembership](../../src/app/domain/aggregates/team_membership.py)で、生成時の状態と承認・退会の制約を確認する。
+2. [Email](../../src/app/domain/value_objects/email.py)と[ConversationScope](../../src/app/domain/value_objects/conversation_scope.py)で、値の検証と不変性を確認する。
+3. [承認ユースケース](../../src/app/usecases/memberships/approve_join_request.py)で、読み込み・ドメイン操作・保存・コミットの流れを追う。
+4. [回帰テスト](../../tests/infrastructure/test_repositories.py)で、古いVersionからの削除が拒否されることを確認する。
 
-**含まれる内容:**
+## 新しい集約を追加するとき
 
-- Domain層の役割と責務
-- Aggregate（集約）の実装パターン
-- インターフェース（Protocol）の定義方法
-- バリデーションのベストプラクティス
-- タイムスタンプ管理（IAuditable）
-- アンチパターンと回避方法
+- その集約が無いと守れない不変条件と、必要な整合性の範囲を決める。
+- 既存集約を参考に、生成メソッド・ドメイン操作・同一性比較を定義する。単に `@dataclass` を付けただけでは、全フィールドによる状態比較になる。
+- 永続化が必要ならORMモデルと明示的マッパーを作り、[登録処理](../../src/app/infrastructure/orm_registry.py)へ追加する。
+- 不正な状態遷移、同一性、復元後の各属性、必要な同時実行制約をテストする。
 
-### [現行のドメイン境界と用語集](./BOUNDARIES_AND_GLOSSARY.md)
-
-現行コードのUser、TeamMembership、ChatMessageの境界、不変条件、用語、前提を
-記録しています。未確定のコアドメインやサービス分割は定義していません。
-
-**対象読者:**
-
-- 新しいドメインエンティティを追加する開発者
-- Domain層のコードレビューを行う開発者
-- プロジェクトのアーキテクチャを理解したい開発者
-
----
-
-## クイックスタート
-
-### 新しい集約を作成する
-
-1. `src/app/domain/aggregates/` に新しいファイルを作成
-2. `@dataclass` を使用してクラスを定義
-3. `__post_init__` でバリデーションを実装
-4. 必要に応じてビジネスロジックのメソッドを追加
-
-```python
-# src/app/domain/aggregates/product.py
-from dataclasses import dataclass, field
-from datetime import UTC, datetime
-from decimal import Decimal
-
-
-@dataclass
-class Product:
-    """Product aggregate root.
-
-    Implements IAuditable for automatic timestamp management.
-    """
-    id: int
-    name: str
-    price: Decimal
-    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
-    updated_at: datetime = field(default_factory=lambda: datetime.now(UTC))
-
-    def __post_init__(self) -> None:
-        """Validate product data."""
-        if not self.name:
-            raise ValueError("Product name cannot be empty.")
-        if self.price < 0:
-            raise ValueError("Product price must be non-negative.")
-
-    def update_price(self, new_price: Decimal) -> "Product":
-        """Update product price with validation."""
-        if new_price < 0:
-            raise ValueError("Price must be non-negative.")
-        self.price = new_price
-        return self
-```
-
-### タイムスタンプを自動管理する
-
-タイムスタンプ（`created_at`, `updated_at`）を自動管理したい場合は、`IAuditable`プロトコルを満たすようにフィールドを定義します：
-
-```python
-from dataclasses import dataclass, field
-from datetime import UTC, datetime
-
-
-@dataclass
-class MyEntity:
-    """Implements IAuditable for automatic timestamp management."""
-    id: int
-    name: str
-    # この2つのフィールドを追加するだけでIAuditableを満たす
-    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
-    updated_at: datetime = field(default_factory=lambda: datetime.now(UTC))
-```
-
-リポジトリ層が自動的に`updated_at`を更新します。
-
----
-
-## 関連ドキュメント
-
-- [アーキテクチャ概要](../ARCHITECTURE.md) - プロジェクト全体のアーキテクチャ
-- [課題・改善点リスト](../ISSUES_AND_IMPROVEMENTS.md) - 技術的な課題と改善提案
-
----
-
-## ヒント
-
-### 良いドメインモデルの特徴
-
-- **ビジネスルールが明確**: コードを読めばビジネスルールがわかる
-- **不変条件を保証**: 常に有効な状態を保つ
-- **フレームワーク非依存**: 純粋なPythonオブジェクト
-- **テストしやすい**: 外部依存なしでテスト可能
-
-### よくある質問
-
-**Q: ドメインメソッドとユースケースの違いは？**
-
-A:
-
-- **ドメインメソッド**: 単一の集約内のビジネスルール（例: `change_email`）
-- **ユースケース**: 複数の集約やリポジトリを協調させるビジネスフロー（例: `CreateUserHandler`）
-
-**Q: バリデーションはドメイン層とユースケース層のどちらで行うべき？**
-
-A:
-
-- **ドメイン層**: Value Objectの値や集約内の状態遷移を検証する。
-- **ユースケース層**: 入力をドメイン型へ変換し、参照先の存在確認や保存を調整する。
-- **Infrastructure層**: 一意制約などで同時実行時の整合性を保証する。
-
-重複禁止が業務上の要件なら、それ自体は業務ルールです。例えばMembershipの
-現在期間の重複禁止は部分一意インデックスで保証します。ルールの意味と、
-検査・保証する実装場所は区別してください。
-
-**Q: タイムスタンプはドメインの責務？**
-
-A: タイムスタンプは監査（Audit）のためのインフラの関心事ですが、ドメインオブジェクトに含めることで、監査情報を参照できるようにしています。`IAuditable`プロトコルにより、この関心事を明示的に分離しています。
-
----
-
-## 貢献
-
-Domain層の実装パターンを改善する提案がある場合は、以下の手順で貢献してください：
-
-1. 新しいパターンを実装
-2. テストを追加
-3. このドキュメントを更新
-4. プルリクエストを作成
-
----
-
-最終更新日: 2026-09-16
+監査日時やVersionは、それを必要とする集約だけに持たせます。
+追記専用の `ChatMessage` はVersionと更新日時を持ちません。

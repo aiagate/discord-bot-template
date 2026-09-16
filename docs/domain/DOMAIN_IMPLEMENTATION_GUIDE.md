@@ -2,632 +2,142 @@
 
 最終更新日: 2026-09-16
 
-このドキュメントは、Domain層（ドメイン層）の実装方法と、プロジェクトで使用するパターンを説明します。
+このガイドは現行実装の判断と読み方を説明します。集約の実装は
+[User](../../src/app/domain/aggregates/user.py)、
+[Team](../../src/app/domain/aggregates/team.py)、
+[TeamMembership](../../src/app/domain/aggregates/team_membership.py)、
+[ChatMessage](../../src/app/domain/aggregates/chat_message.py)を参照してください。
 
----
+## 責務と依存関係
 
-## 目次
+- Domainは値の検証と集約の状態遷移を担い、DBや外部APIを呼び出さない。
+- UseCasesは入力をドメイン型へ変換し、参照先の存在確認・ドメイン操作・保存を調整する。
+- Infrastructureは明示的なORM変換、トランザクション、DB制約による整合性保証を担う。
 
-1. [Domain層の役割](#domain層の役割)
-2. [ディレクトリ構成](#ディレクトリ構成)
-3. [Aggregate（集約）の実装](#aggregate集約の実装)
-4. [インターフェースの定義](#インターフェースの定義)
-5. [バリデーション](#バリデーション)
-6. [タイムスタンプ管理（IAuditable）](#タイムスタンプ管理iauditable)
-7. [ベストプラクティス](#ベストプラクティス)
-8. [アンチパターン](#アンチパターン)
+`IRepository` はDomainの契約です。トランザクション境界の `IUnitOfWork` と
+履歴取得の `IChatHistoryQuery` は `contracts/ports` に置き、Domainから依存しません。
 
----
+## カプセル化・不変性・不変条件
 
-## Domain層の役割
+カプセル化は、状態の変更をドメインメソッドに集めることです。`User` や
+`TeamMembership` は状態が変わるEntityで、読み取り用propertyを公開しています。
+内部の `_email` や `_status` への直接代入は、この契約を破るため行いません。
 
-Domain層は**ビジネスロジックの中核**であり、以下の責務を持ちます：
-
-- [OK] **ビジネスルールの定義**: ドメインの不変条件（Invariants）を保証
-- [OK] **エンティティと集約の管理**: ドメインオブジェクトのライフサイクル管理
-- [OK] **フレームワーク非依存**: 純粋なPythonオブジェクトとして実装
-- [NG] **データベースアクセスは行わない**: インフラストラクチャ層の責務
-- [NG] **外部APIを呼び出さない**: インフラストラクチャ層の責務
-- [NG] **UIロジックを持たない**: プレゼンテーション層の責務
-
----
-
-## ディレクトリ構成
-
-```
-src/app/domain/
-├── aggregates/          # 集約ルート（Aggregate Roots）
-│   ├── __init__.py
-│   └── user.py         # User集約
-├── interfaces/          # ドメインインターフェース
-│   ├── __init__.py
-│   └── auditable.py    # IAuditableプロトコル
-└── value_objects/       # Email、TeamName、ConversationScopeなど
-    └── __init__.py
-```
-
-### ファイル命名規則
-
-- **集約**: `snake_case.py`（例: `user.py`, `order.py`）
-- **クラス名**: `PascalCase`（例: `User`, `Order`）
-- **インターフェース**: `I` プレフィックス（例: `IAuditable`）
-
----
-
-## Aggregate（集約）の実装
-
-### 基本構造
-
-集約は `@dataclass` を使い、状態の変更をドメインメソッドに集めます。
-実装例は [User](../../src/app/domain/aggregates/user.py)、
-[TeamMembership](../../src/app/domain/aggregates/team_membership.py) を参照してください。
-以下は既存モデルの利用例です。
+不変性は、生成した値を変更しないことです。`Email` などのValue Objectを
+変更するときは、新しい値へ置き換えます。次の例では元のEmailの値は変わりません。
 
 ```python
 from app.domain.aggregates.user import User
 from app.domain.value_objects import DisplayName, Email
 
 user = User.register(DisplayName("Alice"), Email("alice@example.com"))
-```
-
-### 主要な設計原則
-
-#### 1. **カプセル化と不変性**
-
-`User` や `TeamMembership` は状態が変わるEntityです。変更をドメインメソッドに
-集め、読み取り用propertyを公開することはカプセル化であり、不変性ではありません。
-
-```python
 old_email = user.email
 user.change_email(Email("new@example.com"))
 assert old_email == Email("alice@example.com")
 assert user.email == Email("new@example.com")
 ```
 
-`Email` などのValue Objectは不変であり、変更時は新しい値に置き換えます。
-上の例でも古いEmailの値は変わりません。`_email` などの内部フィールドへ直接代入
-するとカプセル化を破るため、呼び出し側では使用しません。
-`ChatMessage` はEntityですが、追記専用というルールにより集約全体を不変にしています。
-
-#### 2. **不変条件（Invariants）の保証**
-
-不変条件は、状態が変わっても守られるべき業務ルールです。
-例えば `TeamMembership.approve()` は `PENDING` からの承認だけを許可します。
+不変条件は、状態が変わっても守られるべき業務ルールです。例えば
+`TeamMembership.approve()` は `PENDING` からの承認だけを許可します。
 
 ```python
 from app.domain.aggregates.team_membership import TeamMembership
-from app.domain.value_objects import MembershipStatus, TeamId
+from app.domain.value_objects import MembershipStatus, TeamId, UserId
 
-team_id = TeamId.generate().expect("valid id")
-membership = TeamMembership.request_join(team_id, user.id)
+membership = TeamMembership.request_join(
+    TeamId.generate().expect("valid id"),
+    UserId.generate().expect("valid id"),
+)
 membership.approve()
 assert membership.status is MembershipStatus.ACTIVE
-# 再度approve()を呼ぶとMembershipTransitionErrorになる。
+membership.leave()
+assert membership.status is MembershipStatus.LEAVED
 ```
 
-「同じteam/userの現在の加入期間は一つ」というルールは、複数の集約にまたがります。
-事前検索だけでは同時加入を防げないため、部分一意インデックスで保証し、
-Repositoryが競合を返します。これは業務ルールをInfrastructureで保証する例です。
-詳細は[現行のドメイン境界](./BOUNDARIES_AND_GLOSSARY.md)を参照してください。
+承認済み・終了済み期間への再承認や、終了後のロール変更は拒否します。
+許可・拒否の組み合わせは[状態遷移テスト](../../tests/domain/aggregates/test_team_membership.py)
+で確認できます。再加入では古い期間を戻さず、新しいIDの期間を作ります。
 
-#### 3. **集約境界の尊重**
+`ChatMessage` はEntityですが、追記専用というルールにより集約全体を不変に
+しています。`MessageContent` は入力と返却値のpayloadを防御的にコピーします。
 
-集約外のオブジェクトへの参照は、IDのみを保持します。
+## Entityの同一性とValue Objectの等価性
 
-✅ **良い例**:
+4集約の `==` は、同じ具象型かつ同じIDなら真になります。属性・Version・監査日時は
+比較に含めません。Value Objectは値で比較します。以下は同じEntityの二つの
+表現をコピーで用意し、同一性と状態の違いを確認する例です。
 
 ```python
-@dataclass
-class Order:
-    id: int
-    user_id: int  # UserのIDのみを保持
-    items: list[OrderItem]
+from copy import deepcopy
+
+from app.domain.aggregates.team import Team
+from app.domain.value_objects import TeamName
+
+before = Team.form(TeamName("Alpha"))
+after = deepcopy(before)
+after.change_name(TeamName("Beta"))
+assert before == after
+assert before.name != after.name
+assert before != Team.form(TeamName("Alpha"))
 ```
 
-❌ **悪い例**:
+`@dataclass` の既定の `==` は全フィールドの比較です。このプロジェクトでは
+集約ごとに `__eq__` を定義しています。可変の集約はハッシュ化できません。
+不変な `ChatMessage` は型とIDでハッシュ化し、`==` と整合させています。
+[Pythonのdataclass仕様](https://docs.python.org/3/library/dataclasses.html)も参照してください。
 
-```python
-@dataclass
-class Order:
-    id: int
-    user: User  # 集約境界を越えた参照
-    items: list[OrderItem]
+復元後の状態を検証するときは、Entity同士の `==` に加えて各属性を比較します。
+[マッピングテスト](../../tests/infrastructure/test_domain_mappings.py)が実例です。
+
+## 集約境界と業務ルールの保証
+
+`TeamMembership` は一回の加入期間を表し、TeamとUserをIDで参照します。
+「同じteam/userの現在の加入期間は一つ」というルールは、複数の期間にまたがります。
+事前検索だけでは同時加入を防げないため、[部分一意インデックス](../../src/app/infrastructure/orm_models/team_membership_orm.py)
+で保証し、Repositoryが競合を返します。
+
+重複禁止が業務上の要件なら、それ自体は業務ルールです。部分一意インデックスは、
+そのルールを同時実行時にも守るための実装手段です。
+
+`ChatMessage` は一件を整合性境界とし、会話履歴は `ConversationScope` 全体を
+条件にQueryで取得します。履歴を集約に含めない理由は[ADR 0001](../adr/0001-chat-message-aggregate-and-conversation-scope.md)
+を参照してください。現在の業務ルールと未確定事項は[境界と用語集](./BOUNDARIES_AND_GLOSSARY.md)
+に記録しています。
+
+## 生成・復元・永続化
+
+新規生成には `register()`、`form()`、`join()`、`request_join()` などを使います。
+値の検証はValue Object、状態遷移の検証は集約が担います。ドメイン操作の命名は、
+`approve()` や `leave()` のように業務上の行為を表します。
+
+復元はInfrastructureの明示的マッパーから `restore()` を呼び、保存されたID・
+Version・監査日時を引き継ぎます。新規登録とは別の操作として扱います。
+[Userのマッピング](../../src/app/infrastructure/mappings/user.py)を参照してください。
+
+保存は `async with uow` の中でRepositoryを取得し、操作結果を確認したうえで
+`commit()` を呼びます。Repository自身はコミットしません。
+[承認ユースケース](../../src/app/usecases/memberships/approve_join_request.py)が実例です。
+
+- `add()` は新規挿入を行い、一意制約の競合時は `ALREADY_EXISTS` を返す。
+- `update()` はVersionを持つ集約のIDとVersionを条件に更新し、Versionを進める。
+- `delete()` もVersionを持つ集約のIDとVersionを条件に削除する。古い版なら `VERSION_CONFLICT`、対象がなければ `NOT_FOUND` を返す。
+- 追記専用の集約は更新・削除を拒否する。
+
+監査日時を持つ集約は `IAuditable`、Versionを持つ集約は `IVersionable` の
+Protocolを満たします。Repositoryは更新日時・Versionを反映した新しい集約を
+返すため、保存後の状態が必要なら戻り値を使います。
+
+`@runtime_checkable` による `isinstance()` は属性の存在を確認するもので、
+属性の型や業務上の妥当性までは検証しません。[PythonのProtocol仕様](https://docs.python.org/3/library/typing.html#typing.runtime_checkable)
+を参照してください。
+
+## 確認するテスト
+
+- [集約のテスト](../../tests/domain/aggregates): 状態遷移、同一性、不変性。
+- [Value Objectのテスト](../../tests/domain/value_objects): 値の検証と等価性。
+- [Membershipの制約テスト](../../tests/infrastructure/test_team_membership_constraints.py): 同時加入時の一意性と更新競合。
+- [Repositoryのテスト](../../tests/infrastructure/test_repositories.py): 古い版からの削除拒否と最新状態の保持。
+
+```bash
+uv run --frozen pytest tests/domain tests/infrastructure
 ```
-
-#### 4. **Entityの同一性と状態比較**
-
-`User`、`Team`、`TeamMembership`、`ChatMessage` の `==` は、同じ具象型かつ同じID
-なら真になります。属性、Version、監査日時は比較に含めません。Value Objectの
-`==` は値の比較です。Entityの状態を検証するときは `user.email` などを明示的に
-比較します。永続化の往復テストも、Entity同士の `==` だけで済ませません。
-
-可変の集約はハッシュ化できません。不変な `ChatMessage` は型とIDでハッシュ化し、
-`==` と整合させています。
-
----
-
-## インターフェースの定義
-
-Domain層のインターフェースは `Protocol` を使用して定義します。
-
-### Protocolの使用例
-
-```python
-from typing import Protocol, runtime_checkable
-from datetime import datetime
-
-
-@runtime_checkable
-class IAuditable(Protocol):
-    """監査可能なエンティティのプロトコル"""
-    created_at: datetime
-    updated_at: datetime
-```
-
-### なぜProtocolを使うのか？
-
-- **構造的部分型（Structural Subtyping）**: 明示的な継承不要
-- **柔軟性**: 既存のクラスを変更せずにプロトコルを満たせる
-- **型安全性**: `isinstance()` チェックで実行時検証が可能（`@runtime_checkable`）
-
-### Protocolの実装
-
-Pythonの`Protocol`は構造的部分型なので、明示的に継承する必要はありません：
-
-```python
-from dataclasses import dataclass, field
-from datetime import UTC, datetime
-
-
-@dataclass
-class User:
-    """User aggregate root.
-
-    Implements IAuditable: timestamps are automatically managed
-    by the repository layer.
-    """
-    id: int
-    name: str
-    email: str
-    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
-    updated_at: datetime = field(default_factory=lambda: datetime.now(UTC))
-    # ↑ IAuditableプロトコルを満たす（明示的な継承不要）
-```
-
----
-
-## バリデーション
-
-### `__post_init__`でのバリデーション
-
-`@dataclass`の`__post_init__`メソッドで不変条件を検証します。
-
-```python
-@dataclass
-class User:
-    id: int
-    name: str
-    email: str
-
-    def __post_init__(self) -> None:
-        """Validate user data."""
-        if not self.name:
-            raise ValueError("User name cannot be empty.")
-        if not self.email:
-            raise ValueError("User email cannot be empty.")
-        if "@" not in self.email:
-            raise ValueError("Invalid email format.")
-```
-
-### 複雑なバリデーション
-
-複雑なバリデーションは、専用のメソッドに分離します。
-
-```python
-import re
-
-
-@dataclass
-class User:
-    EMAIL_REGEX: ClassVar[re.Pattern[str]] = re.compile(
-        r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
-    )
-
-    id: int
-    name: str
-    email: str
-
-    def __post_init__(self) -> None:
-        """Validate user data."""
-        self._validate_name()
-        self._validate_email()
-
-    def _validate_name(self) -> None:
-        """Validate user name."""
-        if not self.name:
-            raise ValueError("User name cannot be empty.")
-        if len(self.name) > 255:
-            raise ValueError("User name is too long (max 255 characters).")
-
-    def _validate_email(self) -> None:
-        """Validate email format."""
-        if not self.email:
-            raise ValueError("User email cannot be empty.")
-        if not self.EMAIL_REGEX.match(self.email):
-            raise ValueError(f"Invalid email format: {self.email}")
-```
-
----
-
-## タイムスタンプ管理（IAuditable）
-
-### IAuditableプロトコル
-
-タイムスタンプ（`created_at`, `updated_at`）を自動管理したいエンティティは、`IAuditable`プロトコルを満たします。
-
-#### 定義
-
-```python
-# src/app/domain/interfaces/auditable.py
-from datetime import datetime
-from typing import Protocol, runtime_checkable
-
-
-@runtime_checkable
-class IAuditable(Protocol):
-    """Protocol for entities that support audit timestamps.
-
-    Any domain aggregate implementing this protocol will have
-    created_at and updated_at automatically managed by the repository layer.
-    """
-    created_at: datetime
-    updated_at: datetime
-```
-
-#### 実装
-
-```python
-from dataclasses import dataclass, field
-from datetime import UTC, datetime
-
-
-@dataclass
-class User:
-    """User aggregate root.
-
-    Implements IAuditable: timestamps are infrastructure concerns but exposed
-    as read-only fields for auditing and display purposes. The repository layer
-    automatically manages created_at and updated_at.
-    """
-    id: int
-    name: str
-    email: str
-    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
-    updated_at: datetime = field(default_factory=lambda: datetime.now(UTC))
-
-    def __post_init__(self) -> None:
-        """Validate user data."""
-        if not self.name:
-            raise ValueError("User name cannot be empty.")
-```
-
-### タイムスタンプの自動更新
-
-リポジトリ層が自動的に`updated_at`を更新します：
-
-```python
-# src/app/infrastructure/repositories/generic_repository.py
-async def save(self, entity: T) -> Result[T, RepositoryError]:
-    """Save entity.
-
-    For IAuditable entities, automatically updates the updated_at timestamp.
-    """
-    orm_instance = domain_to_orm(entity)
-
-    # IAuditableエンティティの場合、更新時にupdated_atを自動設定
-    is_update = orm_instance.id is not None
-    if is_update and isinstance(entity, IAuditable):
-        orm_instance.updated_at = datetime.now(UTC)
-
-    # ... 保存処理
-```
-
-### タイムスタンプ不要なエンティティ
-
-タイムスタンプが不要なエンティティは、`IAuditable`を実装しません：
-
-```python
-@dataclass
-class TemporarySession:
-    """一時セッション（タイムスタンプ不要）"""
-    id: int
-    token: str
-    # created_at/updated_atなし
-```
-
----
-
-## ベストプラクティス
-
-### 1. ドメインメソッドの命名
-
-ドメインメソッドは**ユビキタス言語（Ubiquitous Language）**を使用します。
-
-✅ **良い例**:
-
-```python
-def change_email(self, new_email: str) -> "User": ...
-def activate_account(self) -> "User": ...
-def suspend_for_violation(self, reason: str) -> "User": ...
-```
-
-❌ **悪い例**:
-
-```python
-def update_email(self, email: str) -> "User": ...  # 技術用語
-def set_active(self) -> "User": ...  # ビジネス意図が不明確
-```
-
-### 2. フィールドのデフォルト値
-
-フィールドにデフォルト値を設定する場合は `field(default_factory=...)` を使用します。
-
-✅ **良い例**:
-
-```python
-from dataclasses import dataclass, field
-from datetime import UTC, datetime
-
-
-@dataclass
-class User:
-    id: int
-    name: str
-    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
-```
-
-❌ **悪い例**:
-
-```python
-@dataclass
-class User:
-    id: int
-    name: str
-    created_at: datetime = datetime.now(UTC)  # クラス定義時に評価される！
-```
-
-### 3. 型ヒントの使用
-
-すべてのフィールドとメソッドに型ヒントを付けます。
-
-```python
-from dataclasses import dataclass
-
-
-@dataclass
-class User:
-    id: int
-    name: str
-    email: str
-
-    def change_email(self, new_email: str) -> "User":
-        """Change user email."""
-        self.email = new_email
-        return self
-```
-
-### 4. Docstringの記述
-
-公開APIには必ずDocstringを記述します。
-
-```python
-@dataclass
-class User:
-    """User aggregate root.
-
-    Represents a user in the system with authentication credentials
-    and profile information.
-
-    Attributes:
-        id: Unique identifier
-        name: User's display name
-        email: User's email address (unique)
-    """
-    id: int
-    name: str
-    email: str
-
-    def change_email(self, new_email: str) -> "User":
-        """Change user's email address.
-
-        Args:
-            new_email: New email address
-
-        Returns:
-            Updated user instance
-
-        Raises:
-            ValueError: If email format is invalid
-        """
-        if not new_email or "@" not in new_email:
-            raise ValueError("Invalid email format.")
-        self.email = new_email
-        return self
-```
-
-### 5. フレームワーク非依存
-
-Domain層はフレームワークに依存しないようにします。
-
-✅ **良い例**:
-
-```python
-from dataclasses import dataclass
-from datetime import datetime  # 標準ライブラリのみ
-
-
-@dataclass
-class User:
-    id: int
-    name: str
-    created_at: datetime
-```
-
-❌ **悪い例**:
-
-```python
-from sqlmodel import SQLModel, Field  # インフラ層の依存
-
-
-class User(SQLModel):  # ドメインにインフラが混入！
-    id: int
-    name: str
-```
-
----
-
-## アンチパターン
-
-### [NG] アンチパターン1: 貧血ドメインモデル（Anemic Domain Model）
-
-ビジネスロジックがない、データだけのクラス。
-
-**悪い例**:
-
-```python
-@dataclass
-class User:
-    """単なるデータ構造"""
-    id: int
-    name: str
-    email: str
-    # ビジネスロジックなし
-```
-
-**良い例**:
-
-```python
-@dataclass
-class User:
-    """ビジネスロジックを持つ集約"""
-    id: int
-    name: str
-    email: str
-
-    def change_email(self, new_email: str) -> "User":
-        """メール変更のビジネスルールを適用"""
-        if not self._is_valid_email(new_email):
-            raise ValueError("Invalid email format.")
-        self.email = new_email
-        return self
-```
-
-### [NG] アンチパターン2: インフラストラクチャへの依存
-
-Domain層がデータベースやフレームワークに依存している。
-
-**悪い例**:
-
-```python
-from sqlalchemy import Column, Integer, String
-from sqlalchemy.orm import Session
-
-
-class User:
-    """ドメインとインフラが混在！"""
-    def save(self, session: Session) -> None:
-        session.add(self)
-        session.commit()
-```
-
-**良い例**:
-
-```python
-# Domain層: 純粋なビジネスロジック
-@dataclass
-class User:
-    id: int
-    name: str
-
-# Infrastructure層: 永続化の責務
-class UserRepository:
-    async def save(self, user: User) -> Result[User, RepositoryError]:
-        # データベース保存処理
-        ...
-```
-
-### [NG] アンチパターン3: 神クラス（God Class）
-
-1つのクラスに責務が集中しすぎている。
-
-**悪い例**:
-
-```python
-@dataclass
-class User:
-    """責務が多すぎる"""
-    # ユーザー情報
-    id: int
-    name: str
-
-    # 認証関連
-    password_hash: str
-
-    # 注文関連
-    orders: list[Order]
-
-    # 決済関連
-    payment_methods: list[PaymentMethod]
-
-    # ... さらに増え続ける
-```
-
-**良い例**:
-
-```python
-# 集約を分離
-@dataclass
-class User:
-    """ユーザーの基本情報"""
-    id: int
-    name: str
-
-@dataclass
-class UserCredential:
-    """認証情報"""
-    user_id: int
-    password_hash: str
-
-@dataclass
-class Order:
-    """注文情報（別の集約）"""
-    id: int
-    user_id: int  # Userへの参照はIDのみ
-```
-
----
-
-## まとめ
-
-### Domain層実装のチェックリスト
-
-- [OK] `@dataclass` を使用してシンプルに実装
-- [OK] `__post_init__` でバリデーションを実装
-- [OK] ビジネスロジックはドメインメソッドに実装
-- [OK] フレームワーク非依存を保つ
-- [OK] 型ヒントとDocstringを記述
-- [OK] タイムスタンプが必要な場合は`IAuditable`を実装
-- [OK] 不変条件を常に保証
-- [OK] 集約境界を尊重
-- [NG] データベースアクセスを行わない
-- [NG] 外部APIを呼び出さない
-- [NG] インフラストラクチャに依存しない
-
----
-
-## 参考資料
-
-- [プロジェクトのアーキテクチャドキュメント](../ARCHITECTURE.md)
-- [クリーンアーキテクチャ（Robert C. Martin）](https://blog.cleancoder.com/uncle-bob/2012/08/13/the-clean-architecture.html)
-- [ドメイン駆動設計（Eric Evans）](https://www.domainlanguage.com/ddd/)
-- [Python Protocol（PEP 544）](https://peps.python.org/pep-0544/)

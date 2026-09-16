@@ -85,89 +85,24 @@ Presentation ──▶ Application ──▶ Domain ◀── Infrastructure
 
 ##### 1.1 Aggregates（集約）
 
-`src/app/domain/aggregates/user.py`:
+[User](../src/app/domain/aggregates/user.py)、[TeamMembership](../src/app/domain/aggregates/team_membership.py)
+などの集約は、生成メソッドとドメイン操作を通じて状態を管理します。
+Value Objectが値を検証し、集約が状態遷移を検証します。
 
-```python
-from app.domain.value_objects import Email, UserId
-
-@dataclass
-class User:
-    """User aggregate root."""
-
-    id: UserId
-    name: str
-    email: Email
-
-    def __post_init__(self) -> None:
-        # ドメインルールの検証
-        if not self.name:
-            raise ValueError("User name cannot be empty.")
-
-    def change_email(self, new_email: Email) -> "User":
-        """ビジネスロジック: メールアドレス変更"""
-        self.email = new_email
-        return self
-```
-
-**ポイント**:
-
-- ビジネスルールを `__post_init__` で検証
-- **Value Objects** (`UserId`, `Email`) を使用して型安全性を向上
-- リッチドメインモデル（データだけでなく振る舞いを持つ）
+集約の `==` は具象型とIDによる同一性比較です。カプセル化と不変性の違い、
+状態の比較方法、集約境界の決め方は[Domain層実装ガイド](./domain/DOMAIN_IMPLEMENTATION_GUIDE.md)
+を参照してください。
 
 ##### 1.2 Repository Interfaces（リポジトリインターフェース）
 
-`src/app/domain/repositories/interfaces.py`:
+[Repository契約](../src/app/domain/repositories/interfaces.py)はDomainに置き、
+実装はInfrastructureが担います。`IRepository` は追加・更新・削除を、
+`IRepositoryWithId` はさらにID検索を定義します。結果は `Result` で返します。
+Versionを持つ集約は、更新・削除時に古い版からの操作を拒否します。
 
-```python
-from abc import ABC, abstractmethod
-from flow_res import Result
-
-class IRepository[T](ABC):
-    """基本リポジトリインターフェース（追加・削除操作）"""
-
-    @abstractmethod
-    async def add(self, entity: T) -> Result[T, RepositoryError]:
-        pass
-
-    @abstractmethod
-    async def delete(self, entity: T) -> Result[None, RepositoryError]:
-        pass
-
-
-class IRepositoryWithId[T, K](IRepository[T], ABC):
-    """ID検索機能付きリポジトリインターフェース"""
-
-    @abstractmethod
-    async def get_by_id(self, id: K) -> Result[T, RepositoryError]:
-        pass
-```
-
-**ポイント**:
-
-- ドメイン層でインターフェースを定義
-- 実装はインフラ層が担当（依存性逆転）
-- Result型で型安全なエラーハンドリング
-
-`IRepository` と `RepositoryError` はDomainの汎用契約である。トランザクションの
-ライフサイクルを表す `IUnitOfWork` と読み取り専用の `IChatHistoryQuery` は、
-Domainから独立した `src/app/contracts/ports/` のApplicationポートである。
-
-**設計判断: Protocol から ABC への移行**:
-
-当初は `Protocol` ベースの設計を採用していましたが、DI（依存性注入）による
-インターフェース分離が実現されているため、`Protocol` の構造的型付けの柔軟性は
-不要であることが判明しました。
-
-`ABC` ベースの明示的継承により、以下の利点が得られます:
-
-- 型安全性の向上（クラス定義時にエラー検出）
-- IDEサポートの改善（自動補完、リファクタリング）
-- 開発者の意図の明確化
-- インターフェースと実装の乖離防止
-
-なお、`IValueObject` などのドメイン層インターフェースは、ランタイム型チェックが
-必要なため、引き続き `Protocol` を使用します。
+`IUnitOfWork` と `IChatHistoryQuery` は `contracts/ports` に置くApplicationポートで、
+Domainからは参照しません。前者はトランザクションとRepositoryの寿命を、
+後者は読み取り専用の履歴取得を表します。
 
 ##### 1.3 Result Type（結果型）
 
@@ -534,51 +469,14 @@ CreateとGetの結果をつなぐ実例は
 
 ## テスト戦略
 
-### 1. ユニットテスト
+- [集約の単体テスト](../tests/domain/aggregates)では、状態遷移・同一性・不変性を検証します。
+- [ユースケースのテスト](../tests/usecases)では、ドメイン操作と保存の流れを検証します。
+- [マッピングテスト](../tests/infrastructure/test_domain_mappings.py)では、IDだけでなく復元後の各属性を確認します。
+- [Repositoryテスト](../tests/infrastructure/test_repositories.py)では、古いVersionからの削除拒否と最新状態の保持を確認します。
+- [Membership制約テスト](../tests/infrastructure/test_team_membership_constraints.py)では、同時加入時の一意性を確認します。
 
-`tests/domain/aggregates/test_user.py`:
-
-```python
-import pytest
-
-@pytest.mark.anyio
-async def test_create_user_with_empty_name_raises_error() -> None:
-    with pytest.raises(ValueError, match="User name cannot be empty"):
-        User(id=UserId.generate().unwrap(), name="", email=Email.from_primitive("a@a.com").unwrap())
-```
-
-### 2. 統合テスト
-
-`tests/usecases/users/test_get_user.py`:
-
-```python
-import pytest
-from app.domain.value_objects import UserId, Email
-
-@pytest.mark.anyio
-async def test_get_user_handler(uow: IUnitOfWork) -> None:
-    # Setup
-    user = User(id=UserId.generate().unwrap(), name="Bob", email=Email.from_primitive("bob@a.com").unwrap())
-    async with uow:
-        repo = uow.GetRepository(User, UserId)
-        await repo.add(user)
-        await uow.commit()
-
-    # Execute
-    handler = GetUserHandler(uow)
-    query = GetUserQuery(user_id=user.id.to_primitive())
-    result = await handler.handle(query)
-
-    # Assert
-    assert is_ok(result)
-    assert result.value.user.name == "Bob"
-```
-
-**特徴**:
-
-- 非同期テストには `@pytest.mark.anyio` を使用
-- データベースを含む
-- トランザクション動作の検証
+非同期テストは `@pytest.mark.anyio` を使用します。DBを使うテストの環境は
+[共通fixture](../tests/conftest.py)を参照してください。
 
 ---
 
@@ -617,62 +515,10 @@ ruff = ">=0.14.6"
 
 ### 新しい集約の追加
 
-1. **ドメイン集約とValue Objectを作成**
-
-```python
-# src/app/domain/aggregates/guild.py
-@dataclass
-class Guild:
-    id: GuildId
-    name: str
-```
-
-1. **ORMモデルを作成**
-
-```python
-# src/app/infrastructure/orm_models/guild_orm.py
-class GuildORM(SQLModel, table=True):
-    __tablename__ = "guilds"
-    id: str | None = Field(default=None, primary_key=True)
-    name: str
-```
-
-1. **明示的マッパーを作成して登録**
-
-`src/app/infrastructure/mappings/guild.py` に `guild_to_orm` と
-`guild_from_orm` を実装します。既存の集約別マッパーと同様に、
-保存する列とドメインの復元処理を明示します。
-
-```python
-# src/app/infrastructure/orm_registry.py
-from app.domain.aggregates.guild import Guild
-from app.infrastructure.mappings.guild import guild_from_orm, guild_to_orm
-from app.infrastructure.orm_mapping import register_orm_mapping
-from app.infrastructure.orm_models.guild_orm import GuildORM
-
-def init_orm_mappings() -> None:
-    """Initialize all ORM mappings."""
-    # 既存の登録に追加
-    register_orm_mapping(
-        Guild, GuildORM, to_orm=guild_to_orm, from_orm=guild_from_orm
-    )
-```
-
-`init_orm_mappings` はアプリ起動時に `src/app/container.py` から自動で呼び出されるため、ここの追加だけでマッピングは完了します。
-
-1. **ユースケースを作成**
-
-```python
-# src/app/usecases/guilds/get_guild.py
-# ... GetGuildQuery, GetGuildHandler などを実装
-```
-
-1. **Cogを作成**
-
-```python
-# src/app/presentation/bot/cogs/guilds_cog.py
-# ... ApplicationMediator経由でユースケースを呼び出すコマンドを実装
-```
+1. 不変条件と整合性の範囲を決め、集約・Value Object・必要なドメイン操作を定義する。[実装ガイド](./domain/DOMAIN_IMPLEMENTATION_GUIDE.md)の同一性比較とカプセル化の方針に従う。
+2. 永続化が必要ならORMモデルと双方向の明示的マッパーを作り、[init_orm_mappings](../src/app/infrastructure/orm_registry.py)へ登録する。
+3. 入力変換・ドメイン操作・保存を調整するユースケースを作る。
+4. APIやCogからユースケースを呼び出し、状態遷移・復元・必要な同時実行制約をテストする。
 
 ### データベースマイグレーション
 
