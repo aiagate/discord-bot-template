@@ -37,6 +37,11 @@ class IUnitOfWork(ABC):
         pass
 
     @abstractmethod
+    def GetCustomRepository[R](self, port_type: type[R]) -> R:
+        """Get a registered repository port within the current transaction."""
+        pass
+
+    @abstractmethod
     async def commit(self) -> Result[None, RepositoryError]:
         """Commit the current transaction."""
         pass

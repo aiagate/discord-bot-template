@@ -36,9 +36,25 @@ class ORMMappingRegistry:
 
         Raises:
             TypeError: If either converter is not callable
+            ValueError: If either type already has a different mapping
         """
         if not callable(to_orm) or not callable(from_orm):
             raise TypeError("Both to_orm and from_orm must be callable.")
+
+        if domain_type in cls._domain_to_orm:
+            if (
+                cls._domain_to_orm[domain_type] is orm_type
+                and cls._to_orm[domain_type] is to_orm
+                and cls._from_orm[orm_type] is from_orm
+            ):
+                return
+            raise ValueError(
+                f"Conflicting ORM mapping for domain type: {domain_type.__name__}"
+            )
+        if orm_type in cls._from_orm:
+            raise ValueError(
+                f"Conflicting domain mapping for ORM type: {orm_type.__name__}"
+            )
 
         cls._domain_to_orm[domain_type] = orm_type
         cls._to_orm[domain_type] = to_orm

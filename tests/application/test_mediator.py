@@ -3,17 +3,49 @@
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from flow_med import DuplicateHandlerError, InvalidHandlerError
 from flow_res import Err, is_err, is_ok
 from injector import Injector
 
 from app import container
+from app.application import mediator as mediator_module
 from app.application.mediator import ApplicationMediator, create_application_mediator
 from app.contracts.ports import IUnitOfWork
 from app.domain.repositories import RepositoryError, RepositoryErrorType
 from app.domain.value_objects import TeamId
 from app.usecases.result import ErrorType
 from app.usecases.teams.get_team import GetTeamQuery
-from app.usecases.users.welcome_user import WelcomeUserCommand
+from app.usecases.users.welcome_user import WelcomeUserCommand, WelcomeUserHandler
+
+
+@pytest.mark.parametrize("same_type", [True, False])
+def test_composition_rejects_duplicate_handlers(
+    monkeypatch: pytest.MonkeyPatch, same_type: bool
+) -> None:
+    class OtherWelcomeHandler(WelcomeUserHandler):
+        pass
+
+    monkeypatch.setattr(
+        mediator_module,
+        "_HANDLER_TYPES",
+        (WelcomeUserHandler, WelcomeUserHandler if same_type else OtherWelcomeHandler),
+    )
+
+    with pytest.raises(DuplicateHandlerError):
+        create_application_mediator(Injector())
+
+
+def test_composition_rejects_invalid_handler(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(mediator_module, "_HANDLER_TYPES", (object,))
+
+    with pytest.raises(InvalidHandlerError):
+        create_application_mediator(Injector())
+
+
+def test_separate_application_scopes_can_register_the_same_handlers() -> None:
+    assert create_application_mediator(Injector()) is not create_application_mediator(
+        Injector()
+    )
 
 
 @pytest.mark.anyio

@@ -66,6 +66,47 @@ def test_mapping_dictionary_is_a_copy() -> None:
     assert ORMMappingRegistry.get_orm_type(Dummy) is DummyORM
 
 
+def test_identical_registration_is_idempotent() -> None:
+    register_orm_mapping(Dummy, DummyORM, dummy_to_orm, dummy_from_orm)
+    register_orm_mapping(Dummy, DummyORM, dummy_to_orm, dummy_from_orm)
+
+    assert ORMMappingRegistry.get_mapping_dict() == {Dummy: DummyORM}
+
+
+@pytest.mark.parametrize("conflict", ["domain", "orm", "to_orm", "from_orm"])
+def test_conflicting_registration_preserves_both_directions(conflict: str) -> None:
+    class OtherDomain:
+        pass
+
+    class OtherORM(SQLModel):
+        pass
+
+    register_orm_mapping(Dummy, DummyORM, dummy_to_orm, dummy_from_orm)
+
+    with pytest.raises(ValueError, match="Conflicting"):
+        register_orm_mapping(
+            OtherDomain if conflict == "domain" else Dummy,
+            OtherORM if conflict == "orm" else DummyORM,
+            (lambda _: DummyORM(stored_name="wrong"))
+            if conflict == "to_orm"
+            else dummy_to_orm,
+            (lambda _: Dummy(name="wrong"))
+            if conflict == "from_orm"
+            else dummy_from_orm,
+        )
+
+    original = Dummy(name="original")
+    row = ORMMappingRegistry.to_orm(original)
+    assert isinstance(row, DummyORM)
+    assert row.stored_name == original.name
+    assert ORMMappingRegistry.from_orm(row) == original
+    assert ORMMappingRegistry.get_mapping_dict() == {Dummy: DummyORM}
+    with pytest.raises(ValueError, match="No ORM mapping registered"):
+        ORMMappingRegistry.to_orm(OtherDomain())
+    with pytest.raises(ValueError, match="No domain mapping registered"):
+        ORMMappingRegistry.from_orm(OtherORM())
+
+
 def test_unregistered_domain_raises_error() -> None:
     """Unregistered domain types have no implicit conversion."""
     assert ORMMappingRegistry.get_orm_type(Dummy) is None

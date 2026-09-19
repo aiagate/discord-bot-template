@@ -2,6 +2,8 @@
 
 from datetime import UTC, datetime
 
+import pytest
+
 from app.domain.aggregates.team import Team
 from app.domain.aggregates.team_membership import TeamMembership
 from app.domain.aggregates.user import User
@@ -22,6 +24,48 @@ from app.infrastructure.mappings.team_membership import (
     team_membership_to_orm,
 )
 from app.infrastructure.mappings.user import user_from_orm, user_to_orm
+from app.infrastructure.orm_mapping import ORMMappingRegistry
+from tests.domain.aggregate_cases import AGGREGATE_CASES, Aggregate, aggregate_state
+
+
+@pytest.mark.parametrize(
+    "aggregate_type", AGGREGATE_CASES, ids=lambda cls: cls.__name__
+)
+def test_mapping_round_trip_preserves_every_persisted_field(
+    aggregate_type: type[Aggregate],
+) -> None:
+    aggregate = aggregate_type.restore(**AGGREGATE_CASES[aggregate_type].restore_values)
+
+    restored = ORMMappingRegistry.from_orm(ORMMappingRegistry.to_orm(aggregate))
+
+    assert restored is not aggregate
+    assert type(restored) is aggregate_type
+    assert aggregate_state(restored) == aggregate_state(aggregate)
+
+
+@pytest.mark.parametrize(
+    ("aggregate_type", "field", "invalid_value"),
+    [
+        (aggregate_type, field, invalid_value)
+        for aggregate_type, case in AGGREGATE_CASES.items()
+        for field, invalid_value in case.invalid_rows
+        + (
+            (("version", -1), ("created_at", None), ("updated_at", None))
+            if case.mutable
+            else ()
+        )
+    ],
+    ids=lambda value: value.__name__ if isinstance(value, type) else str(value),
+)
+def test_invalid_persisted_state_is_rejected_without_fallbacks(
+    aggregate_type: type[Aggregate], field: str, invalid_value: object
+) -> None:
+    aggregate = aggregate_type.restore(**AGGREGATE_CASES[aggregate_type].restore_values)
+    row = ORMMappingRegistry.to_orm(aggregate)
+    setattr(row, field, invalid_value)
+
+    with pytest.raises(ValueError):
+        ORMMappingRegistry.from_orm(row)
 
 
 def test_user_mapping_restores_id_version_and_audit_state() -> None:

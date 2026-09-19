@@ -1,12 +1,9 @@
 """Tests for current membership period uniqueness."""
 
-from pathlib import Path
-
 import anyio
 import pytest
 from flow_res import is_err, is_ok
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-from sqlmodel import SQLModel
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.contracts.ports import IUnitOfWork
 from app.domain.aggregates.team_membership import TeamMembership
@@ -55,22 +52,9 @@ async def test_partial_index_allows_leaved_history_but_rejects_current_duplicate
 
 @pytest.mark.anyio
 async def test_concurrent_membership_insert_returns_one_conflict(
-    tmp_path: Path,
+    session_factory: async_sessionmaker[AsyncSession],
 ) -> None:
     """Separate sessions map a concurrent duplicate insert to one conflict."""
-    database_path = tmp_path / "membership-concurrency.db"
-    engine = create_async_engine(
-        f"sqlite+aiosqlite:///{database_path}",
-        connect_args={"timeout": 10},
-        pool_size=2,
-        max_overflow=0,
-    )
-    session_factory = async_sessionmaker(
-        engine,
-        class_=AsyncSession,
-        expire_on_commit=False,
-    )
-
     ready_count = 0
     ready_lock = anyio.Lock()
     both_ready = anyio.Event()
@@ -102,18 +86,12 @@ async def test_concurrent_membership_insert_returns_one_conflict(
             assert is_ok(commit_result)
             outcomes.append(None)
 
-    try:
-        async with engine.begin() as connection:
-            await connection.run_sync(SQLModel.metadata.create_all)
+    async with anyio.create_task_group() as task_group:
+        task_group.start_soon(attempt_insert)
+        task_group.start_soon(attempt_insert)
 
-        async with anyio.create_task_group() as task_group:
-            task_group.start_soon(attempt_insert)
-            task_group.start_soon(attempt_insert)
-
-        assert outcomes.count(None) == 1
-        assert outcomes.count(RepositoryErrorType.ALREADY_EXISTS) == 1
-    finally:
-        await engine.dispose()
+    assert outcomes.count(None) == 1
+    assert outcomes.count(RepositoryErrorType.ALREADY_EXISTS) == 1
 
 
 @pytest.mark.anyio

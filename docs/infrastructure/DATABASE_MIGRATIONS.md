@@ -1,8 +1,9 @@
 # データベースマイグレーションガイド
 
-最終更新日: 2025-12-05
+最終更新日: 2026-09-19
 
-このドキュメントは、Alembicを使用したデータベースマイグレーションの作成・管理方法を説明します。
+このドキュメントは、Alembicを使用したデータベースマイグレーションの作成・管理・検証方法を説明します。
+集約・機能追加の一連の手順全体は、正本ガイドである **[機能追加ガイド（ADDING_FEATURE.md）](../development/ADDING_FEATURE.md)** を参照してください。
 
 ## Membershipの現在期間一意性
 
@@ -19,7 +20,7 @@
 ## 目次
 
 - [概要](#概要)
-- [マイグレーション作成の基本フロー](#マイグレーション作成の基本フロー)
+- [マイグレーション作成と検証の基本フロー](#マイグレーション作成と検証の基本フロー)
 - [マイグレーションパターン](#マイグレーションパターン)
 - [よくあるケース](#よくあるケース)
 - [トラブルシューティング](#トラブルシューティング)
@@ -55,78 +56,93 @@
 
 ---
 
-## マイグレーション作成の基本フロー
+## マイグレーション作成と検証の基本フロー
 
-### 1. ORMモデルの変更
+**基本方針**: 既存のテーブル構造や列で対応できる場合は、不要なマイグレーションを作成しません。スキーマ変更が必要な場合のみ、以下のフローで作成・検証します。
 
-まず、`src/app/infrastructure/orm_models/` 配下のORMモデルを変更します。
+> [!WARNING]
+> テスト実行時（`conftest.py`）の `SQLModel.metadata.create_all()` はモデル定義から直接テーブルを作成するため、**テストが通過してもマイグレーションスクリプトが正しく動作することの検証にはなりません**。必ず以下の独立した検証手順を実施してください。
 
-例: `user_orm.py`
+### 1. ORMモデルの変更と読み込み正本への登録
 
-```python
-class UserORM(SQLModel, table=True):
-    __tablename__ = "users"
+`src/app/infrastructure/orm_models/` 配下のORMモデルを変更・追加します。
+作成・変更したモデルは、必ず [`src/app/infrastructure/orm_models/__init__.py`](../../src/app/infrastructure/orm_models/__init__.py) でインポートし、`__all__` に含めてください。
+Alembic（`alembic/env.py`）はこのパッケージから全モデルを一括で読み込みます。
 
-    id: str | None = Field(default=None, primary_key=True, max_length=26)
-    display_name: str = Field(max_length=255, index=True)  # 変更
-    email: str = Field(max_length=255, unique=True, index=True)
-    created_at: datetime = Field(...)
-    updated_at: datetime = Field(...)
-```
+### 2. 使い捨てデータベースでの検証フロー
 
-### 2. マイグレーションファイルの生成
+既存の開発用や実運用のデータベースに影響を与えないよう、`mktemp -d` で作成した専用一時ディレクトリ内で括弧のsubshell `( ... )` を用いて検証を行います。これにより終了後に利用者のshell環境へ環境変数を残さず、既存のデータベースファイルを誤って操作・削除するリスクを防ぎます。
+検証は「リビジョン生成」と「往復適用・整合性確認」の2段階に分け、生成後の目視レビューを必ず挟んで進めます。
 
-```bash
-uv run alembic revision -m "変更内容の説明"
-```
+#### フェーズ 1: 一時DBでのマイグレーション自動生成
 
-例:
+一時DBを現在の最新headまで適用した上で、現在のORMモデルとの差分から新しいリビジョンファイルを生成します。
 
 ```bash
-uv run alembic revision -m "rename user name to display name"
+(
+  set -e
+  TMP_DIR=$(mktemp -d)
+  trap 'rm -rf "$TMP_DIR"' EXIT
+  export DATABASE_URL="sqlite+aiosqlite:///$TMP_DIR/migration_gen.db"
+
+  # 現在のheadまで適用
+  uv run alembic upgrade head
+
+  # リビジョンファイルを自動生成
+  uv run alembic revision --autogenerate -m "変更内容の説明"
+)
 ```
 
-生成されるファイル:
+#### フェーズ 2: 生成されたリビジョンファイルの目視確認と手動修正
 
-```
-alembic/versions/d71330ad48f7_rename_user_name_to_display_name.py
-```
+自動生成された `alembic/versions/<revision_id>_<message>.py` をエディタで開き、**必ず人の目で内容を確認・手動修正**します。
 
-### 3. マイグレーションコードの実装
+> [!IMPORTANT]
+> **自動生成の限界と目視確認**:
+> Alembicの自動生成はテーブル追加や列追加を検出できますが、テーブル名や列名の変更（dropとaddとして誤検出される）、一部のCHECK制約・外部キー制約、部分一意インデックスの条件などを正確に検出できない制限があります。
+> 参考: [Alembic Autogenerateの対象と限界（公式ドキュメント）](https://alembic.sqlalchemy.org/en/latest/autogenerate.html)、[Alembic check コマンド（公式ドキュメント）](https://alembic.sqlalchemy.org/en/latest/api/commands.html#alembic.command.check)
 
-生成されたファイルの `upgrade()` と `downgrade()` 関数を実装します。
+また、生成されたファイル冒頭の `down_revision` の値（直前のリビジョンID文字列、例: `'0195e4e8979b'`）を確認し、次の検証フェーズで使用します。
 
-```python
-def upgrade() -> None:
-    """Upgrade schema."""
-    # アップグレード処理を実装
+#### フェーズ 3: 別の一時DBでの往復適用とデータ保持・整合性の検証
 
-def downgrade() -> None:
-    """Downgrade schema."""
-    # ダウングレード処理を実装
-```
+生成したマイグレーションが既存データを含む環境で正常に適用でき、ダウングレードやクリーンインストールでも不整合が起きないかを、**別の一時DB**を作成して検証します。
 
-### 4. マイグレーションの実行
+> [!CAUTION]
+> 以下のスクリプトを実行する前に、必ず `DOWN_REVISION` 変数の値をフェーズ2で確認した生成ファイルの `down_revision`（例: `"0195e4e8979b"`。最初のマイグレーションなら `"base"`）に置き換えてください。架空の値のまま実行してはなりません。
 
 ```bash
-# 現在の状態を確認
-uv run alembic current
+(
+  set -e
+  TMP_DIR=$(mktemp -d)
+  trap 'rm -rf "$TMP_DIR"' EXIT
+  export DATABASE_URL="sqlite+aiosqlite:///$TMP_DIR/migration_test.db"
 
-# マイグレーションを実行
-uv run alembic upgrade head
+  # ★必ず生成された alembic/versions/*.py の down_revision の値に置き換えて実行してください
+  DOWN_REVISION="<生成ファイルで確認したdown_revisionの値を設定>"
 
-# マイグレーション履歴を確認
-uv run alembic history
-```
+  # 1. 変更直前の旧リビジョン（down_revision）まで適用
+  uv run alembic upgrade "$DOWN_REVISION"
 
-### 5. ロールバックのテスト
+  # 2. 代表的な旧データを投入し、移行前のデータ状態を準備（必要に応じてPythonスクリプト等で実施）
 
-```bash
-# 1つ前にロールバック
-uv run alembic downgrade -1
+  # 3. 新しいheadへアップグレードし、旧データが保持・適切に変換されているかを検証
+  uv run alembic upgrade head
 
-# 再度アップグレード
-uv run alembic upgrade head
+  # 4. 1つ前のリビジョンにロールバック（ダウングレード）
+  uv run alembic downgrade -1
+
+  # 5. 再度新headへアップグレードし、旧データが維持されていることを検証
+  uv run alembic upgrade head
+
+  # 6. ORMモデル定義とデータベーススキーマの乖離を検査
+  uv run alembic check
+
+  # 7. 別の空DBから直接新headまで適用し、新規構築（クリーンインストール）の整合性を確認
+  export DATABASE_URL="sqlite+aiosqlite:///$TMP_DIR/migration_clean.db"
+  uv run alembic upgrade head
+  uv run alembic check
+)
 ```
 
 ---
@@ -280,16 +296,9 @@ def downgrade() -> None:
 
 ### 新しいテーブルを追加する
 
-1. `src/app/infrastructure/orm_models/` に新しいORMモデルを作成
-2. `alembic/env.py` でモデルをインポート（自動検出のため）
-3. マイグレーションを生成:
-
-   ```bash
-   uv run alembic revision -m "add teams table"
-   ```
-
-4. 生成されたファイルを確認・編集
-5. マイグレーションを実行
+1. `src/app/infrastructure/orm_models/` に新しいORMモデルを作成します。
+2. `src/app/infrastructure/orm_models/__init__.py` に新しいモデルをインポートし、`__all__` に追加します（Alembicは `alembic/env.py` 経由でこのパッケージから全モデルを一括読み込みするため）。
+3. [マイグレーション作成と検証の基本フロー](#マイグレーション作成と検証の基本フロー) に従って、一時DBでのリビジョン自動生成、生成ファイルの目視確認、別一時DBでの往復検証（`upgrade` / `downgrade` / `check`）を実施します。
 
 ### 既存のテーブルにカラムを追加する
 
@@ -466,5 +475,6 @@ uv run --frozen ruff check . --fix
 
 ## 関連ドキュメント
 
+- [機能追加ガイド](../development/ADDING_FEATURE.md)
 - [アーキテクチャ設計](../ARCHITECTURE.md)
 - [ドメイン実装ガイド](../domain/DOMAIN_IMPLEMENTATION_GUIDE.md)
