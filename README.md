@@ -198,18 +198,22 @@ uv run alembic history
 
 ## テスト実行
 
+データベースを伴うテストは環境変数 `TEST_DATABASE_URL` で接続先を制御できます。
+未指定または `sqlite+aiosqlite://` の場合はテストごとに独立した一時ファイルSQLite（外部キー制約有効）が使用されます。
+`postgresql+asyncpg://...` を指定した場合はUUIDによる独立したスキーマで隔離実行されます。
+
 ```bash
-# 全テスト実行
-uv run pytest
+# 全テスト実行（SQLite一時ファイル、デフォルト）
+TEST_DATABASE_URL=sqlite+aiosqlite:// uv run --frozen pytest
+
+# PostgreSQL環境での実行例（※テスト用DBを指定すること）
+TEST_DATABASE_URL=postgresql+asyncpg://postgres:password@localhost:5432/test_db uv run --frozen pytest
 
 # カバレッジ付きで実行
-uv run pytest --cov=app --cov-report=term-missing
+uv run --frozen pytest --cov=app --cov-report=term-missing
 
 # 特定のテストファイルのみ実行
-uv run pytest tests/infrastructure/test_repositories.py
-
-# 詳細な出力
-uv run pytest -v
+uv run --frozen pytest tests/infrastructure/test_repositories.py
 ```
 
 ## コード品質チェック
@@ -284,9 +288,10 @@ uv run pytest
 
 プロジェクトの詳細なドキュメントは `docs/` ディレクトリにあります：
 
+- **[機能追加ガイド](docs/development/ADDING_FEATURE.md)** - 新機能・集約の追加手順（正本）
 - **[アーキテクチャ設計](docs/ARCHITECTURE.md)** - システム全体のアーキテクチャ詳細
 - **[Domain層実装ガイド](docs/domain/DOMAIN_IMPLEMENTATION_GUIDE.md)** - ドメインモデルの実装方法
-- **[課題・改善点リスト](docs/ISSUES_AND_IMPROVEMENTS.md)** - 技術的な課題と改善提案
+- **[データベースマイグレーション](docs/infrastructure/DATABASE_MIGRATIONS.md)** - Alembicによるマイグレーション管理
 
 ## TODO
 

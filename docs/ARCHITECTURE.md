@@ -260,6 +260,9 @@ class GenericRepository[T, K](IRepositoryWithId[T, K]):
 
 - 型安全な汎用実装（Generics使用）
 - ORM ↔ Domain の変換を `ORMMappingRegistry` に委譲
+- ORM標準の保存処理（`merge(load=True)` / `flush`）を使用し、SQL発行順序はSQLAlchemyに委譲
+- 楽観ロック（Version管理）: 初期値0、更新ごとに+1（子要素のみ変更や同値更新を含む）。事前読み込みで古いVersionを即時検知し、競合時は `VERSION_CONFLICT` を返却
+- 集約全体のスナップショットを受け取り、所有する子要素を整合性をもって同期（空コレクションは全削除）
 - Result型でエラーハンドリング
 
 ##### 3.3 ORM Mapping Registry
@@ -297,32 +300,40 @@ User、Team、TeamMembership、ChatMessageは、それぞれのドメイン語�
 
 ```python
 class SQLAlchemyUnitOfWork(IUnitOfWork):
-    """トランザクション境界を管理"""
+    """トランザクション境界とリポジトリ寿命を管理"""
 
-    def __init__(self, session_factory: async_sessionmaker[AsyncSession]) -> None:
+    def __init__(
+        self,
+        session_factory: async_sessionmaker[AsyncSession],
+        repository_factories: RepositoryFactories | None = None,
+    ) -> None:
         self._session_factory = session_factory
+        self._repository_factories = dict(repository_factories or {})
         # ...
 
     def GetRepository[T, K](...) -> IRepository[T, K]:
-        # リポジトリの取得（キャッシュ付き）
+        # 汎用リポジトリの取得（セッションスコープ内でキャッシュ）
+        # ...
+
+    def GetCustomRepository[R](self, port_type: type[R]) -> R:
+        # 登録済み専用リポジトリの取得（同一セッションを渡して生成・キャッシュ）
         # ...
 
     async def __aenter__(self) -> "SQLAlchemyUnitOfWork":
         # ...
 
     async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
-        if exc_type is None:
-            await self.commit()  # 成功時はコミット
-        else:
-            await self.rollback()  # 例外時はロールバック
+        # スコープ終了時にロールバックし、セッションを閉じる
         # ...
 ```
 
 **ポイント**:
 
-- **トランザクション境界の明確化**
-- リポジトリのキャッシュ（同一トランザクション内で再利用）
-- 例外時のロールバック（コンテキストマネージャー）。成功時のコミットは各ユースケースが明示する
+- **トランザクション境界の明確化**: リクエストやユースケース単位で同一Session・トランザクションを共有
+- **汎用と専用リポジトリの統合管理**: `GetRepository` に加え、`GetCustomRepository` で型安全に専用Repositoryを取得。専用RepositoryはUoWの現在Sessionを共有し、独自にSession作成やcommitを行わない
+- **ロールバックと失敗状態の追跡**: 正常な `uow.rollback()` は未確定の書き込みを破棄して継続可能（その後新たな操作を行いコミット可能）ですが、既に失敗済みの場合は失敗状態を保持します。flush失敗（`StaleDataError`, `IntegrityError` 等）やRepository内部からの直接ロールバックはSessionの `after_soft_rollback` イベントでUoWに失敗状態を記録し、同一スコープ内での後続commit呼び出しを拒否します（新UoWスコープで再試行）。通常の事前Version不一致はトランザクションを壊しません。
+- **リポジトリのキャッシュ**: 同一スコープ内で同一型のリポジトリインスタンスを再利用
+- **明示的なコミット**: 成功時のコミットは各ユースケースが明示する（コンテキストマネージャー終了時は未コミットの変更を破棄）
 
 チャット履歴の読み取りは `IChatHistoryQuery` をDIで取得し、SQLAlchemy実装が
 session factoryから呼び出し単位のセッションを作成・終了します。Unit of Workの
@@ -470,10 +481,13 @@ CreateとGetの結果をつなぐ実例は
 ## テスト戦略
 
 - [集約の単体テスト](../tests/domain/aggregates)では、状態遷移・同一性・不変性を検証します。
+- [集約の共通契約テスト](../tests/domain/test_aggregate_contracts.py)（定義: [aggregate_cases.py](../tests/domain/aggregate_cases.py)）では、同一性・可変性・hash契約を共通で検証します。
 - [ユースケースのテスト](../tests/usecases)では、ドメイン操作と保存の流れを検証します。
 - [マッピングテスト](../tests/infrastructure/test_domain_mappings.py)では、IDだけでなく復元後の各属性を確認します。
 - [Repositoryテスト](../tests/infrastructure/test_repositories.py)では、古いVersionからの削除拒否と最新状態の保持を確認します。
 - [Membership制約テスト](../tests/infrastructure/test_team_membership_constraints.py)では、同時加入時の一意性を確認します。
+- [集約永続化・UoW統合テスト](../tests/infrastructure/test_aggregate_persistence.py)（モデル: [helpers/aggregate_persistence.py](../tests/helpers/aggregate_persistence.py)）では、親子集約保存、実race競合ロールバック、専用RepositoryとUoWの連携を検証します。
+- [登録完全性テスト](../tests/infrastructure/test_registration_completeness.py)では、モデル・マッピング・Handler登録漏れを検証します。
 
 非同期テストは `@pytest.mark.anyio` を使用します。DBを使うテストの環境は
 [共通fixture](../tests/conftest.py)を参照してください。
@@ -513,22 +527,15 @@ ruff = ">=0.14.6"
 
 ## 拡張方法
 
-### 新しい集約の追加
+### 新しい機能・集約の追加
 
-1. 不変条件と整合性の範囲を決め、集約・Value Object・必要なドメイン操作を定義する。[実装ガイド](./domain/DOMAIN_IMPLEMENTATION_GUIDE.md)の同一性比較とカプセル化の方針に従う。
-2. 永続化が必要ならORMモデルと双方向の明示的マッパーを作り、[init_orm_mappings](../src/app/infrastructure/orm_registry.py)へ登録する。
-3. 入力変換・ドメイン操作・保存を調整するユースケースを作る。
-4. APIやCogからユースケースを呼び出し、状態遷移・復元・必要な同時実行制約をテストする。
+新しい集約、ORMモデル、明示的マッピング、UseCase/Handler、Presentation層の接続、およびテストの一連の追加手順は、正本ガイドである **[機能追加ガイド（ADDING_FEATURE.md）](./development/ADDING_FEATURE.md)** を参照してください。
+
+実在する `Team` 機能を主例に、編集先・登録先・検証コマンドの対応表とともに手順を一本化して案内しています。
 
 ### データベースマイグレーション
 
-```bash
-# スキーマ変更後、マイグレーションを生成
-uv run alembic revision --autogenerate -m "Add guilds table"
-
-# マイグレーション適用
-uv run alembic upgrade head
-```
+マイグレーションの作成・検証手順の詳細は、**[データベースマイグレーションガイド](./infrastructure/DATABASE_MIGRATIONS.md)** および **[機能追加ガイド（Step 6）](./development/ADDING_FEATURE.md#step-6-データベースマイグレーションの検証スキーマ変更時)** を参照してください。使い捨てデータベース環境での往復テストと `alembic check` による検証を推奨しています。
 
 ---
 

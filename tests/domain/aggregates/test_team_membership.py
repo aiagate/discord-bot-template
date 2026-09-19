@@ -15,6 +15,69 @@ from app.domain.value_objects import (
     UserId,
     Version,
 )
+from tests.domain.aggregate_cases import AGGREGATE_CASES, aggregate_state
+
+
+@pytest.mark.parametrize("status", list(MembershipStatus))
+@pytest.mark.parametrize(
+    ("operation", "expected_by_status"),
+    [
+        (
+            "approve",
+            {
+                MembershipStatus.PENDING: MembershipStatus.ACTIVE,
+                MembershipStatus.ACTIVE: None,
+                MembershipStatus.LEAVED: None,
+            },
+        ),
+        (
+            "activate",
+            {
+                MembershipStatus.PENDING: MembershipStatus.ACTIVE,
+                MembershipStatus.ACTIVE: None,
+                MembershipStatus.LEAVED: None,
+            },
+        ),
+        (
+            "leave",
+            {
+                MembershipStatus.PENDING: MembershipStatus.LEAVED,
+                MembershipStatus.ACTIVE: MembershipStatus.LEAVED,
+                MembershipStatus.LEAVED: None,
+            },
+        ),
+        (
+            "change_role",
+            {
+                MembershipStatus.PENDING: MembershipStatus.PENDING,
+                MembershipStatus.ACTIVE: MembershipStatus.ACTIVE,
+                MembershipStatus.LEAVED: None,
+            },
+        ),
+    ],
+)
+def test_membership_transition_table_preserves_state_on_rejection(
+    status: MembershipStatus,
+    operation: str,
+    expected_by_status: dict[MembershipStatus, MembershipStatus | None],
+) -> None:
+    membership = TeamMembership.restore(
+        **(AGGREGATE_CASES[TeamMembership].restore_values | {"status": status})
+    )
+    before = aggregate_state(membership)
+    expected_status = expected_by_status[status]
+    arguments = (MembershipRole.OWNER,) if operation == "change_role" else ()
+
+    if expected_status is None:
+        with pytest.raises(MembershipTransitionError):
+            getattr(membership, operation)(*arguments)
+        assert aggregate_state(membership) == before
+    else:
+        assert getattr(membership, operation)(*arguments) is membership
+        changes: dict[str, object] = {"status": expected_status}
+        if operation == "change_role":
+            changes["role"] = MembershipRole.OWNER
+        assert aggregate_state(membership) == before | changes
 
 
 def test_membership_identity_survives_status_role_and_version_changes() -> None:

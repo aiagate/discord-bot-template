@@ -1,11 +1,12 @@
 """Tests for infrastructure Unit of Work component."""
 
 import logging
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import patch
 
 import pytest
 from flow_res import is_err, is_ok
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.contracts.ports import IUnitOfWork
 from app.domain.aggregates.user import User
@@ -66,18 +67,19 @@ async def test_uow_rollback(uow: IUnitOfWork) -> None:
 @pytest.mark.anyio
 async def test_uow_commit_logs_database_errors(
     caplog: pytest.LogCaptureFixture,
+    session_factory: async_sessionmaker[AsyncSession],
 ) -> None:
     """Commit failures keep a diagnostic record before becoming Result errors."""
-    session = MagicMock()
-    session.__aenter__ = AsyncMock(return_value=session)
-    session.__aexit__ = AsyncMock(return_value=None)
-    session.commit = AsyncMock(side_effect=SQLAlchemyError("commit failed"))
-    session_factory = MagicMock(return_value=session)
     uow = SQLAlchemyUnitOfWork(session_factory)
 
     with caplog.at_level(logging.ERROR, logger="app.infrastructure.unit_of_work"):
         async with uow:
-            result = await uow.commit()
+            assert uow._session is not None
+            with patch.object(
+                uow._session, "commit", side_effect=SQLAlchemyError("commit failed")
+            ):
+                result = await uow.commit()
+            assert is_err(await uow.commit())
 
     assert is_err(result)
     assert result.error.message == "commit failed"

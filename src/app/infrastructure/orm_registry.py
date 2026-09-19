@@ -19,10 +19,12 @@ from app.infrastructure.mappings.team_membership import (
 )
 from app.infrastructure.mappings.user import user_from_orm, user_to_orm
 from app.infrastructure.orm_mapping import register_orm_mapping
-from app.infrastructure.orm_models.chat_message_orm import ChatMessageORM
-from app.infrastructure.orm_models.team_membership_orm import TeamMembershipORM
-from app.infrastructure.orm_models.team_orm import TeamORM
-from app.infrastructure.orm_models.user_orm import UserORM
+from app.infrastructure.orm_models import (
+    ChatMessageORM,
+    TeamMembershipORM,
+    TeamORM,
+    UserORM,
+)
 
 
 def init_orm_mappings() -> None:
