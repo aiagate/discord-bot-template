@@ -1,0 +1,17 @@
+[Unit]
+Description=Discord maid collective
+
+[Service]
+Type=exec
+WorkingDirectory=%h/ghq/github.com/aiagate/discord-bot-template
+Environment=COLLECTIVE_CONFIG=%h/.local/share/discord-bot/maid-collective/config.json
+Environment=DATABASE_URL=sqlite+aiosqlite:///%h/ghq/github.com/aiagate/discord-bot-template/bot.db
+Environment=PATH=%h/.local/bin:%h/.local/share/fnm/node-versions/v24.21.0/installation/bin:/usr/local/bin:/usr/bin:/bin:/snap/bin
+ExecStart=%h/.local/bin/uv run --frozen start-bot
+Restart=on-failure
+RestartSec=5
+KillSignal=SIGINT
+KillMode=control-group
+TimeoutStopSec=120
+SuccessExitStatus=130
+UMask=0077

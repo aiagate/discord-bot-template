@@ -5,6 +5,7 @@ description = "Clean Architecture Discord Bot Template"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
+    "aiohttp>=3.12,<4",
     "aiosqlite>=0.21.0",
     "alembic>=1.17.2",
     "asyncpg>=0.31.0",
@@ -14,6 +15,8 @@ dependencies = [
     "flow-res==0.1.1",
     "injector>=0.22.0",
     "line-bot-sdk>=3.23.0",
+    "openai-codex>=0.154.0",
+    "pydantic>=2.11,<3",
     "python-dotenv>=1.2.1",
     "python-ulid>=3.1.0",
     "redis>=7.4.0",
