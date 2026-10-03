@@ -1,0 +1,285 @@
+{
+  "checks": [
+    {
+      "check": "existing_create_input",
+      "passed": true,
+      "detail": [
+        200,
+        {
+          "id": "01M3YHQE3SZQ83ZTXJAPW0DS23"
+        }
+      ]
+    },
+    {
+      "check": "new_team_empty_description",
+      "passed": true,
+      "detail": [
+        200,
+        {
+          "id": "01M3YHQE3SZQ83ZTXJAPW0DS23",
+          "name": "Before",
+          "description": "",
+          "version": 0
+        }
+      ]
+    },
+    {
+      "check": "update_returns_existing_id",
+      "passed": true,
+      "detail": [
+        200,
+        {
+          "id": "01M3YHQE3SZQ83ZTXJAPW0DS23"
+        }
+      ]
+    },
+    {
+      "check": "description_readback_new_request",
+      "passed": true,
+      "detail": [
+        200,
+        {
+          "id": "01M3YHQE3SZQ83ZTXJAPW0DS23",
+          "name": "Before",
+          "description": "  first line\n second line\t ",
+          "version": 1
+        }
+      ]
+    },
+    {
+      "check": "existing_rename_input",
+      "passed": true,
+      "detail": [
+        200,
+        {
+          "id": "01M3YHQE3SZQ83ZTXJAPW0DS23"
+        }
+      ]
+    },
+    {
+      "check": "rename_preserves_description",
+      "passed": true,
+      "detail": {
+        "id": "01M3YHQE3SZQ83ZTXJAPW0DS23",
+        "name": "After",
+        "description": "  first line\n second line\t ",
+        "version": 2
+      }
+    },
+    {
+      "check": "description_2001_rejected",
+      "passed": false,
+      "detail": [
+        422,
+        {
+          "detail": [
+            {
+              "type": "string_too_long",
+              "loc": [
+                "body",
+                "description"
+              ],
+              "msg": "String should have at most 2000 characters",
+              "input": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+              "ctx": {
+                "max_length": 2000
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "check": "description_2001_rejected_unchanged",
+      "passed": true,
+      "detail": {
+        "id": "01M3YHQE3SZQ83ZTXJAPW0DS23",
+        "name": "After",
+        "description": "  first line\n second line\t ",
+        "version": 2
+      }
+    },
+    {
+      "check": "missing_description_rejected",
+      "passed": true,
+      "detail": [
+        422,
+        {
+          "detail": [
+            {
+              "type": "missing",
+              "loc": [
+                "body",
+                "description"
+              ],
+              "msg": "Field required",
+              "input": {}
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "check": "missing_description_rejected_unchanged",
+      "passed": true,
+      "detail": {
+        "id": "01M3YHQE3SZQ83ZTXJAPW0DS23",
+        "name": "After",
+        "description": "  first line\n second line\t ",
+        "version": 2
+      }
+    },
+    {
+      "check": "null_description_rejected",
+      "passed": true,
+      "detail": [
+        422,
+        {
+          "detail": [
+            {
+              "type": "string_type",
+              "loc": [
+                "body",
+                "description"
+              ],
+              "msg": "Input should be a valid string",
+              "input": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "check": "null_description_rejected_unchanged",
+      "passed": true,
+      "detail": {
+        "id": "01M3YHQE3SZQ83ZTXJAPW0DS23",
+        "name": "After",
+        "description": "  first line\n second line\t ",
+        "version": 2
+      }
+    },
+    {
+      "check": "numeric_description_rejected",
+      "passed": true,
+      "detail": [
+        422,
+        {
+          "detail": [
+            {
+              "type": "string_type",
+              "loc": [
+                "body",
+                "description"
+              ],
+              "msg": "Input should be a valid string",
+              "input": 42
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "check": "numeric_description_rejected_unchanged",
+      "passed": true,
+      "detail": {
+        "id": "01M3YHQE3SZQ83ZTXJAPW0DS23",
+        "name": "After",
+        "description": "  first line\n second line\t ",
+        "version": 2
+      }
+    },
+    {
+      "check": "unknown_team_not_found",
+      "passed": true,
+      "detail": [
+        404,
+        {
+          "detail": "The requested resource was not found."
+        }
+      ]
+    },
+    {
+      "check": "unknown_team_not_created",
+      "passed": true,
+      "detail": [
+        404,
+        {
+          "detail": "The requested resource was not found."
+        }
+      ]
+    },
+    {
+      "check": "invalid_id_rejected",
+      "passed": true,
+      "detail": [
+        400,
+        {
+          "detail": "('Invalid ULID string: not-a-ulid', ValueError('Encoded ULID has to be exactly 26 characters long.'))"
+        }
+      ]
+    },
+    {
+      "check": "description_2000_accepted",
+      "passed": true,
+      "detail": [
+        200,
+        {
+          "id": "01M3YHQE3SZQ83ZTXJAPW0DS23"
+        }
+      ]
+    },
+    {
+      "check": "description_2000_accepted_readback",
+      "passed": true,
+      "detail": {
+        "id": "01M3YHQE3SZQ83ZTXJAPW0DS23",
+        "name": "After",
+        "description": "ああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああ",
+        "version": 3
+      }
+    },
+    {
+      "check": "empty_description_accepted",
+      "passed": true,
+      "detail": [
+        200,
+        {
+          "id": "01M3YHQE3SZQ83ZTXJAPW0DS23"
+        }
+      ]
+    },
+    {
+      "check": "empty_description_accepted_readback",
+      "passed": true,
+      "detail": {
+        "id": "01M3YHQE3SZQ83ZTXJAPW0DS23",
+        "name": "After",
+        "description": "",
+        "version": 4
+      }
+    },
+    {
+      "check": "storage_failure_not_success",
+      "passed": true,
+      "detail": [
+        409,
+        {
+          "detail": "The request conflicts with existing data."
+        }
+      ]
+    },
+    {
+      "check": "storage_failure_unchanged",
+      "passed": true,
+      "detail": {
+        "id": "01M3YHQE3SZQ83ZTXJAPW0DS23",
+        "name": "After",
+        "description": "",
+        "version": 4
+      }
+    }
+  ],
+  "passed": 22,
+  "total": 23
+}

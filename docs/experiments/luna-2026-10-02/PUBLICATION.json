@@ -1,0 +1,257 @@
+{
+  "schema_version": 1,
+  "publication_date_utc": "2026-10-03",
+  "repository": "https://github.com/aiagate/discord-bot-template",
+  "branch": "experiments/luna-review-baseline-20261003",
+  "baseline_commit": "950058e2d9d2cfac01c3b1f50b5805097c04ab58",
+  "original_zip_filename": "luna-architecture-experiment-2026-10-02.zip",
+  "original_zip_sha256": "4b6dec83b0a309482610f8c1dd3cb5be2ed043560eaf5e85688f252c0132bd78",
+  "original_report_sha256": "9f9f224e7c306eae6f42b5063f56b854c97c08d7c8cbfbba33ea33c9eae93bef",
+  "subset_not_full_original": true,
+  "included_original_files": [
+    {
+      "path": "README.md",
+      "sha256": "9823a3e633ee54e8fd08c384cb3388d03bd863c59930e26ab4b8d9e600b74c1e",
+      "transformation": "none; byte-identical to original ZIP member"
+    },
+    {
+      "path": "REPORT.md",
+      "sha256": "9f9f224e7c306eae6f42b5063f56b854c97c08d7c8cbfbba33ea33c9eae93bef",
+      "transformation": "none; byte-identical to original ZIP member"
+    },
+    {
+      "path": "checks/migration_probe.py",
+      "sha256": "9820c6c5d86efdf87c6d7c8e2eb73124f6721cf39ae0be7a3759b0678a64edf2",
+      "transformation": "none; byte-identical to original ZIP member"
+    },
+    {
+      "path": "checks/profile_probe.py",
+      "sha256": "871e8d263483d4c4777fd8126a77cd116e2b6686474b00d3b25a2b3b0d9dbde4",
+      "transformation": "none; byte-identical to original ZIP member"
+    },
+    {
+      "path": "checks/team_migration_probe.py",
+      "sha256": "74719b285e1cb09d02484553224a4fe97a85aee573d7b0345ddb9d33032ebd4f",
+      "transformation": "none; byte-identical to original ZIP member"
+    },
+    {
+      "path": "checks/team_probe.py",
+      "sha256": "2378cb47f5707f47a57195740aa6aa332e1aaeb261d5cf93e00a7cdbcada07ec",
+      "transformation": "none; byte-identical to original ZIP member"
+    },
+    {
+      "path": "manifest.json",
+      "sha256": "1a17efe3f0eed5002151cdaa77660cf77aa495fe41f31975e3f7011d8ac11a22",
+      "transformation": "none; byte-identical to original ZIP member"
+    },
+    {
+      "path": "next-doc-candidate.md",
+      "sha256": "abbcc2f4f10cec6f993aa5c3a04c1d5e4a9bac6638fc928d77238e2a9fc9227a",
+      "transformation": "none; byte-identical to original ZIP member"
+    },
+    {
+      "path": "patches/baseline-1.patch",
+      "sha256": "68bd0b95e30774a30a9f8d9245365c52374a6411d2f829166af47d0df8237481",
+      "transformation": "none; byte-identical to original ZIP member"
+    },
+    {
+      "path": "patches/baseline-2.patch",
+      "sha256": "492aaeaa9f96db9a372620ab6ce5930795ef868422e21d979f6202d60ecdc3b9",
+      "transformation": "none; byte-identical to original ZIP member"
+    },
+    {
+      "path": "patches/baseline-3.patch",
+      "sha256": "294e5045b0f1f8a4c75a1da40c02a7113ac6296c171e0cf4bc7e8d425f9c8cd9",
+      "transformation": "none; byte-identical to original ZIP member"
+    },
+    {
+      "path": "patches/docs-intervention.patch",
+      "sha256": "a310559fd19c92e5fb5417880dffa9e64dec29b8275c667031272e0cf55a3616",
+      "transformation": "none; byte-identical to original ZIP member"
+    },
+    {
+      "path": "patches/heldout-1.patch",
+      "sha256": "f38ea9ac5e02da9fdb7682add8bfc6e13d2513cb543878d4f66759ce3f932d16",
+      "transformation": "none; byte-identical to original ZIP member"
+    },
+    {
+      "path": "patches/improved-1.patch",
+      "sha256": "1c2eaaffdd4762d6fc231d4a6e212884094b7d06a69fc55365c199be704bea15",
+      "transformation": "none; byte-identical to original ZIP member"
+    },
+    {
+      "path": "patches/improved-2.patch",
+      "sha256": "c0152e367e8bda8129b5f823a14e8e8ec559bd67278991a9af4954649d6a222a",
+      "transformation": "none; byte-identical to original ZIP member"
+    },
+    {
+      "path": "prompts/task-heldout.txt",
+      "sha256": "0d0df3cc260e4ce6d40b508692f70aa978fec16a20188ada5489f95335b5245a",
+      "transformation": "none; byte-identical to original ZIP member"
+    },
+    {
+      "path": "prompts/task-prompt.txt",
+      "sha256": "90213640912dddd5b05876abeac453472fd368e6af49982c87b9aa3129b00c9b",
+      "transformation": "none; byte-identical to original ZIP member"
+    },
+    {
+      "path": "results/baseline-1-acceptance.json",
+      "sha256": "ba24358e470cebd07d35a60a3ac12d87fda4aa837f8558903d98fec122fd6eb0",
+      "transformation": "none; byte-identical to original ZIP member"
+    },
+    {
+      "path": "results/baseline-2-acceptance.json",
+      "sha256": "1c8c2967c3458258d519057ff39c6c7c633f629a6c32a9f0dabfb7b6b4ab54ff",
+      "transformation": "none; byte-identical to original ZIP member"
+    },
+    {
+      "path": "results/baseline-3-acceptance.json",
+      "sha256": "0d16301e81bc38e2d11990da0ff854ecd136e1d179b0bb1cfb9cfac6c17a4059",
+      "transformation": "none; byte-identical to original ZIP member"
+    },
+    {
+      "path": "results/comparison-metrics.json",
+      "sha256": "a8b28d1d07fe5ebab5985856c13647756d0cad185fe6e28dacd4c1c18c0c7466",
+      "transformation": "none; byte-identical to original ZIP member"
+    },
+    {
+      "path": "results/heldout-1-acceptance.json",
+      "sha256": "73d1319662921d2ff4433f050097bb5b408fc2ed27b260ec5724832722f3dca1",
+      "transformation": "none; byte-identical to original ZIP member"
+    },
+    {
+      "path": "results/improved-1-acceptance.json",
+      "sha256": "8e4e91704eb0cfa4e0e4330fd5ae54f3a82cf32cf10abab95a306105f6973685",
+      "transformation": "none; byte-identical to original ZIP member"
+    },
+    {
+      "path": "results/improved-2-acceptance.json",
+      "sha256": "5c09d5bb4e282e3d0cfbf14c43bd2d84c32bff78bf1d09ede330573978d02c8c",
+      "transformation": "none; byte-identical to original ZIP member"
+    },
+    {
+      "path": "results/symbol-review.json",
+      "sha256": "eaae73a91b3d1c21731061a8bef5f76a2e6ff8eef089bd7b5353a2ee12707431",
+      "transformation": "none; byte-identical to original ZIP member"
+    }
+  ],
+  "omitted_original_files": [
+    {
+      "path": "SHA256SUMS",
+      "sha256": "feaa3ddb723d29c17eb6845334e3ecaa68ac5bc7a27ce1ee783dda1a7aea6401",
+      "reason": "Original whole-bundle checksum inventory replaced with public-subset checksum inventory"
+    },
+    {
+      "path": "results/baseline-1-migration-probe.log",
+      "sha256": "5a5db0f7ced35f037fa4f322683d92e1b675a892c0b36325d16249eb5afa6f2e",
+      "reason": "Raw execution log omitted from public subset"
+    },
+    {
+      "path": "results/baseline-1-pytest.log",
+      "sha256": "9d65d3d7976c6fa58b3a3156974b83ad1dee3d9de43cb1d481917e9020ea8e3c",
+      "reason": "Raw execution log omitted from public subset"
+    },
+    {
+      "path": "results/baseline-1-quality.log",
+      "sha256": "2781fe25df40b1f9c6c096f3a904aaeebcaf89fcc9d43567842f4aca4af399c7",
+      "reason": "Raw execution log omitted from public subset"
+    },
+    {
+      "path": "results/baseline-2-migration-probe.log",
+      "sha256": "3b21ed0988b21a5abdab72922574c7e48c42ce7241182805e0985d4d810f4cea",
+      "reason": "Raw execution log omitted from public subset"
+    },
+    {
+      "path": "results/baseline-2-pytest.log",
+      "sha256": "92128856a5f93a3d5460a07383d26e4111954d11b6fce6682cc7ee0a71b13751",
+      "reason": "Raw execution log omitted from public subset"
+    },
+    {
+      "path": "results/baseline-2-quality.log",
+      "sha256": "2781fe25df40b1f9c6c096f3a904aaeebcaf89fcc9d43567842f4aca4af399c7",
+      "reason": "Raw execution log omitted from public subset"
+    },
+    {
+      "path": "results/baseline-3-migration-probe.log",
+      "sha256": "e477ea0538384fe80f6b3b951a6502d82489c083988b9e05a20dc0d88865e2d3",
+      "reason": "Raw execution log omitted from public subset"
+    },
+    {
+      "path": "results/baseline-3-pytest.log",
+      "sha256": "84574ad7fdc43682fb09ec321dd320fc65f568d6b98024c62d4b2c86deba43ff",
+      "reason": "Raw execution log omitted from public subset"
+    },
+    {
+      "path": "results/baseline-3-quality.log",
+      "sha256": "5ef13082983f3a315026902b658ba9e6eb1c618b416cdea22f14be35bb0c64cb",
+      "reason": "Raw execution log omitted from public subset"
+    },
+    {
+      "path": "results/heldout-1-migration-probe.log",
+      "sha256": "55b701021d527026b062e17d109d268cc1c08db5707e106589dc5ec4252d23d4",
+      "reason": "Raw execution log omitted from public subset"
+    },
+    {
+      "path": "results/heldout-1-pytest.log",
+      "sha256": "c190dc634a7eae9906dba95b3ba998f78d1212e1647aef3805f903e4bc00fa13",
+      "reason": "Raw execution log omitted from public subset"
+    },
+    {
+      "path": "results/heldout-1-quality.log",
+      "sha256": "2781fe25df40b1f9c6c096f3a904aaeebcaf89fcc9d43567842f4aca4af399c7",
+      "reason": "Raw execution log omitted from public subset"
+    },
+    {
+      "path": "results/improved-1-migration-probe.log",
+      "sha256": "22a7d641f5a4867c955b3d1a9f700aa54aa4c5fa17688036b7429d9571fe9a7e",
+      "reason": "Raw execution log omitted from public subset"
+    },
+    {
+      "path": "results/improved-1-pytest.log",
+      "sha256": "972a888d98032f203a249bbb37837d52c5a522dbab288b1d8c76d02545834fb4",
+      "reason": "Raw execution log omitted from public subset"
+    },
+    {
+      "path": "results/improved-1-quality.log",
+      "sha256": "2781fe25df40b1f9c6c096f3a904aaeebcaf89fcc9d43567842f4aca4af399c7",
+      "reason": "Raw execution log omitted from public subset"
+    },
+    {
+      "path": "results/improved-2-migration-probe.log",
+      "sha256": "23e5707c0fa3911b7ccb691157e03c7fe97fce4c8099f125c4375ccddaee2b1d",
+      "reason": "Raw execution log omitted from public subset"
+    },
+    {
+      "path": "results/improved-2-pytest.log",
+      "sha256": "97612b25bb28ef21e5e2cf06eef3e888fd8eaa407e8a388400356df9cb791bd1",
+      "reason": "Raw execution log omitted from public subset"
+    },
+    {
+      "path": "results/improved-2-quality.log",
+      "sha256": "2781fe25df40b1f9c6c096f3a904aaeebcaf89fcc9d43567842f4aca4af399c7",
+      "reason": "Raw execution log omitted from public subset"
+    },
+    {
+      "path": "results/pristine-migration.log",
+      "sha256": "6c5a42255432c5bcce78d0acf0c3f051e4a8db16d2f2468fe20289c6754f8cb0",
+      "reason": "Raw execution log omitted from public subset"
+    },
+    {
+      "path": "results/pristine-pytest.log",
+      "sha256": "444c38ea3e28871728996664d8c4ab3e4fc229d4979e1492380082e7daaab241",
+      "reason": "Raw execution log omitted from public subset"
+    },
+    {
+      "path": "results/pristine-quality.log",
+      "sha256": "15684b132f1ee8c526a107062592593d85caaa1dff465f101255f646e21478d7",
+      "reason": "Raw execution log omitted from public subset"
+    }
+  ],
+  "new_publication_files": [
+    "PUBLICATION.md",
+    "PUBLICATION.json",
+    "SHA256SUMS"
+  ],
+  "payload_redactions": [],
+  "execution_during_publication": false
+}

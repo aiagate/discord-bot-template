@@ -1,0 +1,346 @@
+{
+  "checks": [
+    {
+      "check": "existing_create_input",
+      "passed": true,
+      "detail": [
+        200,
+        {
+          "id": "01M3YHMSFWD21XZGPYJ9JWZVKT"
+        }
+      ]
+    },
+    {
+      "check": "new_user_empty_bio",
+      "passed": true,
+      "detail": [
+        200,
+        {
+          "id": "01M3YHMSFWD21XZGPYJ9JWZVKT",
+          "display_name": "Before",
+          "email": "synthetic@example.test",
+          "bio": ""
+        }
+      ]
+    },
+    {
+      "check": "update_returns_existing_id",
+      "passed": true,
+      "detail": [
+        200,
+        {
+          "id": "01M3YHMSFWD21XZGPYJ9JWZVKT"
+        }
+      ]
+    },
+    {
+      "check": "exact_readback_new_request",
+      "passed": true,
+      "detail": [
+        200,
+        {
+          "id": "01M3YHMSFWD21XZGPYJ9JWZVKT",
+          "display_name": "After",
+          "email": "synthetic@example.test",
+          "bio": "  first line\n second line\t "
+        }
+      ]
+    },
+    {
+      "check": "bio_501_rejected",
+      "passed": true,
+      "detail": [
+        400,
+        {
+          "detail": "User bio must not exceed 500 characters."
+        }
+      ]
+    },
+    {
+      "check": "bio_501_rejected_unchanged",
+      "passed": true,
+      "detail": {
+        "id": "01M3YHMSFWD21XZGPYJ9JWZVKT",
+        "display_name": "After",
+        "email": "synthetic@example.test",
+        "bio": "  first line\n second line\t "
+      }
+    },
+    {
+      "check": "empty_name_rejected",
+      "passed": true,
+      "detail": [
+        400,
+        {
+          "detail": "Display name cannot be empty."
+        }
+      ]
+    },
+    {
+      "check": "empty_name_rejected_unchanged",
+      "passed": true,
+      "detail": {
+        "id": "01M3YHMSFWD21XZGPYJ9JWZVKT",
+        "display_name": "After",
+        "email": "synthetic@example.test",
+        "bio": "  first line\n second line\t "
+      }
+    },
+    {
+      "check": "padded_name_rejected",
+      "passed": true,
+      "detail": [
+        400,
+        {
+          "detail": "Display name cannot have leading or trailing whitespace."
+        }
+      ]
+    },
+    {
+      "check": "padded_name_rejected_unchanged",
+      "passed": true,
+      "detail": {
+        "id": "01M3YHMSFWD21XZGPYJ9JWZVKT",
+        "display_name": "After",
+        "email": "synthetic@example.test",
+        "bio": "  first line\n second line\t "
+      }
+    },
+    {
+      "check": "long_name_rejected",
+      "passed": true,
+      "detail": [
+        400,
+        {
+          "detail": "Display name must not exceed 100 characters."
+        }
+      ]
+    },
+    {
+      "check": "long_name_rejected_unchanged",
+      "passed": true,
+      "detail": {
+        "id": "01M3YHMSFWD21XZGPYJ9JWZVKT",
+        "display_name": "After",
+        "email": "synthetic@example.test",
+        "bio": "  first line\n second line\t "
+      }
+    },
+    {
+      "check": "missing_bio_rejected",
+      "passed": true,
+      "detail": [
+        422,
+        {
+          "detail": [
+            {
+              "type": "missing",
+              "loc": [
+                "body",
+                "bio"
+              ],
+              "msg": "Field required",
+              "input": {
+                "display_name": "Never"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "check": "missing_bio_rejected_unchanged",
+      "passed": true,
+      "detail": {
+        "id": "01M3YHMSFWD21XZGPYJ9JWZVKT",
+        "display_name": "After",
+        "email": "synthetic@example.test",
+        "bio": "  first line\n second line\t "
+      }
+    },
+    {
+      "check": "missing_name_rejected",
+      "passed": true,
+      "detail": [
+        422,
+        {
+          "detail": [
+            {
+              "type": "missing",
+              "loc": [
+                "body",
+                "display_name"
+              ],
+              "msg": "Field required",
+              "input": {
+                "bio": "Never"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "check": "missing_name_rejected_unchanged",
+      "passed": true,
+      "detail": {
+        "id": "01M3YHMSFWD21XZGPYJ9JWZVKT",
+        "display_name": "After",
+        "email": "synthetic@example.test",
+        "bio": "  first line\n second line\t "
+      }
+    },
+    {
+      "check": "null_bio_rejected",
+      "passed": true,
+      "detail": [
+        422,
+        {
+          "detail": [
+            {
+              "type": "string_type",
+              "loc": [
+                "body",
+                "bio"
+              ],
+              "msg": "Input should be a valid string",
+              "input": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "check": "null_bio_rejected_unchanged",
+      "passed": true,
+      "detail": {
+        "id": "01M3YHMSFWD21XZGPYJ9JWZVKT",
+        "display_name": "After",
+        "email": "synthetic@example.test",
+        "bio": "  first line\n second line\t "
+      }
+    },
+    {
+      "check": "numeric_bio_rejected",
+      "passed": true,
+      "detail": [
+        422,
+        {
+          "detail": [
+            {
+              "type": "string_type",
+              "loc": [
+                "body",
+                "bio"
+              ],
+              "msg": "Input should be a valid string",
+              "input": 42
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "check": "numeric_bio_rejected_unchanged",
+      "passed": true,
+      "detail": {
+        "id": "01M3YHMSFWD21XZGPYJ9JWZVKT",
+        "display_name": "After",
+        "email": "synthetic@example.test",
+        "bio": "  first line\n second line\t "
+      }
+    },
+    {
+      "check": "unknown_user_not_found",
+      "passed": true,
+      "detail": [
+        404,
+        {
+          "detail": "The requested resource was not found."
+        }
+      ]
+    },
+    {
+      "check": "unknown_user_not_created",
+      "passed": true,
+      "detail": [
+        404,
+        {
+          "detail": "The requested resource was not found."
+        }
+      ]
+    },
+    {
+      "check": "invalid_id_rejected",
+      "passed": true,
+      "detail": [
+        400,
+        {
+          "detail": "('Invalid ULID string: not-a-ulid', ValueError('Encoded ULID has to be exactly 26 characters long.'))"
+        }
+      ]
+    },
+    {
+      "check": "bio_500_accepted",
+      "passed": true,
+      "detail": [
+        200,
+        {
+          "id": "01M3YHMSFWD21XZGPYJ9JWZVKT"
+        }
+      ]
+    },
+    {
+      "check": "bio_500_accepted_readback",
+      "passed": true,
+      "detail": {
+        "id": "01M3YHMSFWD21XZGPYJ9JWZVKT",
+        "display_name": "After",
+        "email": "synthetic@example.test",
+        "bio": "ああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああ"
+      }
+    },
+    {
+      "check": "empty_bio_accepted",
+      "passed": true,
+      "detail": [
+        200,
+        {
+          "id": "01M3YHMSFWD21XZGPYJ9JWZVKT"
+        }
+      ]
+    },
+    {
+      "check": "empty_bio_accepted_readback",
+      "passed": true,
+      "detail": {
+        "id": "01M3YHMSFWD21XZGPYJ9JWZVKT",
+        "display_name": "After",
+        "email": "synthetic@example.test",
+        "bio": ""
+      }
+    },
+    {
+      "check": "storage_failure_not_success",
+      "passed": true,
+      "detail": [
+        409,
+        {
+          "detail": "The request conflicts with existing data."
+        }
+      ]
+    },
+    {
+      "check": "storage_failure_unchanged",
+      "passed": true,
+      "detail": {
+        "id": "01M3YHMSFWD21XZGPYJ9JWZVKT",
+        "display_name": "After",
+        "email": "synthetic@example.test",
+        "bio": ""
+      }
+    }
+  ],
+  "passed": 29,
+  "total": 29
+}

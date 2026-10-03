@@ -1,0 +1,1104 @@
+diff --git a/AGENTS.md b/AGENTS.md
+index a8eb96d..e7e4e01 100644
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -20,7 +20,8 @@
+ - 型ヒント: すべてのコードに必須とする。
+ - ドキュメント: 公開API（Public APIs）には必ずDocstringを記述すること。
+ - 関数: 単一の責務に集中させ、小さく保つこと。
+-- パターン: 既存のコードパターンに正確に従うこと。
++- パターン: 既存のコードパターンに正確に従うこと。責務・依存方向・エラー契約を引き継ぎ、別の業務操作の名前まで機械的にコピーしないこと。
++- 既存集約の属性や操作を追加する場合は、`docs/development/ADDING_FEATURE.md` の「既存集約を拡張するときの整合性チェック」を先に確認すること。
+ - 行の長さ: 最大88文字（Ruff/Black標準）。
+ 
+ ### 3\. テスト要件
+diff --git a/docs/development/ADDING_FEATURE.md b/docs/development/ADDING_FEATURE.md
+index 13a862e..71b0f6b 100644
+--- a/docs/development/ADDING_FEATURE.md
++++ b/docs/development/ADDING_FEATURE.md
+@@ -5,6 +5,42 @@
+ このドキュメントは、新しい集約や機能を追加する際の一連の手順を定めた正本ガイドです。
+ ドメイン設計からORM定義、明示的マッピング、Handler登録、Presentation層の接続、マイグレーション検証、テストまでの手順を案内します。
+ 
++## 既存集約を拡張するときの整合性チェック
++
++既存の集約へ属性や操作を追加するときは、新規集約の登録手順だけでなく、以下を確認します。
++この節は実装のばらつきとレビュー対象を抑えるための判断基準です。
++
++### 1. 変更する契約と維持する契約を分ける
++
++- 要件で変更する入口・操作・返却値を先に列挙します。既存の生成ファクトリやコマンドの入力を維持する要件なら、新しい属性を渡せる任意引数を便宜上追加しません。
++- 新規生成時の既定値と、保存状態の復元は分けて扱います。`restore()` と明示的マッパーは、追加属性も保存値から復元します。
++- 同じ集約の既存操作を通した後も、新しい属性が意図せず既定値へ戻らないことをテストします。
++
++### 2. 名前は形ではなく操作の意味に合わせる
++
++- 既存の実装から引き継ぐのは責務・依存方向・結果型・エラー処理です。更新操作で `Create...Response` を返すような、処理と名前が食い違う使い回しは追加しません。
++- 同じ `id: str` だけを返す場合も、更新の応答には `Update...Response` などその操作を表す型名を使います。形が同じという理由だけで共通基底型や汎用レスポンスを追加する必要はありません。
++- Docstringも実際の結果を説明します。IDだけを返す操作に「詳細情報を返す」と書かず、作成・取得・更新を取り違えません。追加した公開型・property・メソッドの説明も確認します。
++- 既存のValue Object名はそのまま再利用します。新しい値型が特定集約に属する属性を表す場合は、`<集約名><属性名>` を基本とします（例: `UserBio`、`TeamDescription`）。共通概念として既に定義された `DisplayName` などを、この規則のためだけに改名しません。
++
++### 3. 共通契約テストへ機能固有の分岐を持ち込まない
++
++- 追加した永続化属性は `tests/domain/aggregate_cases.py` の復元値・保持フィールド・不正値へ反映し、空文字などの既定値だけでなく非既定値で往復を確認します。
++- 特定の業務メソッドの引数や状態変更は、対象集約のテストまたは対象ユースケースのテストで検証します。
++- 共通契約テストに `if operation == "特定の業務メソッド"` のような分岐を追加しません。共通契約の検証に、個々の機能名を覚えさせないためです。
++
++### 4. 実装前に検証の行き先をそろえる
++
++- 値の境界・型・入力の保持: Value Objectのテスト
++- 複数属性の変更と不変のID・既存属性: 対象集約のテスト
++- 存在確認・検証エラー・保存失敗・commit失敗・別UoWでの再取得: 対象UseCaseのテスト
++- HTTPの必須項目・登録したパス・成功とエラーの変換: Presentationのテスト
++- 旧行の既定値・既存属性の保持・往復適用・空DB構築: マイグレーションのテストとStep 6の検証
++
++既存テストが保証している共通Repository/UoWの挙動を、機能ごとに再実装する必要はありません。
++一方、値型のテストを上位層の成功テストだけで代用せず、どの層で何を保証したかを明確にします。
++最終報告は「通過したチェック」「失敗したチェック」「未実行」を区別します。
++
+ ## 全体対応表（編集先・登録先・テスト）
+ 
+ 実在するチーム機能（`Team`）を主例とした、各開発ステップの編集先・登録先・検証テストの対応表です。
+diff --git a/src/app/application/mediator.py b/src/app/application/mediator.py
+index f32b88f..abb071f 100644
+--- a/src/app/application/mediator.py
++++ b/src/app/application/mediator.py
+@@ -22,6 +22,7 @@ from app.usecases.teams.get_team import GetTeamHandler
+ from app.usecases.teams.update_team import UpdateTeamHandler
+ from app.usecases.users.create_user import CreateUserHandler
+ from app.usecases.users.get_user import GetUserHandler
++from app.usecases.users.update_user_profile import UpdateUserProfileHandler
+ from app.usecases.users.welcome_user import WelcomeUserHandler
+ 
+ _HANDLER_TYPES: tuple[type[RequestHandler[Any, Any]], ...] = (
+@@ -37,6 +38,7 @@ _HANDLER_TYPES: tuple[type[RequestHandler[Any, Any]], ...] = (
+     UpdateTeamHandler,
+     CreateUserHandler,
+     GetUserHandler,
++    UpdateUserProfileHandler,
+     WelcomeUserHandler,
+ )
+ 
+diff --git a/src/app/domain/aggregates/user.py b/src/app/domain/aggregates/user.py
+index 9e4d5ce..262177d 100644
+--- a/src/app/domain/aggregates/user.py
++++ b/src/app/domain/aggregates/user.py
+@@ -3,7 +3,7 @@ from __future__ import annotations
+ from dataclasses import dataclass, field
+ from datetime import UTC, datetime
+ 
+-from app.domain.value_objects import DisplayName, Email, UserId, Version
++from app.domain.value_objects import DisplayName, Email, UserBio, UserId, Version
+ 
+ 
+ @dataclass(kw_only=True, slots=True)
+@@ -26,6 +26,7 @@ class User:
+     )
+     _display_name: DisplayName
+     _email: Email
++    _bio: UserBio = field(default_factory=lambda: UserBio(""))
+     _version: Version = field(init=False, default_factory=lambda: Version(0))
+     _created_at: datetime = field(init=False, default_factory=lambda: datetime.now(UTC))
+     _updated_at: datetime = field(init=False, default_factory=lambda: datetime.now(UTC))
+@@ -48,12 +49,13 @@ class User:
+         user_id: UserId,
+         display_name: DisplayName,
+         email: Email,
++        bio: UserBio,
+         version: Version,
+         created_at: datetime,
+         updated_at: datetime,
+     ) -> User:
+         """Restore a user with persistence-managed identity and audit state."""
+-        user = cls(_display_name=display_name, _email=email)
++        user = cls(_display_name=display_name, _email=email, _bio=bio)
+         user._id = user_id
+         user._version = version
+         user._created_at = created_at
+@@ -72,6 +74,11 @@ class User:
+     def email(self) -> Email:
+         return self._email
+ 
++    @property
++    def bio(self) -> UserBio:
++        """Return the user's profile bio."""
++        return self._bio
++
+     @property
+     def version(self) -> Version:
+         return self._version
+@@ -92,3 +99,9 @@ class User:
+         self._email = new_email
+ 
+         return self
++
++    def update_profile(self, display_name: DisplayName, bio: UserBio) -> User:
++        """Replace the user's display name and bio together."""
++        self._display_name = display_name
++        self._bio = bio
++        return self
+diff --git a/src/app/domain/value_objects/__init__.py b/src/app/domain/value_objects/__init__.py
+index 1dcd3c6..7ab8919 100644
+--- a/src/app/domain/value_objects/__init__.py
++++ b/src/app/domain/value_objects/__init__.py
+@@ -21,6 +21,7 @@ from app.domain.value_objects.message_content import MessageContent, MessageCont
+ from app.domain.value_objects.message_id import MessageId
+ from app.domain.value_objects.team_id import TeamId
+ from app.domain.value_objects.team_name import TeamName
++from app.domain.value_objects.user_bio import UserBio
+ from app.domain.value_objects.user_id import UserId
+ from app.domain.value_objects.version import Version
+ 
+@@ -43,6 +44,7 @@ __all__ = [
+     "MessageId",
+     "TeamId",
+     "TeamName",
++    "UserBio",
+     "UserId",
+     "Version",
+ ]
+diff --git a/src/app/infrastructure/mappings/user.py b/src/app/infrastructure/mappings/user.py
+index a8dfd04..f6d58e2 100644
+--- a/src/app/infrastructure/mappings/user.py
++++ b/src/app/infrastructure/mappings/user.py
+@@ -3,7 +3,7 @@
+ from sqlmodel import SQLModel
+ 
+ from app.domain.aggregates.user import User
+-from app.domain.value_objects import DisplayName, Email, UserId, Version
++from app.domain.value_objects import DisplayName, Email, UserBio, UserId, Version
+ from app.infrastructure.mappings._restore_helpers import (
+     required_text,
+     required_timestamp,
+@@ -18,6 +18,7 @@ def user_to_orm(user: User) -> UserORM:
+         id=user.id.to_primitive(),
+         display_name=user.display_name.to_primitive(),
+         email=user.email.to_primitive(),
++        bio=user.bio.to_primitive(),
+         version=user.version.to_primitive(),
+         created_at=user.created_at,
+         updated_at=user.updated_at,
+@@ -35,6 +36,7 @@ def user_from_orm(row: SQLModel) -> User:
+             DisplayName.from_primitive(row.display_name), "display_name"
+         ),
+         email=unwrap_value(Email.from_primitive(row.email), "email"),
++        bio=unwrap_value(UserBio.from_primitive(required_text(row.bio, "bio")), "bio"),
+         version=unwrap_value(Version.from_primitive(row.version), "version"),
+         created_at=required_timestamp(row.created_at, "created_at"),
+         updated_at=required_timestamp(row.updated_at, "updated_at"),
+diff --git a/src/app/infrastructure/orm_models/user_orm.py b/src/app/infrastructure/orm_models/user_orm.py
+index 3f71b2b..86b9ee0 100644
+--- a/src/app/infrastructure/orm_models/user_orm.py
++++ b/src/app/infrastructure/orm_models/user_orm.py
+@@ -20,6 +20,7 @@ class UserORM(SQLModel, table=True):
+     id: str | None = Field(default=None, primary_key=True, max_length=26)
+     display_name: str = Field(max_length=255, index=True)
+     email: str = Field(max_length=255, unique=True, index=True)
++    bio: str = Field(default="", max_length=500)
+     version: int = Field(default=0, sa_column=_version_column)
+ 
+     __mapper_args__ = {
+diff --git a/src/app/presentation/api/routers/users.py b/src/app/presentation/api/routers/users.py
+index 3c3204d..6ab105b 100644
+--- a/src/app/presentation/api/routers/users.py
++++ b/src/app/presentation/api/routers/users.py
+@@ -9,6 +9,7 @@ from app.presentation.api.dependencies import get_mediator
+ from app.presentation.api.error_mapping import http_status_for_error
+ from app.usecases.users.create_user import CreateUserCommand
+ from app.usecases.users.get_user import GetUserQuery
++from app.usecases.users.update_user_profile import UpdateUserProfileCommand
+ 
+ router = APIRouter(prefix="/users", tags=["users"])
+ 
+@@ -26,6 +27,20 @@ class UserResponse(BaseModel):
+     id: str
+     display_name: str
+     email: str
++    bio: str
++
++
++class UpdateUserProfileRequest(BaseModel):
++    """Required fields for replacing a user's profile."""
++
++    display_name: str
++    bio: str
++
++
++class UpdateUserProfileResponse(BaseModel):
++    """Identifier returned after updating a user profile."""
++
++    id: str
+ 
+ 
+ @router.post("", response_model=CreateUserResponse)
+@@ -69,4 +84,28 @@ async def get_user(
+         id=user_result.id,
+         display_name=user_result.display_name,
+         email=user_result.email,
++        bio=user_result.bio,
+     )
++
++
++@router.put("/{user_id}/profile", response_model=UpdateUserProfileResponse)
++async def update_user_profile(
++    user_id: str,
++    request: UpdateUserProfileRequest,
++    mediator: Annotated[ApplicationMediator, Depends(get_mediator)],
++) -> UpdateUserProfileResponse:
++    """Update a user's display name and bio."""
++    command = UpdateUserProfileCommand(
++        user_id=user_id,
++        display_name=request.display_name,
++        bio=request.bio,
++    )
++    result = await mediator.send_async(command)
++
++    if is_err(result):
++        raise HTTPException(
++            status_code=http_status_for_error(result.error.type),
++            detail=result.error.display_message,
++        )
++
++    return UpdateUserProfileResponse(id=result.unwrap().id)
+diff --git a/src/app/usecases/users/__init__.py b/src/app/usecases/users/__init__.py
+index fefc6fb..0336180 100644
+--- a/src/app/usecases/users/__init__.py
++++ b/src/app/usecases/users/__init__.py
+@@ -5,6 +5,11 @@ from app.usecases.users.create_user import (
+     CreateUserHandler,
+ )
+ from app.usecases.users.get_user import GetUserHandler, GetUserQuery, GetUserResult
++from app.usecases.users.update_user_profile import (
++    UpdateUserProfileCommand,
++    UpdateUserProfileHandler,
++    UpdateUserProfileResult,
++)
+ 
+ __all__ = [
+     "CreateUserCommand",
+@@ -12,4 +17,7 @@ __all__ = [
+     "GetUserQuery",
+     "GetUserHandler",
+     "GetUserResult",
++    "UpdateUserProfileCommand",
++    "UpdateUserProfileHandler",
++    "UpdateUserProfileResult",
+ ]
+diff --git a/src/app/usecases/users/get_user.py b/src/app/usecases/users/get_user.py
+index eaaf518..e4db5bb 100644
+--- a/src/app/usecases/users/get_user.py
++++ b/src/app/usecases/users/get_user.py
+@@ -26,6 +26,7 @@ class GetUserResult:
+     id: str
+     display_name: str
+     email: str
++    bio: str
+ 
+ 
+ @dataclass(frozen=True)
+@@ -72,5 +73,6 @@ class GetUserHandler(
+                     id=user.id.to_primitive(),
+                     display_name=user.display_name.to_primitive(),
+                     email=user.email.to_primitive(),
++                    bio=user.bio.to_primitive(),
+                 )
+             )
+diff --git a/tests/domain/aggregate_cases.py b/tests/domain/aggregate_cases.py
+index b9b6e6a..2a363b1 100644
+--- a/tests/domain/aggregate_cases.py
++++ b/tests/domain/aggregate_cases.py
+@@ -19,6 +19,7 @@ from app.domain.value_objects import (
+     MessageId,
+     TeamId,
+     TeamName,
++    UserBio,
+     UserId,
+     Version,
+ )
+@@ -45,22 +46,33 @@ AGGREGATE_CASES: dict[type[Aggregate], AggregateCase] = {
+             "user_id": UserId.generate().expect("valid ID"),
+             "display_name": DisplayName("Alice"),
+             "email": Email("alice@example.com"),
++            "bio": UserBio("An existing profile"),
+             "version": Version(4),
+             "created_at": CREATED_AT,
+             "updated_at": UPDATED_AT,
+         },
+-        changed_values={"email": Email("other@example.com"), "version": Version(9)},
++        changed_values={
++            "email": Email("other@example.com"),
++            "bio": UserBio("Updated profile"),
++            "version": Version(9),
++        },
+         id_parameter="user_id",
+         state_fields=(
+             "id",
+             "display_name",
+             "email",
++            "bio",
+             "version",
+             "created_at",
+             "updated_at",
+         ),
+         mutable=True,
+-        invalid_rows=(("id", "invalid"), ("display_name", ""), ("email", "invalid")),
++        invalid_rows=(
++            ("id", "invalid"),
++            ("display_name", ""),
++            ("email", "invalid"),
++            ("bio", "x" * 501),
++        ),
+     ),
+     Team: AggregateCase(
+         restore_values={
+@@ -149,7 +161,7 @@ AGGREGATE_CASES: dict[type[Aggregate], AggregateCase] = {
+ }
+ 
+ TRANSITION_EXEMPTIONS = {
+-    User: "Email changes accept any valid Email; there is no lifecycle transition guard.",
++    User: "Email and profile changes accept valid values; there is no lifecycle transition guard.",
+     Team: "Name changes accept any valid TeamName; there is no lifecycle transition guard.",
+     ChatMessage: "Messages are immutable and append-only; they have no state transitions.",
+ }
+diff --git a/tests/domain/aggregates/test_user.py b/tests/domain/aggregates/test_user.py
+index 457b656..27b9683 100644
+--- a/tests/domain/aggregates/test_user.py
++++ b/tests/domain/aggregates/test_user.py
+@@ -5,7 +5,7 @@ from datetime import UTC, datetime, timedelta
+ from flow_res import is_err
+ 
+ from app.domain.aggregates.user import User
+-from app.domain.value_objects import DisplayName, Email, Version
++from app.domain.value_objects import DisplayName, Email, UserBio, Version
+ 
+ 
+ def test_user_identity_survives_profile_and_version_changes() -> None:
+@@ -15,6 +15,7 @@ def test_user_identity_survives_profile_and_version_changes() -> None:
+         user_id=user.id,
+         display_name=DisplayName("Alicia"),
+         email=Email("new@example.com"),
++        bio=UserBio("Updated bio"),
+         version=Version(1),
+         created_at=user.created_at,
+         updated_at=user.updated_at + timedelta(seconds=1),
+@@ -52,6 +53,22 @@ def test_user_change_email() -> None:
+     assert user.email.to_primitive() == "new@example.com"
+ 
+ 
++def test_user_update_profile_changes_both_values_and_preserves_other_fields() -> None:
++    """Updating a profile leaves identity and email unchanged."""
++    user = User.register(DisplayName("Alice"), Email("alice@example.com"))
++    user_id = user.id
++
++    user.update_profile(DisplayName("Alicia"), UserBio("  about me\nnext line  "))
++
++    assert user.id == user_id
++    assert user.display_name == DisplayName("Alicia")
++    assert user.bio == UserBio("  about me\nnext line  ")
++    assert user.email == Email("alice@example.com")
++    assert User.register(DisplayName("Bob"), Email("bob@example.com")).bio == UserBio(
++        ""
++    )
++
++
+ def test_user_creation_with_valid_data() -> None:
+     """Test creating a user with valid data."""
+     email = Email.from_primitive("alice@example.com").expect(
+diff --git a/tests/infrastructure/test_domain_mappings.py b/tests/infrastructure/test_domain_mappings.py
+index 52be64d..19909b3 100644
+--- a/tests/infrastructure/test_domain_mappings.py
++++ b/tests/infrastructure/test_domain_mappings.py
+@@ -15,6 +15,7 @@ from app.domain.value_objects import (
+     MembershipStatus,
+     TeamId,
+     TeamName,
++    UserBio,
+     UserId,
+     Version,
+ )
+@@ -76,6 +77,7 @@ def test_user_mapping_restores_id_version_and_audit_state() -> None:
+         user_id=UserId.generate().expect("valid id"),
+         display_name=DisplayName.from_primitive("Alice").expect("valid name"),
+         email=Email.from_primitive("alice@example.com").expect("valid email"),
++        bio=UserBio.from_primitive("  hello\nworld  ").expect("valid bio"),
+         version=Version(4),
+         created_at=created_at,
+         updated_at=updated_at,
+@@ -86,6 +88,7 @@ def test_user_mapping_restores_id_version_and_audit_state() -> None:
+     assert restored == user
+     assert restored.display_name == user.display_name
+     assert restored.email == user.email
++    assert restored.bio == user.bio
+     assert restored.version == Version(4)
+     assert restored.created_at == created_at
+     assert restored.updated_at == updated_at
+diff --git a/tests/usecases/users/test_create_user.py b/tests/usecases/users/test_create_user.py
+index 43976fb..fee8b17 100644
+--- a/tests/usecases/users/test_create_user.py
++++ b/tests/usecases/users/test_create_user.py
+@@ -7,7 +7,9 @@ import pytest
+ from flow_res import Err, is_err, is_ok
+ 
+ from app.contracts.ports import IUnitOfWork
++from app.domain.aggregates.user import User
+ from app.domain.repositories import RepositoryError, RepositoryErrorType
++from app.domain.value_objects import UserId
+ from app.usecases.result import ErrorType
+ from app.usecases.users.create_user import (
+     CreateUserCommand,
+@@ -27,6 +29,11 @@ async def test_create_user_handler(uow: IUnitOfWork, event_bus: AsyncMock) -> No
+     user_id = result.value.id  # Now it's a str
+     assert user_id  # ULID string should exist
+     assert len(user_id) == 26  # ULID is 26 characters
++    async with uow:
++        repo = uow.GetRepository(User, UserId)
++        saved_user = await repo.get_by_id(UserId.from_primitive(user_id).unwrap())
++        assert is_ok(saved_user)
++        assert saved_user.value.bio.to_primitive() == ""
+ 
+ 
+ @pytest.mark.anyio
+diff --git a/tests/usecases/users/test_get_user.py b/tests/usecases/users/test_get_user.py
+index 2c15407..49529a7 100644
+--- a/tests/usecases/users/test_get_user.py
++++ b/tests/usecases/users/test_get_user.py
+@@ -40,6 +40,7 @@ async def test_get_user_handler(uow: IUnitOfWork) -> None:
+     assert result.value.id == saved_user.id.to_primitive()
+     assert result.value.display_name == "Bob"
+     assert result.value.email == "bob@example.com"
++    assert result.value.bio == ""
+ 
+ 
+ @pytest.mark.anyio
+diff --git a/alembic/versions/202610021500_9c2fdc3add17_add_bio_to_users.py b/alembic/versions/202610021500_9c2fdc3add17_add_bio_to_users.py
+new file mode 100644
+index 0000000..8608a54
+--- /dev/null
++++ b/alembic/versions/202610021500_9c2fdc3add17_add_bio_to_users.py
+@@ -0,0 +1,27 @@
++"""Add bio to users with an empty value for existing rows."""
++
++from collections.abc import Sequence
++
++import sqlalchemy as sa
++
++from alembic import op
++
++revision: str = "9c2fdc3add17"
++down_revision: str | Sequence[str] | None = "7d5f0d6a2b31"
++branch_labels: str | Sequence[str] | None = None
++depends_on: str | Sequence[str] | None = None
++
++
++def upgrade() -> None:
++    """Add a non-null bio column, backfilling pre-existing users with empty text."""
++    op.add_column(
++        "users",
++        sa.Column("bio", sa.String(length=500), nullable=False, server_default=""),
++    )
++    with op.batch_alter_table("users") as batch_op:
++        batch_op.alter_column("bio", server_default=None)
++
++
++def downgrade() -> None:
++    """Remove the user bio column."""
++    op.drop_column("users", "bio")
+diff --git a/src/app/domain/value_objects/user_bio.py b/src/app/domain/value_objects/user_bio.py
+new file mode 100644
+index 0000000..3acfc59
+--- /dev/null
++++ b/src/app/domain/value_objects/user_bio.py
+@@ -0,0 +1,47 @@
++"""UserBio value object with length validation."""
++
++from dataclasses import dataclass
++from typing import ClassVar
++
++from flow_res import Err, Ok, Result
++
++
++@dataclass(frozen=True)
++class UserBio:
++    """An immutable user bio that preserves its input verbatim."""
++
++    _value: str
++
++    MIN_LENGTH: ClassVar[int] = 0
++    MAX_LENGTH: ClassVar[int] = 500
++
++    def __post_init__(self) -> None:
++        """Validate the bio's type and maximum length without normalizing it."""
++        if not isinstance(  # type: ignore[reportUnnecessaryIsInstance]
++            self._value, str
++        ):
++            raise TypeError("User bio must be a string.")
++        if len(self._value) < self.MIN_LENGTH:
++            raise ValueError("User bio cannot be shorter than 0 characters.")
++        if len(self._value) > self.MAX_LENGTH:
++            raise ValueError(f"User bio must not exceed {self.MAX_LENGTH} characters.")
++
++    def to_primitive(self) -> str:
++        """Return the original bio string."""
++        return self._value
++
++    @classmethod
++    def from_primitive(cls, value: str) -> Result["UserBio", Exception]:
++        """Create a UserBio from its primitive representation."""
++        try:
++            return Ok(cls(_value=value))
++        except (TypeError, ValueError) as error:
++            return Err(error)
++
++    def __str__(self) -> str:
++        """Return the primitive bio string."""
++        return self.to_primitive()
++
++    def __repr__(self) -> str:
++        """Return a developer-friendly representation."""
++        return f"UserBio({self.to_primitive()!r})"
+diff --git a/src/app/usecases/users/update_user_profile.py b/src/app/usecases/users/update_user_profile.py
+new file mode 100644
+index 0000000..3191237
+--- /dev/null
++++ b/src/app/usecases/users/update_user_profile.py
+@@ -0,0 +1,84 @@
++"""Update a user's profile use case."""
++
++from dataclasses import dataclass
++
++from flow_med import Request, RequestHandler
++from flow_res import Err, Ok, Result, combine_all, is_err
++from injector import inject
++
++from app.contracts.ports import IUnitOfWork
++from app.domain.aggregates.user import User
++from app.domain.value_objects import DisplayName, UserBio, UserId
++from app.usecases.result import ErrorType, UseCaseError, UseCaseResultError
++
++
++@dataclass(frozen=True)
++class UpdateUserProfileResult:
++    """Result returned after a user profile is updated."""
++
++    id: str
++
++
++@dataclass(frozen=True)
++class UpdateUserProfileCommand(
++    Request[Result[UpdateUserProfileResult, UseCaseResultError]]
++):
++    """Command to update an existing user's display name and bio."""
++
++    user_id: str
++    display_name: str
++    bio: str
++
++
++class UpdateUserProfileHandler(
++    RequestHandler[
++        UpdateUserProfileCommand,
++        Result[UpdateUserProfileResult, UseCaseResultError],
++    ]
++):
++    """Handle atomic user profile updates."""
++
++    @inject
++    def __init__(self, uow: IUnitOfWork) -> None:
++        self._uow = uow
++
++    async def handle(
++        self, request: UpdateUserProfileCommand
++    ) -> Result[UpdateUserProfileResult, UseCaseResultError]:
++        """Validate, update, and persist both profile attributes together."""
++        user_id_result = UserId.from_primitive(request.user_id)
++        display_name_result = DisplayName.from_primitive(request.display_name)
++        bio_result = UserBio.from_primitive(request.bio)
++
++        combined_result = combine_all(
++            (user_id_result, display_name_result, bio_result)
++        ).map_err(
++            lambda error: UseCaseError(
++                type=ErrorType.VALIDATION_ERROR,
++                message=", ".join(str(exc) for exc in error.exceptions),
++            )
++        )
++        if is_err(combined_result):
++            return Err(combined_result.error)
++
++        user_id, display_name, bio = combined_result.unwrap()
++
++        async with self._uow:
++            user_repo = self._uow.GetRepository(User, UserId)
++            get_result = await user_repo.get_by_id(user_id)
++            if is_err(get_result):
++                return Err(get_result.error)
++
++            user = get_result.unwrap()
++            user.update_profile(display_name, bio)
++
++            update_result = await user_repo.update(user)
++            if is_err(update_result):
++                return Err(update_result.error)
++
++            commit_result = await self._uow.commit()
++            if is_err(commit_result):
++                return Err(commit_result.error)
++
++            updated_user = update_result.unwrap()
++            return Ok(UpdateUserProfileResult(id=updated_user.id.to_primitive()))
+diff --git a/tests/domain/value_objects/test_user_bio.py b/tests/domain/value_objects/test_user_bio.py
+new file mode 100644
+index 0000000..772f2f7
+--- /dev/null
++++ b/tests/domain/value_objects/test_user_bio.py
+@@ -0,0 +1,26 @@
++"""Tests for the user bio value object."""
++
++import pytest
++from flow_res import is_err, is_ok
++
++from app.domain.value_objects import UserBio
++
++
++def test_user_bio_accepts_empty_string_and_preserves_whitespace() -> None:
++    """Empty, whitespace-only, and multiline values are preserved verbatim."""
++    assert UserBio("").to_primitive() == ""
++    assert UserBio("  hello\nworld  ").to_primitive() == "  hello\nworld  "
++    assert UserBio(" " * 500).to_primitive() == " " * 500
++
++
++def test_user_bio_rejects_more_than_500_characters() -> None:
++    """The maximum length is enforced at 500 characters."""
++    with pytest.raises(ValueError, match="500"):
++        UserBio("x" * 501)
++
++
++def test_user_bio_from_primitive_returns_result() -> None:
++    """Primitive parsing returns Ok for valid values and Err for invalid ones."""
++    assert is_ok(UserBio.from_primitive(""))
++    result = UserBio.from_primitive("x" * 501)
++    assert is_err(result)
+diff --git a/tests/infrastructure/test_user_bio_migration.py b/tests/infrastructure/test_user_bio_migration.py
+new file mode 100644
+index 0000000..daad833
+--- /dev/null
++++ b/tests/infrastructure/test_user_bio_migration.py
+@@ -0,0 +1,96 @@
++"""Tests for the user bio migration."""
++
++import importlib.util
++from datetime import UTC, datetime
++from pathlib import Path
++from typing import Any
++
++import pytest
++import sqlalchemy as sa
++from alembic.migration import MigrationContext
++from alembic.operations import Operations
++from sqlalchemy.ext.asyncio import create_async_engine
++
++_MIGRATION_PATH = (
++    Path(__file__).parents[2]
++    / "alembic"
++    / "versions"
++    / "202610021500_9c2fdc3add17_add_bio_to_users.py"
++)
++
++
++def _load_migration() -> Any:
++    spec = importlib.util.spec_from_file_location("user_bio_migration", _MIGRATION_PATH)
++    if spec is None or spec.loader is None:
++        raise RuntimeError("Could not load user bio migration.")
++    migration = importlib.util.module_from_spec(spec)
++    spec.loader.exec_module(migration)
++    return migration
++
++
++def _users_table(metadata: sa.MetaData) -> sa.Table:
++    return sa.Table(
++        "users",
++        metadata,
++        sa.Column("id", sa.String(26), primary_key=True),
++        sa.Column("display_name", sa.String(255), nullable=False),
++        sa.Column("email", sa.String(255), nullable=False),
++        sa.Column("version", sa.Integer(), nullable=False),
++        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
++        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
++    )
++
++
++@pytest.mark.anyio
++async def test_migration_backfills_existing_users_and_can_roll_back() -> None:
++    """Upgrade preserves legacy user fields and fills bio with an empty string."""
++    engine = create_async_engine("sqlite+aiosqlite:///:memory:")
++    metadata = sa.MetaData()
++    users = _users_table(metadata)
++    migration = _load_migration()
++
++    async with engine.begin() as connection:
++        await connection.run_sync(metadata.create_all)
++        await connection.execute(
++            users.insert().values(
++                id="01ARZ3NDEKTSV4RRFFQ69G5FAV",
++                display_name="Existing",
++                email="existing@example.com",
++                version=3,
++                created_at=datetime(2026, 9, 1, 9, 0, tzinfo=UTC),
++                updated_at=datetime(2026, 9, 2, 10, 0, tzinfo=UTC),
++            )
++        )
++
++        def run_upgrade(sync_connection: sa.Connection) -> None:
++            context = MigrationContext.configure(sync_connection)
++            with Operations.context(context):
++                migration.upgrade()
++
++        def run_downgrade(sync_connection: sa.Connection) -> None:
++            context = MigrationContext.configure(sync_connection)
++            with Operations.context(context):
++                migration.downgrade()
++
++        await connection.run_sync(run_upgrade)
++
++        # Reflect inside the sync connection to inspect both old and new fields.
++        def read_upgraded_row(sync_connection: sa.Connection) -> dict[str, object]:
++            reflected = sa.Table("users", sa.MetaData(), autoload_with=sync_connection)
++            return dict(sync_connection.execute(sa.select(reflected)).mappings().one())
++
++        row = await connection.run_sync(read_upgraded_row)
++        assert row["bio"] == ""
++        assert row["display_name"] == "Existing"
++        assert row["email"] == "existing@example.com"
++        assert row["version"] == 3
++        await connection.run_sync(run_downgrade)
++        remaining_columns = await connection.run_sync(
++            lambda sync_connection: {
++                column["name"]
++                for column in sa.inspect(sync_connection).get_columns("users")
++            }
++        )
++
++    await engine.dispose()
++    assert "bio" not in remaining_columns
+diff --git a/tests/presentation/api/test_user_profile_routes.py b/tests/presentation/api/test_user_profile_routes.py
+new file mode 100644
+index 0000000..d35ebd2
+--- /dev/null
++++ b/tests/presentation/api/test_user_profile_routes.py
+@@ -0,0 +1,95 @@
++"""Tests for the users profile HTTP contract."""
++
++from typing import Any, cast
++from unittest.mock import AsyncMock
++
++import pytest
++from fastapi import HTTPException
++from fastapi.routing import APIRoute
++from flow_res import Err, Ok
++from pydantic import ValidationError
++
++from app.application.mediator import ApplicationMediator
++from app.presentation.api.routers.users import (
++    UpdateUserProfileRequest,
++    UpdateUserProfileResponse,
++    UserResponse,
++    router,
++    update_user_profile,
++)
++from app.usecases.result import ErrorType, UseCaseError
++from app.usecases.users.update_user_profile import (
++    UpdateUserProfileCommand,
++    UpdateUserProfileResult,
++)
++
++
++def test_profile_request_requires_both_fields_and_accepts_empty_bio() -> None:
++    """The PUT payload requires both fields, while permitting an empty bio."""
++    request = UpdateUserProfileRequest.model_validate(
++        {"display_name": "Alice", "bio": ""}
++    )
++    assert request.bio == ""
++
++    with pytest.raises(ValidationError):
++        UpdateUserProfileRequest.model_validate({"display_name": "Alice"})
++
++
++def test_profile_route_is_put_and_get_response_exposes_bio() -> None:
++    """The profile update path uses PUT and user reads include the bio field."""
++    route = next(
++        route
++        for route in router.routes
++        if isinstance(route, APIRoute) and route.path == "/users/{user_id}/profile"
++    )
++    assert route.methods == {"PUT"}
++    assert "bio" in UserResponse.model_fields
++
++
++@pytest.mark.anyio
++async def test_profile_route_sends_both_values_and_returns_update_result() -> None:
++    """The route dispatches the requested profile and returns the existing ID."""
++    mediator = _Mediator(Ok(UpdateUserProfileResult(id="user-id")))
++
++    response = await update_user_profile(
++        "user-id",
++        UpdateUserProfileRequest(
++            display_name="Alice Example", bio="  line one\nline two  "
++        ),
++        cast(ApplicationMediator, mediator),
++    )
++
++    assert isinstance(response, UpdateUserProfileResponse)
++    assert response.id == "user-id"
++    call = mediator.send_async.await_args
++    assert call is not None
++    command = call.args[0]
++    assert isinstance(command, UpdateUserProfileCommand)
++    assert command == UpdateUserProfileCommand(
++        user_id="user-id",
++        display_name="Alice Example",
++        bio="  line one\nline two  ",
++    )
++
++
++@pytest.mark.anyio
++async def test_profile_route_maps_usecase_errors_to_http_errors() -> None:
++    """The route preserves the API's existing HTTP error mapping behavior."""
++    mediator = _Mediator(
++        Err(UseCaseError(type=ErrorType.VALIDATION_ERROR, message="invalid profile"))
++    )
++
++    with pytest.raises(HTTPException) as error:
++        await update_user_profile(
++            "user-id",
++            UpdateUserProfileRequest(display_name="Alice", bio="bio"),
++            cast(ApplicationMediator, mediator),
++        )
++
++    assert error.value.status_code == 400
++    assert error.value.detail == "invalid profile"
++
++
++class _Mediator:
++    def __init__(self, result: Any) -> None:
++        self.send_async = AsyncMock(return_value=result)
+diff --git a/tests/usecases/users/test_update_user_profile.py b/tests/usecases/users/test_update_user_profile.py
+new file mode 100644
+index 0000000..a487ce9
+--- /dev/null
++++ b/tests/usecases/users/test_update_user_profile.py
+@@ -0,0 +1,215 @@
++"""Tests for UpdateUserProfile use case."""
++
++from unittest.mock import AsyncMock, MagicMock, patch
++
++import pytest
++from flow_res import Err, Ok, is_err, is_ok
++from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
++
++from app.contracts.ports import IUnitOfWork
++from app.domain.aggregates.user import User
++from app.domain.repositories import RepositoryError, RepositoryErrorType
++from app.domain.value_objects import DisplayName, Email, UserBio, UserId
++from app.infrastructure.unit_of_work import SQLAlchemyUnitOfWork
++from app.usecases.result import ErrorType
++from app.usecases.users.update_user_profile import (
++    UpdateUserProfileCommand,
++    UpdateUserProfileHandler,
++)
++
++
++@pytest.mark.anyio
++async def test_update_profile_persists_both_fields_for_a_later_uow(
++    uow: IUnitOfWork,
++    session_factory: async_sessionmaker[AsyncSession],
++) -> None:
++    """A profile survives repository reload in a separate UoW scope."""
++    user = User.register(DisplayName("Before"), Email("profile@example.com"))
++    async with uow:
++        repo = uow.GetRepository(User)
++        created = await repo.add(user)
++        assert is_ok(created)
++        saved_user = created.value
++        assert is_ok(await uow.commit())
++
++    handler = UpdateUserProfileHandler(uow)
++    result = await handler.handle(
++        UpdateUserProfileCommand(
++            user_id=saved_user.id.to_primitive(),
++            display_name="After",
++            bio="  hello\nworld  ",
++        )
++    )
++
++    assert is_ok(result)
++    assert result.value.id == saved_user.id.to_primitive()
++    read_uow = SQLAlchemyUnitOfWork(session_factory)
++    async with read_uow:
++        repo = read_uow.GetRepository(User, UserId)
++        loaded = await repo.get_by_id(saved_user.id)
++        assert is_ok(loaded)
++        assert loaded.value.display_name == DisplayName("After")
++        assert loaded.value.bio == UserBio("  hello\nworld  ")
++        assert loaded.value.email == Email("profile@example.com")
++
++
++@pytest.mark.anyio
++async def test_update_profile_allows_empty_bio(uow: IUnitOfWork) -> None:
++    """An empty bio is a valid profile value."""
++    user = User.register(DisplayName("Before"), Email("empty@example.com"))
++    async with uow:
++        repo = uow.GetRepository(User)
++        created = await repo.add(user)
++        assert is_ok(created)
++        saved_user = created.value
++        assert is_ok(await uow.commit())
++
++    result = await UpdateUserProfileHandler(uow).handle(
++        UpdateUserProfileCommand(
++            user_id=saved_user.id.to_primitive(),
++            display_name="After",
++            bio="",
++        )
++    )
++
++    assert is_ok(result)
++    async with uow:
++        repo = uow.GetRepository(User, UserId)
++        loaded = await repo.get_by_id(saved_user.id)
++        assert is_ok(loaded)
++        assert loaded.value.bio == UserBio("")
++
++
++@pytest.mark.anyio
++async def test_update_profile_invalid_input_does_not_change_any_field(
++    uow: IUnitOfWork,
++) -> None:
++    """Both inputs are validated before the existing user is modified."""
++    user = User.register(DisplayName("Before"), Email("invalid@example.com"))
++    async with uow:
++        repo = uow.GetRepository(User)
++        created = await repo.add(user)
++        assert is_ok(created)
++        saved_user = created.value
++        assert is_ok(await uow.commit())
++
++    command = UpdateUserProfileCommand(
++        user_id=saved_user.id.to_primitive(),
++        display_name="After",
++        bio="x" * 501,
++    )
++    result = await UpdateUserProfileHandler(uow).handle(command)
++
++    assert is_err(result)
++    assert result.error.type == ErrorType.VALIDATION_ERROR
++    async with uow:
++        repo = uow.GetRepository(User, UserId)
++        loaded = await repo.get_by_id(saved_user.id)
++        assert is_ok(loaded)
++        assert loaded.value.display_name == DisplayName("Before")
++        assert loaded.value.bio == UserBio("")
++
++
++@pytest.mark.anyio
++async def test_update_profile_rejects_invalid_display_name(uow: IUnitOfWork) -> None:
++    """The existing display-name validation remains in force."""
++    user = User.register(DisplayName("Before"), Email("name@example.com"))
++    async with uow:
++        repo = uow.GetRepository(User)
++        created = await repo.add(user)
++        assert is_ok(created)
++        saved_user = created.value
++        assert is_ok(await uow.commit())
++
++    result = await UpdateUserProfileHandler(uow).handle(
++        UpdateUserProfileCommand(
++            user_id=saved_user.id.to_primitive(), display_name="  After", bio="valid"
++        )
++    )
++
++    assert is_err(result)
++    assert result.error.type == ErrorType.VALIDATION_ERROR
++    async with uow:
++        repo = uow.GetRepository(User, UserId)
++        loaded = await repo.get_by_id(saved_user.id)
++        assert is_ok(loaded)
++        assert loaded.value.display_name == DisplayName("Before")
++        assert loaded.value.bio == UserBio("")
++
++
++@pytest.mark.anyio
++async def test_update_profile_user_not_found_returns_repository_error(
++    uow: IUnitOfWork,
++) -> None:
++    """An unknown valid ID returns NOT_FOUND rather than creating a user."""
++    command = UpdateUserProfileCommand(
++        user_id="01ARZ3NDEKTSV4RRFFQ69G5FAV",
++        display_name="After",
++        bio="A bio",
++    )
++
++    result = await UpdateUserProfileHandler(uow).handle(command)
++
++    assert is_err(result)
++    assert result.error.type == RepositoryErrorType.NOT_FOUND
++
++
++@pytest.mark.anyio
++async def test_commit_failure_rolls_back_both_profile_fields(uow: IUnitOfWork) -> None:
++    """A failed commit leaves the previously saved profile intact."""
++    user = User.register(DisplayName("Before"), Email("rollback-profile@example.com"))
++    async with uow:
++        repo = uow.GetRepository(User)
++        created = await repo.add(user)
++        assert is_ok(created)
++        saved_user = created.value
++        assert is_ok(await uow.commit())
++
++    commit_error = RepositoryError(
++        type=RepositoryErrorType.UNEXPECTED,
++        message="simulated commit failure",
++    )
++    with patch.object(uow, "commit", new=AsyncMock(return_value=Err(commit_error))):
++        result = await UpdateUserProfileHandler(uow).handle(
++            UpdateUserProfileCommand(
++                user_id=saved_user.id.to_primitive(),
++                display_name="After",
++                bio="not committed",
++            )
++        )
++
++    assert is_err(result)
++    assert result.error is commit_error
++    async with uow:
++        repo = uow.GetRepository(User, UserId)
++        loaded = await repo.get_by_id(saved_user.id)
++        assert is_ok(loaded)
++        assert loaded.value.display_name == DisplayName("Before")
++        assert loaded.value.bio == UserBio("")
++
++
++@pytest.mark.anyio
++async def test_repository_update_failure_does_not_commit() -> None:
++    """A repository save failure is returned and the UoW is not committed."""
++    user = User.register(DisplayName("Before"), Email("failure@example.com"))
++    repository_error = RepositoryError(
++        type=RepositoryErrorType.UNEXPECTED,
++        message="simulated save failure",
++    )
++    repo = MagicMock()
++    repo.get_by_id = AsyncMock(return_value=Ok(user))
++    repo.update = AsyncMock(return_value=Err(repository_error))
++    uow = MagicMock(spec=IUnitOfWork)
++    uow.GetRepository.return_value = repo
++    uow.__aenter__ = AsyncMock(return_value=uow)
++    uow.__aexit__ = AsyncMock(return_value=None)
++
++    result = await UpdateUserProfileHandler(uow).handle(
++        UpdateUserProfileCommand(
++            user_id=user.id.to_primitive(), display_name="After", bio="new bio"
++        )
++    )
++
++    assert is_err(result)
++    assert result.error is repository_error
++    uow.commit.assert_not_awaited()

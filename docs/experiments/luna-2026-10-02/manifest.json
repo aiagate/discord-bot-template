@@ -1,0 +1,303 @@
+{
+  "repository": "https://github.com/aiagate/discord-bot-template",
+  "baseline_commit": "950058e2d9d2cfac01c3b1f50b5805097c04ab58",
+  "baseline_migration_head": "7d5f0d6a2b31",
+  "run_date_utc": "2026-10-02",
+  "model_requested": "gpt-6-luna",
+  "reasoning_effort_requested": "xhigh",
+  "python": "3.13.5",
+  "uv": "0.12.19",
+  "frozen_lock": true,
+  "profile_task_sha256": "90213640912dddd5b05876abeac453472fd368e6af49982c87b9aa3129b00c9b",
+  "intervention_patch_sha256": "a310559fd19c92e5fb5417880dffa9e64dec29b8275c667031272e0cf55a3616",
+  "same_feature_baseline_runs": 3,
+  "same_feature_intervention_runs": 2,
+  "cross_feature_runs": 1,
+  "intervention_changed_files": [
+    "AGENTS.md",
+    "docs/development/ADDING_FEATURE.md"
+  ],
+  "intervention_preserved_in_same_feature_repeats": true,
+  "cross_feature_input_integrity": "Starting documentation edits were restored to HEAD during final cleanup; recorded as a failure, not treated as clean generalization evidence.",
+  "cross_feature_acceptance_limit": "Business length validation expected HTTP 400, observed 422 due to Pydantic Field(max_length=2000). Input was rejected and state preserved.",
+  "all_patches_apply_to_baseline": true,
+  "remote_head_same_at_end": true,
+  "remote_writes": false,
+  "production_services_used": false,
+  "postgresql_tested": false,
+  "comparison": [
+    {
+      "trial": "baseline-1",
+      "files": 17,
+      "feature_files": 17,
+      "counts": {
+        "production": {
+          "added": 190,
+          "deleted": 4,
+          "files": 9
+        },
+        "tests": {
+          "added": 395,
+          "deleted": 5,
+          "files": 7
+        },
+        "migration": {
+          "added": 31,
+          "deleted": 0,
+          "files": 1
+        },
+        "docs": {
+          "added": 0,
+          "deleted": 0,
+          "files": 0
+        },
+        "other": {
+          "added": 0,
+          "deleted": 0,
+          "files": 0
+        }
+      },
+      "pytest_passed": 371,
+      "coverage_percent": 86.67,
+      "acceptance": "29/29",
+      "acceptance_failures": [],
+      "migration": "8/8",
+      "quality_exit_codes": {
+        "format": "0",
+        "lint": "0",
+        "pyright": "0",
+        "diff_check": "0"
+      },
+      "patch_sha256": "68bd0b95e30774a30a9f8d9245365c52374a6411d2f829166af47d0df8237481"
+    },
+    {
+      "trial": "baseline-2",
+      "files": 18,
+      "feature_files": 18,
+      "counts": {
+        "production": {
+          "added": 193,
+          "deleted": 4,
+          "files": 10
+        },
+        "tests": {
+          "added": 343,
+          "deleted": 2,
+          "files": 7
+        },
+        "migration": {
+          "added": 25,
+          "deleted": 0,
+          "files": 1
+        },
+        "docs": {
+          "added": 0,
+          "deleted": 0,
+          "files": 0
+        },
+        "other": {
+          "added": 0,
+          "deleted": 0,
+          "files": 0
+        }
+      },
+      "pytest_passed": 368,
+      "coverage_percent": 86.66,
+      "acceptance": "29/29",
+      "acceptance_failures": [],
+      "migration": "8/8",
+      "quality_exit_codes": {
+        "format": "0",
+        "lint": "0",
+        "pyright": "0",
+        "diff_check": "0"
+      },
+      "patch_sha256": "492aaeaa9f96db9a372620ab6ce5930795ef868422e21d979f6202d60ecdc3b9"
+    },
+    {
+      "trial": "baseline-3",
+      "files": 16,
+      "feature_files": 16,
+      "counts": {
+        "production": {
+          "added": 189,
+          "deleted": 5,
+          "files": 9
+        },
+        "tests": {
+          "added": 394,
+          "deleted": 4,
+          "files": 6
+        },
+        "migration": {
+          "added": 27,
+          "deleted": 0,
+          "files": 1
+        },
+        "docs": {
+          "added": 0,
+          "deleted": 0,
+          "files": 0
+        },
+        "other": {
+          "added": 0,
+          "deleted": 0,
+          "files": 0
+        }
+      },
+      "pytest_passed": 370,
+      "coverage_percent": 86.64,
+      "acceptance": "29/29",
+      "acceptance_failures": [],
+      "migration": "8/8",
+      "quality_exit_codes": {
+        "format": "0",
+        "lint": "0",
+        "pyright": "0",
+        "diff_check": "0"
+      },
+      "patch_sha256": "294e5045b0f1f8a4c75a1da40c02a7113ac6296c171e0cf4bc7e8d425f9c8cd9"
+    },
+    {
+      "trial": "improved-1",
+      "files": 22,
+      "feature_files": 20,
+      "counts": {
+        "production": {
+          "added": 203,
+          "deleted": 3,
+          "files": 10
+        },
+        "tests": {
+          "added": 476,
+          "deleted": 4,
+          "files": 9
+        },
+        "migration": {
+          "added": 27,
+          "deleted": 0,
+          "files": 1
+        },
+        "docs": {
+          "added": 38,
+          "deleted": 1,
+          "files": 2
+        },
+        "other": {
+          "added": 0,
+          "deleted": 0,
+          "files": 0
+        }
+      },
+      "pytest_passed": 371,
+      "coverage_percent": 86.55,
+      "acceptance": "29/29",
+      "acceptance_failures": [],
+      "migration": "8/8",
+      "quality_exit_codes": {
+        "format": "0",
+        "lint": "0",
+        "pyright": "0",
+        "diff_check": "0"
+      },
+      "patch_sha256": "1c2eaaffdd4762d6fc231d4a6e212884094b7d06a69fc55365c199be704bea15"
+    },
+    {
+      "trial": "improved-2",
+      "files": 21,
+      "feature_files": 19,
+      "counts": {
+        "production": {
+          "added": 202,
+          "deleted": 4,
+          "files": 10
+        },
+        "tests": {
+          "added": 437,
+          "deleted": 3,
+          "files": 8
+        },
+        "migration": {
+          "added": 25,
+          "deleted": 0,
+          "files": 1
+        },
+        "docs": {
+          "added": 38,
+          "deleted": 1,
+          "files": 2
+        },
+        "other": {
+          "added": 0,
+          "deleted": 0,
+          "files": 0
+        }
+      },
+      "pytest_passed": 372,
+      "coverage_percent": 86.73,
+      "acceptance": "29/29",
+      "acceptance_failures": [],
+      "migration": "8/8",
+      "quality_exit_codes": {
+        "format": "0",
+        "lint": "0",
+        "pyright": "0",
+        "diff_check": "0"
+      },
+      "patch_sha256": "c0152e367e8bda8129b5f823a14e8e8ec559bd67278991a9af4954649d6a222a"
+    },
+    {
+      "trial": "heldout-1",
+      "files": 19,
+      "feature_files": 19,
+      "counts": {
+        "production": {
+          "added": 189,
+          "deleted": 4,
+          "files": 9
+        },
+        "tests": {
+          "added": 472,
+          "deleted": 6,
+          "files": 9
+        },
+        "migration": {
+          "added": 36,
+          "deleted": 0,
+          "files": 1
+        },
+        "docs": {
+          "added": 0,
+          "deleted": 0,
+          "files": 0
+        },
+        "other": {
+          "added": 0,
+          "deleted": 0,
+          "files": 0
+        }
+      },
+      "pytest_passed": 379,
+      "coverage_percent": 86.96,
+      "acceptance": "22/23",
+      "acceptance_failures": [
+        "description_2001_rejected"
+      ],
+      "migration": "8/8",
+      "quality_exit_codes": {
+        "format": "0",
+        "lint": "0",
+        "pyright": "0",
+        "diff_check": "0"
+      },
+      "patch_sha256": "f38ea9ac5e02da9fdb7682add8bfc6e13d2513cb543878d4f66759ce3f932d16"
+    }
+  ],
+  "limitations": [
+    "Small exploratory sample; no statistical significance or per-rule causal effect inferred.",
+    "Several documentation rules were introduced together.",
+    "No deterministic seed control; elapsed times are not a performance benchmark.",
+    "The cross-feature type name appears as a documentation example.",
+    "Review time was not measured; changed lines and files are only review-surface proxies."
+  ]
+}

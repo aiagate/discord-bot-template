@@ -1,0 +1,114 @@
+[
+  {
+    "trial": "baseline-1",
+    "new_public_symbols_without_docstrings": []
+  },
+  {
+    "trial": "baseline-2",
+    "new_public_symbols_without_docstrings": [
+      {
+        "file": "src/app/domain/aggregates/user.py",
+        "symbol": "User.bio",
+        "line": 82,
+        "docstring": null,
+        "kind": "FunctionDef"
+      },
+      {
+        "file": "src/app/presentation/api/routers/users.py",
+        "symbol": "UpdateUserProfileRequest",
+        "line": 33,
+        "docstring": null,
+        "kind": "ClassDef"
+      },
+      {
+        "file": "src/app/presentation/api/routers/users.py",
+        "symbol": "UpdateUserProfileResponse",
+        "line": 38,
+        "docstring": null,
+        "kind": "ClassDef"
+      }
+    ]
+  },
+  {
+    "trial": "baseline-3",
+    "new_public_symbols_without_docstrings": [
+      {
+        "file": "src/app/domain/aggregates/user.py",
+        "symbol": "User.bio",
+        "line": 82,
+        "docstring": null,
+        "kind": "FunctionDef"
+      },
+      {
+        "file": "src/app/presentation/api/routers/users.py",
+        "symbol": "UpdateUserProfileRequest",
+        "line": 33,
+        "docstring": null,
+        "kind": "ClassDef"
+      },
+      {
+        "file": "src/app/presentation/api/routers/users.py",
+        "symbol": "UpdateUserProfileResponse",
+        "line": 38,
+        "docstring": null,
+        "kind": "ClassDef"
+      }
+    ]
+  },
+  {
+    "trial": "improved-1",
+    "new_public_symbols_without_docstrings": []
+  },
+  {
+    "trial": "improved-2",
+    "new_public_symbols_without_docstrings": [
+      {
+        "file": "src/app/domain/aggregates/user.py",
+        "symbol": "User.bio",
+        "line": 78,
+        "docstring": null,
+        "kind": "FunctionDef"
+      },
+      {
+        "file": "src/app/presentation/api/routers/users.py",
+        "symbol": "UpdateUserProfileRequest",
+        "line": 35,
+        "docstring": null,
+        "kind": "ClassDef"
+      },
+      {
+        "file": "src/app/presentation/api/routers/users.py",
+        "symbol": "UpdateUserProfileResponse",
+        "line": 40,
+        "docstring": null,
+        "kind": "ClassDef"
+      }
+    ]
+  },
+  {
+    "trial": "heldout-1",
+    "new_public_symbols_without_docstrings": [
+      {
+        "file": "src/app/domain/aggregates/team.py",
+        "symbol": "Team.description",
+        "line": 77,
+        "docstring": null,
+        "kind": "FunctionDef"
+      },
+      {
+        "file": "src/app/presentation/api/routers/teams.py",
+        "symbol": "UpdateTeamDescriptionRequest",
+        "line": 37,
+        "docstring": null,
+        "kind": "ClassDef"
+      },
+      {
+        "file": "src/app/presentation/api/routers/teams.py",
+        "symbol": "UpdateTeamDescriptionResponse",
+        "line": 41,
+        "docstring": null,
+        "kind": "ClassDef"
+      }
+    ]
+  }
+]
