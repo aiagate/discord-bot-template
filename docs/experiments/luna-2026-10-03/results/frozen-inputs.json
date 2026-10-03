@@ -1,0 +1,6 @@
+{
+  "patches/docs-candidate.patch": "3e2807b58643b97d1612d330c3e7edbc802ebc422b90ddd7266dcf4f888eb482",
+  "PROTOCOL.md": "45c7e0c8460818e2a22e9e949f9b234850932baab4d2bc3b2ea2a7eda5787810",
+  "prompts/team.txt": "0d0df3cc260e4ce6d40b508692f70aa978fec16a20188ada5489f95335b5245a",
+  "prompts/tagline.txt": "0c7e9b61dfe70f94833fee6b86ff91ec111c8b24b4cf11626426f8eb1ee78884"
+}

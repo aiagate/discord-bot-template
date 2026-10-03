@@ -1,0 +1,983 @@
+diff --git a/AGENTS.md b/AGENTS.md
+index a8eb96d..762a485 100644
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -4,6 +4,10 @@
+ 
+ ## 開発の基本ルール
+ 
++作業開始時に `git status --short` と差分を確認し、既存の変更（未追跡ファイルを含む）を保持する。
++差分整理を理由に開始前の変更を戻さず、終了時にも残っていることを確認する。
++既存集約の拡張では `docs/development/ADDING_FEATURE.md` の契約確認から始める。
++
+ ### 1\. パッケージ管理
+ 
+ - `uv` のみを使用すること。 `pip` は絶対に使用しないこと。
+diff --git a/README.md b/README.md
+index 8785751..8c9a25b 100644
+--- a/README.md
++++ b/README.md
+@@ -303,3 +303,5 @@ uv run pytest
+ ## ライセンス
+ 
+ このプロジェクトは[MITライセンス](LICENSE)の下で公開されています。
++
++<!-- Local draft: retain this note while implementing the requested feature. -->
+diff --git a/docs/api/implementation_guide.md b/docs/api/implementation_guide.md
+index 77a8080..48061e1 100644
+--- a/docs/api/implementation_guide.md
++++ b/docs/api/implementation_guide.md
+@@ -106,6 +106,10 @@ async def create_user(...) -> CreateUserResponse:
+ 
+ ## 4. エラーハンドリング
+ 
++JSONの必須項目・型の不正はFastAPI/Pydanticの422、ドメインの値の制約違反はUseCase経由の400として扱います。
++既存の契約を維持する追加では、ドメインの文字数制約などをRequestの `Field(max_length=...)` に重複配置して400を422へ変えないでください。
++ルータ関数の直接呼び出しでは先行する入力検証を通らないため、形式不正・業務条件違反・正常系を実際のHTTPルート経由で検証します。
++
+ Use Case から返却される `Result` 型 (`Ok` / `Err`) をハンドリングし、適切な HTTP ステータスコードに変換してください。
+ 
+ * **Validation Error** -> 400 Bad Request
+diff --git a/docs/development/ADDING_FEATURE.md b/docs/development/ADDING_FEATURE.md
+index 13a862e..5315a61 100644
+--- a/docs/development/ADDING_FEATURE.md
++++ b/docs/development/ADDING_FEATURE.md
+@@ -7,6 +7,14 @@
+ 
+ ## 全体対応表（編集先・登録先・テスト）
+ 
++### 既存集約の拡張前に確認する契約
++
++- 変更する操作と維持する操作を分ける。生成時の入力を維持する要件なら、生成ファクトリの引数も不用意に増やさない。保存値の復元は追加属性を含めて行う。
++- 既存例から責務・依存方向・エラー処理を引き継ぐ。新しい応答型の名前とDocstringは操作の意味に合わせる。
++- 追加属性は共通契約のケース定義へ非既定値で登録し、機能固有の状態変更は対象集約・UseCaseのテストで検証する。共通テスト本体へ機能名による分岐を加えない。
++- 既存操作後の追加属性の保持と、失敗時に更新が確定しないことを検証する。共通Repository/UoWが既に保証する挙動を各機能で複製する必要はない。
++- HTTPの検証は登録済みルートを通し、[APIのエラー契約](../api/implementation_guide.md#4-エラーハンドリング)に従ってステータスも確認する。
++
+ 実在するチーム機能（`Team`）を主例とした、各開発ステップの編集先・登録先・検証テストの対応表です。
+ 
+ | 開発ステップ | 主な作成・編集ファイル（例: Team） | 登録先・接続先ファイル | 確認コマンド / テストファイル |
+diff --git a/src/app/application/mediator.py b/src/app/application/mediator.py
+index f32b88f..d70c3e4 100644
+--- a/src/app/application/mediator.py
++++ b/src/app/application/mediator.py
+@@ -20,6 +20,7 @@ from app.usecases.result import UseCaseError, UseCaseResultError
+ from app.usecases.teams.create_team import CreateTeamHandler
+ from app.usecases.teams.get_team import GetTeamHandler
+ from app.usecases.teams.update_team import UpdateTeamHandler
++from app.usecases.teams.update_team_description import UpdateTeamDescriptionHandler
+ from app.usecases.users.create_user import CreateUserHandler
+ from app.usecases.users.get_user import GetUserHandler
+ from app.usecases.users.welcome_user import WelcomeUserHandler
+@@ -35,6 +36,7 @@ _HANDLER_TYPES: tuple[type[RequestHandler[Any, Any]], ...] = (
+     CreateTeamHandler,
+     GetTeamHandler,
+     UpdateTeamHandler,
++    UpdateTeamDescriptionHandler,
+     CreateUserHandler,
+     GetUserHandler,
+     WelcomeUserHandler,
+diff --git a/src/app/domain/aggregates/team.py b/src/app/domain/aggregates/team.py
+index 5bb4d34..4f4580a 100644
+--- a/src/app/domain/aggregates/team.py
++++ b/src/app/domain/aggregates/team.py
+@@ -5,7 +5,7 @@ from __future__ import annotations
+ from dataclasses import dataclass, field
+ from datetime import UTC, datetime
+ 
+-from app.domain.value_objects import TeamId, TeamName, Version
++from app.domain.value_objects import TeamDescription, TeamId, TeamName, Version
+ 
+ 
+ @dataclass(kw_only=True, slots=True)
+@@ -27,6 +27,9 @@ class Team:
+         ),
+     )
+     _name: TeamName
++    _description: TeamDescription = field(
++        init=False, default_factory=lambda: TeamDescription("")
++    )
+     _version: Version = field(init=False, default_factory=lambda: Version(0))
+     _created_at: datetime = field(init=False, default_factory=lambda: datetime.now(UTC))
+     _updated_at: datetime = field(init=False, default_factory=lambda: datetime.now(UTC))
+@@ -48,6 +51,7 @@ class Team:
+         *,
+         team_id: TeamId,
+         name: TeamName,
++        description: TeamDescription,
+         version: Version,
+         created_at: datetime,
+         updated_at: datetime,
+@@ -55,6 +59,7 @@ class Team:
+         """Restore a team with persistence-managed identity and audit state."""
+         team = cls(_name=name)
+         team._id = team_id
++        team._description = description
+         team._version = version
+         team._created_at = created_at
+         team._updated_at = updated_at
+@@ -68,6 +73,10 @@ class Team:
+     def name(self) -> TeamName:
+         return self._name
+ 
++    @property
++    def description(self) -> TeamDescription:
++        return self._description
++
+     @property
+     def version(self) -> Version:
+         return self._version
+@@ -88,3 +97,8 @@ class Team:
+         self._name = new_name
+ 
+         return self
++
++    def change_description(self, new_description: TeamDescription) -> Team:
++        """Replace the team's description without changing its exact contents."""
++        self._description = new_description
++        return self
+diff --git a/src/app/domain/value_objects/__init__.py b/src/app/domain/value_objects/__init__.py
+index 1dcd3c6..da5449c 100644
+--- a/src/app/domain/value_objects/__init__.py
++++ b/src/app/domain/value_objects/__init__.py
+@@ -19,6 +19,7 @@ from app.domain.value_objects.membership_role import MembershipRole
+ from app.domain.value_objects.membership_status import MembershipStatus
+ from app.domain.value_objects.message_content import MessageContent, MessageContentType
+ from app.domain.value_objects.message_id import MessageId
++from app.domain.value_objects.team_description import TeamDescription
+ from app.domain.value_objects.team_id import TeamId
+ from app.domain.value_objects.team_name import TeamName
+ from app.domain.value_objects.user_id import UserId
+@@ -42,6 +43,7 @@ __all__ = [
+     "MessageContentType",
+     "MessageId",
+     "TeamId",
++    "TeamDescription",
+     "TeamName",
+     "UserId",
+     "Version",
+diff --git a/src/app/infrastructure/mappings/team.py b/src/app/infrastructure/mappings/team.py
+index dd4f2b2..286c3ac 100644
+--- a/src/app/infrastructure/mappings/team.py
++++ b/src/app/infrastructure/mappings/team.py
+@@ -3,7 +3,7 @@
+ from sqlmodel import SQLModel
+ 
+ from app.domain.aggregates.team import Team
+-from app.domain.value_objects import TeamId, TeamName, Version
++from app.domain.value_objects import TeamDescription, TeamId, TeamName, Version
+ from app.infrastructure.mappings._restore_helpers import (
+     required_text,
+     required_timestamp,
+@@ -17,6 +17,7 @@ def team_to_orm(team: Team) -> TeamORM:
+     return TeamORM(
+         id=team.id.to_primitive(),
+         name=team.name.to_primitive(),
++        description=team.description.to_primitive(),
+         version=team.version.to_primitive(),
+         created_at=team.created_at,
+         updated_at=team.updated_at,
+@@ -31,6 +32,12 @@ def team_from_orm(row: SQLModel) -> Team:
+     return Team.restore(
+         team_id=unwrap_value(TeamId.from_primitive(required_text(row.id, "id")), "id"),
+         name=unwrap_value(TeamName.from_primitive(row.name), "name"),
++        description=unwrap_value(
++            TeamDescription.from_primitive(
++                required_text(row.description, "description")
++            ),
++            "description",
++        ),
+         version=unwrap_value(Version.from_primitive(row.version), "version"),
+         created_at=required_timestamp(row.created_at, "created_at"),
+         updated_at=required_timestamp(row.updated_at, "updated_at"),
+diff --git a/src/app/infrastructure/orm_models/team_orm.py b/src/app/infrastructure/orm_models/team_orm.py
+index 509ca56..6f7a010 100644
+--- a/src/app/infrastructure/orm_models/team_orm.py
++++ b/src/app/infrastructure/orm_models/team_orm.py
+@@ -19,6 +19,11 @@ class TeamORM(SQLModel, table=True):
+ 
+     id: str | None = Field(default=None, primary_key=True, max_length=26)
+     name: str = Field(max_length=100, index=True)
++    description: str = Field(
++        default="",
++        max_length=2000,
++        sa_column_kwargs={"server_default": ""},
++    )
+     version: int = Field(default=0, sa_column=_version_column)
+ 
+     __mapper_args__ = {
+diff --git a/src/app/presentation/api/routers/teams.py b/src/app/presentation/api/routers/teams.py
+index dce8e60..e39b2d1 100644
+--- a/src/app/presentation/api/routers/teams.py
++++ b/src/app/presentation/api/routers/teams.py
+@@ -10,6 +10,7 @@ from app.presentation.api.error_mapping import http_status_for_error
+ from app.usecases.teams.create_team import CreateTeamCommand
+ from app.usecases.teams.get_team import GetTeamQuery
+ from app.usecases.teams.update_team import UpdateTeamCommand
++from app.usecases.teams.update_team_description import UpdateTeamDescriptionCommand
+ 
+ router = APIRouter(prefix="/teams", tags=["teams"])
+ 
+@@ -25,6 +26,7 @@ class CreateTeamResponse(BaseModel):
+ class TeamResponse(BaseModel):
+     id: str
+     name: str
++    description: str
+     version: int
+ 
+ 
+@@ -32,6 +34,10 @@ class UpdateTeamRequest(BaseModel):
+     name: str
+ 
+ 
++class UpdateTeamDescriptionRequest(BaseModel):
++    description: str
++
++
+ @router.post("", response_model=CreateTeamResponse)
+ async def create_team(
+     request: CreateTeamRequest,
+@@ -73,6 +79,7 @@ async def get_team(
+     return TeamResponse(
+         id=team_result.id,
+         name=team_result.name,
++        description=team_result.description,
+         version=team_result.version,
+     )
+ 
+@@ -95,3 +102,26 @@ async def update_team(
+ 
+     updated_team_id = result.unwrap().id
+     return CreateTeamResponse(id=updated_team_id)
++
++
++@router.put("/{team_id}/description", response_model=CreateTeamResponse)
++async def update_team_description(
++    team_id: str,
++    request: UpdateTeamDescriptionRequest,
++    mediator: Annotated[ApplicationMediator, Depends(get_mediator)],
++) -> CreateTeamResponse:
++    """Replace a team's description."""
++    command = UpdateTeamDescriptionCommand(
++        team_id=team_id,
++        description=request.description,
++    )
++    result = await mediator.send_async(command)
++
++    if is_err(result):
++        raise HTTPException(
++            status_code=http_status_for_error(result.error.type),
++            detail=result.error.display_message,
++        )
++
++    updated_team_id = result.unwrap().id
++    return CreateTeamResponse(id=updated_team_id)
+diff --git a/src/app/usecases/teams/__init__.py b/src/app/usecases/teams/__init__.py
+index 3c25b2b..11a50c4 100644
+--- a/src/app/usecases/teams/__init__.py
++++ b/src/app/usecases/teams/__init__.py
+@@ -9,6 +9,11 @@ from app.usecases.teams.update_team import (
+     UpdateTeamCommand,
+     UpdateTeamHandler,
+ )
++from app.usecases.teams.update_team_description import (
++    UpdateTeamDescriptionCommand,
++    UpdateTeamDescriptionHandler,
++    UpdateTeamDescriptionResult,
++)
+ 
+ __all__ = [
+     "CreateTeamCommand",
+@@ -18,4 +23,7 @@ __all__ = [
+     "GetTeamResult",
+     "UpdateTeamCommand",
+     "UpdateTeamHandler",
++    "UpdateTeamDescriptionCommand",
++    "UpdateTeamDescriptionHandler",
++    "UpdateTeamDescriptionResult",
+ ]
+diff --git a/src/app/usecases/teams/get_team.py b/src/app/usecases/teams/get_team.py
+index 067c3d5..4beeb63 100644
+--- a/src/app/usecases/teams/get_team.py
++++ b/src/app/usecases/teams/get_team.py
+@@ -25,6 +25,7 @@ class GetTeamResult:
+ 
+     id: str
+     name: str
++    description: str
+     version: int
+ 
+ 
+@@ -71,6 +72,7 @@ class GetTeamHandler(
+                 GetTeamResult(
+                     id=team.id.to_primitive(),
+                     name=team.name.to_primitive(),
++                    description=team.description.to_primitive(),
+                     version=team.version.to_primitive(),
+                 )
+             )
+diff --git a/tests/domain/aggregate_cases.py b/tests/domain/aggregate_cases.py
+index b9b6e6a..76a4fad 100644
+--- a/tests/domain/aggregate_cases.py
++++ b/tests/domain/aggregate_cases.py
+@@ -17,6 +17,7 @@ from app.domain.value_objects import (
+     MembershipStatus,
+     MessageContent,
+     MessageId,
++    TeamDescription,
+     TeamId,
+     TeamName,
+     UserId,
+@@ -66,15 +67,31 @@ AGGREGATE_CASES: dict[type[Aggregate], AggregateCase] = {
+         restore_values={
+             "team_id": TeamId.generate().expect("valid ID"),
+             "name": TeamName("Alpha"),
++            "description": TeamDescription("Initial description"),
+             "version": Version(3),
+             "created_at": CREATED_AT,
+             "updated_at": UPDATED_AT,
+         },
+-        changed_values={"name": TeamName("Beta"), "version": Version(8)},
++        changed_values={
++            "name": TeamName("Beta"),
++            "description": TeamDescription("Updated description"),
++            "version": Version(8),
++        },
+         id_parameter="team_id",
+-        state_fields=("id", "name", "version", "created_at", "updated_at"),
++        state_fields=(
++            "id",
++            "name",
++            "description",
++            "version",
++            "created_at",
++            "updated_at",
++        ),
+         mutable=True,
+-        invalid_rows=(("id", "invalid"), ("name", "")),
++        invalid_rows=(
++            ("id", "invalid"),
++            ("name", ""),
++            ("description", "x" * 2001),
++        ),
+     ),
+     TeamMembership: AggregateCase(
+         restore_values={
+diff --git a/tests/domain/aggregates/test_team.py b/tests/domain/aggregates/test_team.py
+index 6644ad4..72240e9 100644
+--- a/tests/domain/aggregates/test_team.py
++++ b/tests/domain/aggregates/test_team.py
+@@ -5,7 +5,7 @@ from datetime import UTC, datetime, timedelta
+ from flow_res import is_err, is_ok
+ 
+ from app.domain.aggregates.team import Team
+-from app.domain.value_objects import TeamId, TeamName, Version
++from app.domain.value_objects import TeamDescription, TeamId, TeamName, Version
+ 
+ 
+ def test_team_identity_survives_name_and_version_changes() -> None:
+@@ -14,6 +14,7 @@ def test_team_identity_survives_name_and_version_changes() -> None:
+     restored = Team.restore(
+         team_id=team.id,
+         name=TeamName("Renamed"),
++        description=TeamDescription("Some details"),
+         version=Version(1),
+         created_at=team.created_at,
+         updated_at=team.updated_at + timedelta(seconds=1),
+@@ -48,6 +49,19 @@ def test_team_change_name() -> None:
+     assert team.name.to_primitive() == "New Team"
+ 
+ 
++def test_team_description_defaults_empty_and_keeps_exact_text() -> None:
++    """New teams default to an empty description and retain input formatting."""
++    team = Team.form(name=TeamName("Team"))
++    assert team.description.to_primitive() == ""
++
++    description = TeamDescription("  first line\nsecond line  ")
++    team.change_description(description)
++    team.change_name(TeamName("Renamed"))
++
++    assert team.description is description
++    assert team.description.to_primitive() == "  first line\nsecond line  "
++
++
+ def test_team_creation_with_valid_data() -> None:
+     """Test creating a team with valid data."""
+     team_id_result = TeamId.generate()
+diff --git a/tests/domain/test_aggregate_contracts.py b/tests/domain/test_aggregate_contracts.py
+index 7b4fd49..ed09ace 100644
+--- a/tests/domain/test_aggregate_contracts.py
++++ b/tests/domain/test_aggregate_contracts.py
+@@ -6,7 +6,7 @@ import pytest
+ 
+ from app.domain import aggregates
+ from app.domain.aggregates import ChatMessage, Team, TeamMembership, User
+-from app.domain.value_objects import Email, MessageContent, TeamName
++from app.domain.value_objects import Email, MessageContent, TeamDescription, TeamName
+ from tests.domain.aggregate_cases import (
+     AGGREGATE_CASES,
+     TRANSITION_EXEMPTIONS,
+@@ -85,6 +85,12 @@ def test_public_fields_cannot_bypass_domain_operations(
+     [
+         (User, "change_email", "email", Email("new@example.com")),
+         (Team, "change_name", "name", TeamName("New name")),
++        (
++            Team,
++            "change_description",
++            "description",
++            TeamDescription("New description"),
++        ),
+     ],
+ )
+ def test_valid_attribute_change_preserves_identity_and_audit_state(
+diff --git a/tests/infrastructure/test_domain_mappings.py b/tests/infrastructure/test_domain_mappings.py
+index 52be64d..bbaf905 100644
+--- a/tests/infrastructure/test_domain_mappings.py
++++ b/tests/infrastructure/test_domain_mappings.py
+@@ -13,6 +13,7 @@ from app.domain.value_objects import (
+     MembershipId,
+     MembershipRole,
+     MembershipStatus,
++    TeamDescription,
+     TeamId,
+     TeamName,
+     UserId,
+@@ -98,6 +99,7 @@ def test_team_mapping_restores_id_version_and_audit_state() -> None:
+     team = Team.restore(
+         team_id=TeamId.generate().expect("valid id"),
+         name=TeamName.from_primitive("Alpha").expect("valid name"),
++        description=TeamDescription("Alpha team's details"),
+         version=Version(3),
+         created_at=created_at,
+         updated_at=updated_at,
+@@ -107,6 +109,7 @@ def test_team_mapping_restores_id_version_and_audit_state() -> None:
+ 
+     assert restored == team
+     assert restored.name == team.name
++    assert restored.description == team.description
+     assert restored.version == Version(3)
+     assert restored.created_at == created_at
+     assert restored.updated_at == updated_at
+diff --git a/tests/usecases/teams/test_get_team.py b/tests/usecases/teams/test_get_team.py
+index 3c60bda..bbb8c1c 100644
+--- a/tests/usecases/teams/test_get_team.py
++++ b/tests/usecases/teams/test_get_team.py
+@@ -36,6 +36,7 @@ async def test_get_team_handler(uow: IUnitOfWork) -> None:
+     assert is_ok(result)
+     assert result.value.id == saved_team.id.to_primitive()
+     assert result.value.name == "Alpha Team"
++    assert result.value.description == ""
+ 
+ 
+ @pytest.mark.anyio
+diff --git a/alembic/versions/202610031300_add_team_description.py b/alembic/versions/202610031300_add_team_description.py
+new file mode 100644
+index 0000000..d4c4e6f
+--- /dev/null
++++ b/alembic/versions/202610031300_add_team_description.py
+@@ -0,0 +1,36 @@
++"""Add a persisted description to teams.
++
++Revision ID: 6d9a1fc2e4b7
++Revises: 7d5f0d6a2b31
++Create Date: 2026-10-03 13:00:00.000000
++
++"""
++
++from collections.abc import Sequence
++
++import sqlalchemy as sa
++
++from alembic import op
++
++revision: str = "6d9a1fc2e4b7"
++down_revision: str | Sequence[str] | None = "7d5f0d6a2b31"
++branch_labels: str | Sequence[str] | None = None
++depends_on: str | Sequence[str] | None = None
++
++
++def upgrade() -> None:
++    """Add the empty default for existing teams and new rows."""
++    op.add_column(
++        "teams",
++        sa.Column(
++            "description",
++            sa.String(length=2000),
++            server_default="",
++            nullable=False,
++        ),
++    )
++
++
++def downgrade() -> None:
++    """Remove the team description column."""
++    op.drop_column("teams", "description")
+diff --git a/src/app/domain/value_objects/team_description.py b/src/app/domain/value_objects/team_description.py
+new file mode 100644
+index 0000000..35bdf12
+--- /dev/null
++++ b/src/app/domain/value_objects/team_description.py
+@@ -0,0 +1,44 @@
++"""Team description value object with length validation."""
++
++from __future__ import annotations
++
++from dataclasses import dataclass
++from typing import ClassVar
++
++from flow_res import Err, Ok, Result
++
++
++@dataclass(frozen=True, slots=True)
++class TeamDescription:
++    """An exact team description, including whitespace and line breaks."""
++
++    _value: str
++
++    MAX_LENGTH: ClassVar[int] = 2000
++
++    def __post_init__(self) -> None:
++        """Validate the description without normalizing its content."""
++        if not isinstance(  # type: ignore[reportUnnecessaryIsInstance]
++            self._value, str
++        ):
++            raise TypeError("Team description must be a string.")
++        if len(self._value) > self.MAX_LENGTH:
++            raise ValueError(
++                f"Team description must not exceed {self.MAX_LENGTH} characters."
++            )
++
++    @classmethod
++    def from_primitive(cls, value: str) -> Result[TeamDescription, Exception]:
++        """Create a description from its stored or submitted string value."""
++        try:
++            return Ok(cls(_value=value))
++        except (TypeError, ValueError) as error:
++            return Err(error)
++
++    def to_primitive(self) -> str:
++        """Return the exact string stored in this value object."""
++        return self._value
++
++    def __str__(self) -> str:
++        """Return the description text."""
++        return self._value
+diff --git a/src/app/usecases/teams/update_team_description.py b/src/app/usecases/teams/update_team_description.py
+new file mode 100644
+index 0000000..88f3b41
+--- /dev/null
++++ b/src/app/usecases/teams/update_team_description.py
+@@ -0,0 +1,78 @@
++"""Update an existing team's description."""
++
++from dataclasses import dataclass
++
++from flow_med import Request, RequestHandler
++from flow_res import Err, Ok, Result, combine_all, is_err
++from injector import inject
++
++from app.contracts.ports import IUnitOfWork
++from app.domain.aggregates.team import Team
++from app.domain.value_objects import TeamDescription, TeamId
++from app.usecases.result import ErrorType, UseCaseError, UseCaseResultError
++
++
++@dataclass(frozen=True)
++class UpdateTeamDescriptionResult:
++    """Result of replacing a team's description."""
++
++    id: str
++
++
++@dataclass(frozen=True)
++class UpdateTeamDescriptionCommand(
++    Request[Result[UpdateTeamDescriptionResult, UseCaseResultError]]
++):
++    """Command to replace an existing team's description."""
++
++    team_id: str
++    description: str
++
++
++class UpdateTeamDescriptionHandler(
++    RequestHandler[
++        UpdateTeamDescriptionCommand,
++        Result[UpdateTeamDescriptionResult, UseCaseResultError],
++    ]
++):
++    """Handle description updates through the Team repository and Unit of Work."""
++
++    @inject
++    def __init__(self, uow: IUnitOfWork) -> None:
++        self._uow = uow
++
++    async def handle(
++        self, request: UpdateTeamDescriptionCommand
++    ) -> Result[UpdateTeamDescriptionResult, UseCaseResultError]:
++        """Validate, replace, and commit a team's description."""
++        team_id_result = TeamId.from_primitive(request.team_id)
++        description_result = TeamDescription.from_primitive(request.description)
++        combined_result = combine_all((team_id_result, description_result)).map_err(
++            lambda error: UseCaseError(
++                type=ErrorType.VALIDATION_ERROR,
++                message=", ".join(str(exc) for exc in error.exceptions),
++            )
++        )
++        if is_err(combined_result):
++            return Err(combined_result.error)
++
++        team_id, description = combined_result.unwrap()
++
++        async with self._uow:
++            team_repo = self._uow.GetRepository(Team, TeamId)
++            get_result = await team_repo.get_by_id(team_id)
++            if is_err(get_result):
++                return Err(get_result.error)
++
++            team = get_result.unwrap()
++            team.change_description(description)
++
++            update_result = await team_repo.update(team)
++            if is_err(update_result):
++                return Err(update_result.error)
++
++            commit_result = await self._uow.commit()
++            if is_err(commit_result):
++                return Err(commit_result.error)
++
++            return Ok(UpdateTeamDescriptionResult(id=team.id.to_primitive()))
+diff --git a/tests/domain/value_objects/test_team_description.py b/tests/domain/value_objects/test_team_description.py
+new file mode 100644
+index 0000000..4f14031
+--- /dev/null
++++ b/tests/domain/value_objects/test_team_description.py
+@@ -0,0 +1,36 @@
++"""Tests for team description validation and exact value preservation."""
++
++import pytest
++from flow_res import is_err, is_ok
++
++from app.domain.value_objects import TeamDescription
++
++
++def test_description_allows_empty_and_preserves_whitespace() -> None:
++    """Empty descriptions are valid and other text remains unnormalized."""
++    empty = TeamDescription.from_primitive("").expect("empty description is valid")
++    assert empty == TeamDescription("")
++
++    original = " \tLine one\nLine two  "
++    description = TeamDescription.from_primitive(original).expect("valid description")
++    assert description.to_primitive() == original
++
++
++def test_description_accepts_maximum_length() -> None:
++    """A description at the 2,000-character limit is valid."""
++    result = TeamDescription.from_primitive("x" * TeamDescription.MAX_LENGTH)
++    assert is_ok(result)
++    assert len(result.value.to_primitive()) == 2000
++
++
++def test_description_rejects_values_over_maximum_length() -> None:
++    """A description longer than 2,000 characters is invalid."""
++    result = TeamDescription.from_primitive("x" * (TeamDescription.MAX_LENGTH + 1))
++    assert is_err(result)
++    assert "must not exceed 2000 characters" in str(result.error)
++
++
++def test_description_rejects_non_string_values() -> None:
++    """The value object rejects values that are not strings."""
++    with pytest.raises(TypeError, match="must be a string"):
++        TeamDescription(1)  # type: ignore[arg-type]
+diff --git a/tests/presentation/api/test_teams_router.py b/tests/presentation/api/test_teams_router.py
+new file mode 100644
+index 0000000..376780c
+--- /dev/null
++++ b/tests/presentation/api/test_teams_router.py
+@@ -0,0 +1,148 @@
++"""HTTP-level tests for the teams API router."""
++
++import json
++from typing import cast
++
++import pytest
++from fastapi import FastAPI
++from injector import Injector
++from starlette.types import ASGIApp, Message, Scope
++
++from app import container
++from app.application.mediator import ApplicationMediator
++from app.presentation.api.routers import teams
++
++
++def _teams_app() -> FastAPI:
++    """Build the teams router with the test database's application services."""
++    api = FastAPI()
++    api.include_router(teams.router)
++    injector = Injector([container.configure])
++    api.state.mediator = injector.get(ApplicationMediator)
++    return api
++
++
++async def _request(
++    api: FastAPI,
++    method: str,
++    path: str,
++    payload: dict[str, object] | None = None,
++) -> tuple[int, dict[str, object]]:
++    """Send one JSON request through the ASGI router and return its response."""
++    body = b"" if payload is None else json.dumps(payload).encode()
++    messages: list[Message] = []
++    request_messages = [{"type": "http.request", "body": body, "more_body": False}]
++
++    async def receive() -> Message:
++        if request_messages:
++            return cast(Message, request_messages.pop(0))
++        return {"type": "http.disconnect"}
++
++    async def send(message: Message) -> None:
++        messages.append(message)
++
++    scope: Scope = {
++        "type": "http",
++        "asgi": {"version": "3.0", "spec_version": "2.3"},
++        "http_version": "1.1",
++        "method": method,
++        "scheme": "http",
++        "path": path,
++        "raw_path": path.encode(),
++        "query_string": b"",
++        "root_path": "",
++        "headers": [(b"host", b"testserver"), (b"content-type", b"application/json")],
++        "client": ("127.0.0.1", 12345),
++        "server": ("testserver", 80),
++    }
++    app = cast(ASGIApp, api)
++    await app(scope, receive, send)
++
++    status_message = next(
++        message for message in messages if message["type"] == "http.response.start"
++    )
++    body_message = next(
++        message for message in messages if message["type"] == "http.response.body"
++    )
++    status_code = cast(int, status_message["status"])
++    response_body = cast(bytes, body_message.get("body", b""))
++    response_json = cast(dict[str, object], json.loads(response_body))
++    return status_code, response_json
++
++
++@pytest.mark.anyio
++async def test_team_description_api_lifecycle(session_factory: object) -> None:
++    """Create, fetch, replace, and retain descriptions through HTTP routes."""
++    api = _teams_app()
++
++    create_status, created = await _request(api, "POST", "/teams", {"name": "Original"})
++    assert create_status == 200
++    team_id = cast(str, created["id"])
++
++    get_status, team = await _request(api, "GET", f"/teams/{team_id}")
++    assert get_status == 200
++    assert team["description"] == ""
++
++    missing_status, _ = await _request(api, "PUT", f"/teams/{team_id}/description", {})
++    assert missing_status == 422
++    wrong_type_status, _ = await _request(
++        api, "PUT", f"/teams/{team_id}/description", {"description": 123}
++    )
++    assert wrong_type_status == 422
++
++    empty_status, empty_result = await _request(
++        api, "PUT", f"/teams/{team_id}/description", {"description": ""}
++    )
++    assert empty_status == 200
++    assert empty_result == {"id": team_id}
++
++    description = "  first line\nsecond line\t "
++    update_status, updated = await _request(
++        api,
++        "PUT",
++        f"/teams/{team_id}/description",
++        {"description": description},
++    )
++    assert update_status == 200
++    assert updated == {"id": team_id}
++
++    rename_status, _ = await _request(
++        api, "PUT", f"/teams/{team_id}", {"name": "Renamed"}
++    )
++    assert rename_status == 200
++
++    get_status, team = await _request(api, "GET", f"/teams/{team_id}")
++    assert get_status == 200
++    assert team["name"] == "Renamed"
++    assert team["description"] == description
++
++    too_long_status, _ = await _request(
++        api,
++        "PUT",
++        f"/teams/{team_id}/description",
++        {"description": "x" * 2001},
++    )
++    assert too_long_status == 400
++    get_status, team = await _request(api, "GET", f"/teams/{team_id}")
++    assert get_status == 200
++    assert team["description"] == description
++
++
++@pytest.mark.anyio
++async def test_unknown_team_description_route_returns_not_found(
++    session_factory: object,
++) -> None:
++    """A description update for an unknown ID never creates a team."""
++    api = _teams_app()
++    team_id = "01ARZ3NDEKTSV4RRFFQ69G5FAV"
++
++    update_status, _ = await _request(
++        api,
++        "PUT",
++        f"/teams/{team_id}/description",
++        {"description": "Description"},
++    )
++    assert update_status == 404
++
++    get_status, _ = await _request(api, "GET", f"/teams/{team_id}")
++    assert get_status == 404
+diff --git a/tests/usecases/teams/test_update_team_description.py b/tests/usecases/teams/test_update_team_description.py
+new file mode 100644
+index 0000000..debdb2c
+--- /dev/null
++++ b/tests/usecases/teams/test_update_team_description.py
+@@ -0,0 +1,133 @@
++"""Tests for replacing a team's description."""
++
++from unittest.mock import AsyncMock, MagicMock
++
++import pytest
++from flow_res import Err, Ok, is_err, is_ok
++from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
++
++from app.contracts.ports import IUnitOfWork
++from app.domain.aggregates.team import Team
++from app.domain.repositories import RepositoryError, RepositoryErrorType
++from app.domain.value_objects import TeamName
++from app.infrastructure.unit_of_work import SQLAlchemyUnitOfWork
++from app.usecases.result import ErrorType
++from app.usecases.teams.get_team import GetTeamHandler, GetTeamQuery
++from app.usecases.teams.update_team import UpdateTeamCommand, UpdateTeamHandler
++from app.usecases.teams.update_team_description import (
++    UpdateTeamDescriptionCommand,
++    UpdateTeamDescriptionHandler,
++)
++
++
++@pytest.mark.anyio
++async def test_description_persists_across_units_of_work_and_rename(
++    session_factory: async_sessionmaker[AsyncSession],
++) -> None:
++    """Descriptions persist across UoWs and survive a later name change."""
++    create_uow = SQLAlchemyUnitOfWork(session_factory)
++    team = Team.form(name=TeamName("Initial team"))
++    async with create_uow:
++        add_result = await create_uow.GetRepository(Team).add(team)
++        assert is_ok(add_result)
++        team_id = add_result.value.id.to_primitive()
++        assert is_ok(await create_uow.commit())
++
++    description = "  first line\nsecond line\t "
++    handler = UpdateTeamDescriptionHandler(SQLAlchemyUnitOfWork(session_factory))
++    update_result = await handler.handle(
++        UpdateTeamDescriptionCommand(team_id=team_id, description=description)
++    )
++    assert is_ok(update_result)
++
++    read_handler = GetTeamHandler(SQLAlchemyUnitOfWork(session_factory))
++    read_result = await read_handler.handle(GetTeamQuery(id=team_id))
++    assert is_ok(read_result)
++    assert read_result.value.description == description
++
++    rename_handler = UpdateTeamHandler(SQLAlchemyUnitOfWork(session_factory))
++    rename_result = await rename_handler.handle(
++        UpdateTeamCommand(team_id=team_id, new_name="Renamed team")
++    )
++    assert is_ok(rename_result)
++
++    read_result = await read_handler.handle(GetTeamQuery(id=team_id))
++    assert is_ok(read_result)
++    assert read_result.value.name == "Renamed team"
++    assert read_result.value.description == description
++
++
++@pytest.mark.anyio
++async def test_invalid_description_does_not_change_persisted_team(
++    session_factory: async_sessionmaker[AsyncSession],
++) -> None:
++    """Overlong text is rejected before any database update is committed."""
++    create_uow = SQLAlchemyUnitOfWork(session_factory)
++    team = Team.form(name=TeamName("Team"))
++    async with create_uow:
++        add_result = await create_uow.GetRepository(Team).add(team)
++        assert is_ok(add_result)
++        team_id = add_result.value.id.to_primitive()
++        assert is_ok(await create_uow.commit())
++
++    handler = UpdateTeamDescriptionHandler(SQLAlchemyUnitOfWork(session_factory))
++    result = await handler.handle(
++        UpdateTeamDescriptionCommand(team_id=team_id, description="x" * 2001)
++    )
++    assert is_err(result)
++    assert result.error.type is ErrorType.VALIDATION_ERROR
++
++    read_result = await GetTeamHandler(SQLAlchemyUnitOfWork(session_factory)).handle(
++        GetTeamQuery(id=team_id)
++    )
++    assert is_ok(read_result)
++    assert read_result.value.description == ""
++
++
++@pytest.mark.anyio
++async def test_description_update_returns_not_found_without_creating_team(
++    uow: IUnitOfWork,
++) -> None:
++    """An unknown valid ID follows the repository's NOT_FOUND contract."""
++    handler = UpdateTeamDescriptionHandler(uow)
++    result = await handler.handle(
++        UpdateTeamDescriptionCommand(
++            team_id="01ARZ3NDEKTSV4RRFFQ69G5FAV",
++            description="Description",
++        )
++    )
++    assert is_err(result)
++    assert result.error.type is RepositoryErrorType.NOT_FOUND
++
++
++@pytest.mark.anyio
++async def test_description_save_failure_does_not_commit() -> None:
++    """A repository update error is returned without committing the UoW."""
++    mock_uow = MagicMock(spec=IUnitOfWork)
++    mock_repo = MagicMock()
++    mock_team = Team.form(name=TeamName("Original"))
++    mock_repo.get_by_id = AsyncMock(return_value=Ok(mock_team))
++    mock_repo.update = AsyncMock(
++        return_value=Err(
++            RepositoryError(
++                type=RepositoryErrorType.UNEXPECTED,
++                message="Database write failed",
++            )
++        )
++    )
++    mock_uow.GetRepository.return_value = mock_repo
++    mock_uow.__aenter__ = AsyncMock(return_value=mock_uow)
++    mock_uow.__aexit__ = AsyncMock(return_value=None)
++    mock_uow.commit = AsyncMock()
++
++    handler = UpdateTeamDescriptionHandler(mock_uow)
++    result = await handler.handle(
++        UpdateTeamDescriptionCommand(
++            team_id="01ARZ3NDEKTSV4RRFFQ69G5FAV",
++            description="New description",
++        )
++    )
++
++    assert is_err(result)
++    assert result.error.type is RepositoryErrorType.UNEXPECTED
++    mock_uow.commit.assert_not_awaited()

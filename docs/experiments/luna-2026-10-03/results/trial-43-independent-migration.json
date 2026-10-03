@@ -1,0 +1,130 @@
+{
+  "checks": [
+    {
+      "check": "one_new_head",
+      "passed": true,
+      "detail": [
+        "2ab4c7d9e201"
+      ]
+    },
+    {
+      "check": "legacy_default_empty",
+      "passed": true,
+      "detail": [
+        {
+          "id": "01ARZ3NDEKTSV4RRFFQ69G5FAV",
+          "name": "Legacy",
+          "created_at": "2026-01-01 00:00:00",
+          "updated_at": "2026-02-01 00:00:00",
+          "version": 7,
+          "tagline": ""
+        },
+        {
+          "id": "01ARZ3NDEKTSV4RRFFQ69G5FAW",
+          "name": "既存チーム",
+          "created_at": "2026-02-01 01:02:03",
+          "updated_at": "2026-02-01 01:02:03",
+          "version": 0,
+          "tagline": ""
+        }
+      ]
+    },
+    {
+      "check": "legacy_all_columns_preserved",
+      "passed": true,
+      "detail": [
+        {
+          "id": "01ARZ3NDEKTSV4RRFFQ69G5FAV",
+          "name": "Legacy",
+          "created_at": "2026-01-01 00:00:00",
+          "updated_at": "2026-02-01 00:00:00",
+          "version": 7,
+          "tagline": ""
+        },
+        {
+          "id": "01ARZ3NDEKTSV4RRFFQ69G5FAW",
+          "name": "既存チーム",
+          "created_at": "2026-02-01 01:02:03",
+          "updated_at": "2026-02-01 01:02:03",
+          "version": 0,
+          "tagline": ""
+        }
+      ]
+    },
+    {
+      "check": "upgraded_schema_matches",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "downgrade_preserves_legacy_rows",
+      "passed": true,
+      "detail": [
+        {
+          "id": "01ARZ3NDEKTSV4RRFFQ69G5FAV",
+          "name": "Legacy",
+          "created_at": "2026-01-01 00:00:00",
+          "updated_at": "2026-02-01 00:00:00",
+          "version": 7
+        },
+        {
+          "id": "01ARZ3NDEKTSV4RRFFQ69G5FAW",
+          "name": "既存チーム",
+          "created_at": "2026-02-01 01:02:03",
+          "updated_at": "2026-02-01 01:02:03",
+          "version": 0
+        }
+      ]
+    },
+    {
+      "check": "reupgrade_preserves_legacy_rows",
+      "passed": true,
+      "detail": [
+        {
+          "id": "01ARZ3NDEKTSV4RRFFQ69G5FAV",
+          "name": "Legacy",
+          "created_at": "2026-01-01 00:00:00",
+          "updated_at": "2026-02-01 00:00:00",
+          "version": 7,
+          "tagline": ""
+        },
+        {
+          "id": "01ARZ3NDEKTSV4RRFFQ69G5FAW",
+          "name": "既存チーム",
+          "created_at": "2026-02-01 01:02:03",
+          "updated_at": "2026-02-01 01:02:03",
+          "version": 0,
+          "tagline": ""
+        }
+      ]
+    },
+    {
+      "check": "reupgraded_schema_matches",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "clean_install_schema_matches",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "clean_install_field_exists",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "clean_install_field_not_null",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "all_scenarios_completed",
+      "passed": true,
+      "detail": null
+    }
+  ],
+  "passed": 11,
+  "total": 11,
+  "human_time_saved": "not measured"
+}

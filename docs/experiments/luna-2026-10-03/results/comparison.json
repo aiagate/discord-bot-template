@@ -1,0 +1,215 @@
+[
+  {
+    "trial": 17,
+    "field": "description",
+    "documentation": "baseline",
+    "capture": {
+      "trial": 17,
+      "phase": "initial",
+      "head": "950058e2d9d2cfac01c3b1f50b5805097c04ab58",
+      "start_changes_preserved": {
+        "README.md": true,
+        "LOCAL_REVIEW_NOTE.txt": true
+      },
+      "all_preserved": true,
+      "feature_files": [
+        "src/app/application/mediator.py",
+        "src/app/domain/aggregates/team.py",
+        "src/app/domain/value_objects/__init__.py",
+        "src/app/infrastructure/mappings/team.py",
+        "src/app/infrastructure/orm_models/team_orm.py",
+        "src/app/presentation/api/routers/teams.py",
+        "src/app/usecases/teams/__init__.py",
+        "src/app/usecases/teams/get_team.py",
+        "tests/domain/aggregate_cases.py",
+        "tests/domain/aggregates/test_team.py",
+        "tests/infrastructure/test_domain_mappings.py",
+        "tests/usecases/teams/test_get_team.py",
+        "alembic/versions/202610031347_96c85ca8a9be_add_team_description.py",
+        "src/app/domain/value_objects/team_description.py",
+        "src/app/usecases/teams/update_team_description.py",
+        "tests/domain/value_objects/test_team_description.py",
+        "tests/presentation/api/test_teams_router.py",
+        "tests/usecases/teams/test_update_team_description.py"
+      ],
+      "feature_file_count": 18,
+      "added_lines": 560,
+      "deleted_lines": 8,
+      "patch_sha256": "39826c5bcc4e3aff8435dcf35a390fcdfbfb30d8af1934ef9c626c94416fe9a7",
+      "note": "Size is a proxy only, not human review time."
+    },
+    "api": {
+      "status": "pass",
+      "passed": 103,
+      "total": 103,
+      "failures": []
+    },
+    "migration": {
+      "status": "pass",
+      "passed": 11,
+      "total": 11,
+      "failures": []
+    }
+  },
+  {
+    "trial": 28,
+    "field": "description",
+    "documentation": "candidate",
+    "capture": {
+      "trial": 28,
+      "phase": "initial",
+      "head": "950058e2d9d2cfac01c3b1f50b5805097c04ab58",
+      "start_changes_preserved": {
+        "README.md": true,
+        "LOCAL_REVIEW_NOTE.txt": true,
+        "AGENTS.md": true,
+        "docs/development/ADDING_FEATURE.md": true,
+        "docs/api/implementation_guide.md": true
+      },
+      "all_preserved": true,
+      "feature_files": [
+        "src/app/application/mediator.py",
+        "src/app/domain/aggregates/team.py",
+        "src/app/domain/value_objects/__init__.py",
+        "src/app/infrastructure/mappings/team.py",
+        "src/app/infrastructure/orm_models/team_orm.py",
+        "src/app/presentation/api/routers/teams.py",
+        "src/app/usecases/teams/__init__.py",
+        "src/app/usecases/teams/get_team.py",
+        "tests/domain/aggregate_cases.py",
+        "tests/domain/aggregates/test_team.py",
+        "tests/domain/test_aggregate_contracts.py",
+        "tests/infrastructure/test_domain_mappings.py",
+        "tests/usecases/teams/test_get_team.py",
+        "alembic/versions/202610031300_add_team_description.py",
+        "src/app/domain/value_objects/team_description.py",
+        "src/app/usecases/teams/update_team_description.py",
+        "tests/domain/value_objects/test_team_description.py",
+        "tests/presentation/api/test_teams_router.py",
+        "tests/usecases/teams/test_update_team_description.py"
+      ],
+      "feature_file_count": 19,
+      "added_lines": 593,
+      "deleted_lines": 7,
+      "patch_sha256": "c245e9ea7ef04f4385388ead348860d029736fd1c7cec24bfec777b89a21a1ad",
+      "note": "Size is a proxy only, not human review time."
+    },
+    "api": {
+      "status": "pass",
+      "passed": 103,
+      "total": 103,
+      "failures": []
+    },
+    "migration": {
+      "status": "pass",
+      "passed": 11,
+      "total": 11,
+      "failures": []
+    }
+  },
+  {
+    "trial": 43,
+    "field": "tagline",
+    "documentation": "candidate",
+    "capture": {
+      "trial": 43,
+      "phase": "initial",
+      "head": "950058e2d9d2cfac01c3b1f50b5805097c04ab58",
+      "start_changes_preserved": {
+        "README.md": true,
+        "LOCAL_REVIEW_NOTE.txt": true,
+        "AGENTS.md": true,
+        "docs/development/ADDING_FEATURE.md": true,
+        "docs/api/implementation_guide.md": true
+      },
+      "all_preserved": true,
+      "feature_files": [
+        "src/app/application/mediator.py",
+        "src/app/domain/aggregates/team.py",
+        "src/app/domain/value_objects/__init__.py",
+        "src/app/infrastructure/mappings/team.py",
+        "src/app/infrastructure/orm_models/team_orm.py",
+        "src/app/presentation/api/routers/teams.py",
+        "src/app/usecases/teams/get_team.py",
+        "tests/domain/aggregate_cases.py",
+        "tests/domain/aggregates/test_team.py",
+        "tests/infrastructure/test_domain_mappings.py",
+        "tests/usecases/teams/test_get_team.py",
+        "alembic/versions/202610030900_2ab4c7d9e201_add_team_tagline.py",
+        "src/app/domain/value_objects/team_tagline.py",
+        "src/app/usecases/teams/change_team_tagline.py",
+        "tests/presentation/api/test_team_tagline_routes.py",
+        "tests/usecases/teams/test_change_team_tagline.py"
+      ],
+      "feature_file_count": 16,
+      "added_lines": 519,
+      "deleted_lines": 7,
+      "patch_sha256": "a4fab9c53dd580c5b792c94a63180734541e99fd3a570d5da24bee0fbe4ff398",
+      "note": "Size is a proxy only, not human review time."
+    },
+    "api": {
+      "status": "pass",
+      "passed": 103,
+      "total": 103,
+      "failures": []
+    },
+    "migration": {
+      "status": "pass",
+      "passed": 11,
+      "total": 11,
+      "failures": []
+    }
+  },
+  {
+    "trial": 59,
+    "field": "tagline",
+    "documentation": "baseline",
+    "capture": {
+      "trial": 59,
+      "phase": "initial",
+      "head": "950058e2d9d2cfac01c3b1f50b5805097c04ab58",
+      "start_changes_preserved": {
+        "README.md": true,
+        "LOCAL_REVIEW_NOTE.txt": true
+      },
+      "all_preserved": true,
+      "feature_files": [
+        "src/app/application/mediator.py",
+        "src/app/domain/aggregates/team.py",
+        "src/app/domain/value_objects/__init__.py",
+        "src/app/infrastructure/mappings/team.py",
+        "src/app/infrastructure/orm_models/team_orm.py",
+        "src/app/presentation/api/routers/teams.py",
+        "src/app/usecases/teams/__init__.py",
+        "src/app/usecases/teams/get_team.py",
+        "tests/domain/aggregate_cases.py",
+        "tests/domain/test_aggregate_contracts.py",
+        "tests/infrastructure/test_domain_mappings.py",
+        "alembic/versions/202610030900_add_team_tagline.py",
+        "src/app/domain/value_objects/team_tagline.py",
+        "src/app/usecases/teams/update_team_tagline.py",
+        "tests/domain/value_objects/test_team_tagline.py",
+        "tests/infrastructure/test_team_tagline_migration.py",
+        "tests/presentation/api/test_teams_tagline.py",
+        "tests/usecases/teams/test_update_team_tagline.py"
+      ],
+      "feature_file_count": 18,
+      "added_lines": 577,
+      "deleted_lines": 10,
+      "patch_sha256": "a968cb96673adc1cce43f66e6b14a15bd190ac41bc14ed32e69f100a8fc34743",
+      "note": "Size is a proxy only, not human review time."
+    },
+    "api": {
+      "status": "pass",
+      "passed": 103,
+      "total": 103,
+      "failures": []
+    },
+    "migration": {
+      "status": "pass",
+      "passed": 11,
+      "total": 11,
+      "failures": []
+    }
+  }
+]

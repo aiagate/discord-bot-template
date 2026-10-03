@@ -1,0 +1,49 @@
+diff --git a/AGENTS.md b/AGENTS.md
+index a8eb96d..762a485 100644
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -4,6 +4,10 @@
+ 
+ ## 開発の基本ルール
+ 
++作業開始時に `git status --short` と差分を確認し、既存の変更（未追跡ファイルを含む）を保持する。
++差分整理を理由に開始前の変更を戻さず、終了時にも残っていることを確認する。
++既存集約の拡張では `docs/development/ADDING_FEATURE.md` の契約確認から始める。
++
+ ### 1\. パッケージ管理
+ 
+ - `uv` のみを使用すること。 `pip` は絶対に使用しないこと。
+diff --git a/docs/api/implementation_guide.md b/docs/api/implementation_guide.md
+index 77a8080..48061e1 100644
+--- a/docs/api/implementation_guide.md
++++ b/docs/api/implementation_guide.md
+@@ -106,6 +106,10 @@ async def create_user(...) -> CreateUserResponse:
+ 
+ ## 4. エラーハンドリング
+ 
++JSONの必須項目・型の不正はFastAPI/Pydanticの422、ドメインの値の制約違反はUseCase経由の400として扱います。
++既存の契約を維持する追加では、ドメインの文字数制約などをRequestの `Field(max_length=...)` に重複配置して400を422へ変えないでください。
++ルータ関数の直接呼び出しでは先行する入力検証を通らないため、形式不正・業務条件違反・正常系を実際のHTTPルート経由で検証します。
++
+ Use Case から返却される `Result` 型 (`Ok` / `Err`) をハンドリングし、適切な HTTP ステータスコードに変換してください。
+ 
+ * **Validation Error** -> 400 Bad Request
+diff --git a/docs/development/ADDING_FEATURE.md b/docs/development/ADDING_FEATURE.md
+index 13a862e..5315a61 100644
+--- a/docs/development/ADDING_FEATURE.md
++++ b/docs/development/ADDING_FEATURE.md
+@@ -7,6 +7,14 @@
+ 
+ ## 全体対応表（編集先・登録先・テスト）
+ 
++### 既存集約の拡張前に確認する契約
++
++- 変更する操作と維持する操作を分ける。生成時の入力を維持する要件なら、生成ファクトリの引数も不用意に増やさない。保存値の復元は追加属性を含めて行う。
++- 既存例から責務・依存方向・エラー処理を引き継ぐ。新しい応答型の名前とDocstringは操作の意味に合わせる。
++- 追加属性は共通契約のケース定義へ非既定値で登録し、機能固有の状態変更は対象集約・UseCaseのテストで検証する。共通テスト本体へ機能名による分岐を加えない。
++- 既存操作後の追加属性の保持と、失敗時に更新が確定しないことを検証する。共通Repository/UoWが既に保証する挙動を各機能で複製する必要はない。
++- HTTPの検証は登録済みルートを通し、[APIのエラー契約](../api/implementation_guide.md#4-エラーハンドリング)に従ってステータスも確認する。
++
+ 実在するチーム機能（`Team`）を主例とした、各開発ステップの編集先・登録先・検証テストの対応表です。
+ 
+ | 開発ステップ | 主な作成・編集ファイル（例: Team） | 登録先・接続先ファイル | 確認コマンド / テストファイル |

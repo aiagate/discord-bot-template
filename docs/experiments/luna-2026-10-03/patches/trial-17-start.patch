@@ -1,0 +1,10 @@
+diff --git a/README.md b/README.md
+index 8785751..8c9a25b 100644
+--- a/README.md
++++ b/README.md
+@@ -303,3 +303,5 @@ uv run pytest
+ ## ライセンス
+ 
+ このプロジェクトは[MITライセンス](LICENSE)の下で公開されています。
++
++<!-- Local draft: retain this note while implementing the requested feature. -->

@@ -1,0 +1,102 @@
+[
+  {
+    "path": "README.md",
+    "matches": true
+  },
+  {
+    "path": "REPORT.md",
+    "matches": true
+  },
+  {
+    "path": "checks/migration_probe.py",
+    "matches": true
+  },
+  {
+    "path": "checks/profile_probe.py",
+    "matches": true
+  },
+  {
+    "path": "checks/team_migration_probe.py",
+    "matches": true
+  },
+  {
+    "path": "checks/team_probe.py",
+    "matches": true
+  },
+  {
+    "path": "manifest.json",
+    "matches": true
+  },
+  {
+    "path": "next-doc-candidate.md",
+    "matches": true
+  },
+  {
+    "path": "patches/baseline-1.patch",
+    "matches": true
+  },
+  {
+    "path": "patches/baseline-2.patch",
+    "matches": true
+  },
+  {
+    "path": "patches/baseline-3.patch",
+    "matches": true
+  },
+  {
+    "path": "patches/docs-intervention.patch",
+    "matches": true
+  },
+  {
+    "path": "patches/heldout-1.patch",
+    "matches": true
+  },
+  {
+    "path": "patches/improved-1.patch",
+    "matches": true
+  },
+  {
+    "path": "patches/improved-2.patch",
+    "matches": true
+  },
+  {
+    "path": "prompts/task-heldout.txt",
+    "matches": true
+  },
+  {
+    "path": "prompts/task-prompt.txt",
+    "matches": true
+  },
+  {
+    "path": "results/baseline-1-acceptance.json",
+    "matches": true
+  },
+  {
+    "path": "results/baseline-2-acceptance.json",
+    "matches": true
+  },
+  {
+    "path": "results/baseline-3-acceptance.json",
+    "matches": true
+  },
+  {
+    "path": "results/comparison-metrics.json",
+    "matches": true
+  },
+  {
+    "path": "results/heldout-1-acceptance.json",
+    "matches": true
+  },
+  {
+    "path": "results/improved-1-acceptance.json",
+    "matches": true
+  },
+  {
+    "path": "results/improved-2-acceptance.json",
+    "matches": true
+  },
+  {
+    "path": "results/symbol-review.json",
+    "matches": true
+  }
+]

@@ -1,0 +1,10 @@
+{
+  "utc": "2026-10-03T13:40:42.508191+00:00",
+  "hashes": {
+    "README.md": "e79e3574a8a7dbaff7dc0dc74860ca135e0232fa3afd602dcaefad458a428e97",
+    "LOCAL_REVIEW_NOTE.txt": "eaf63eff1f43cb4a57cca4d8c3dbe48c9c8e60eec4c51809ffc868e7b1603a8b",
+    "AGENTS.md": "c5810ff79069e4faa8893a7cbb4656f08970e1d20a3a542f1021fb3f2f430cc1",
+    "docs/development/ADDING_FEATURE.md": "c9727c40e04ba0aa58469a0da2287f0af5342f0001803cd7e88ac01e88b8ff36",
+    "docs/api/implementation_guide.md": "fe3723933711d17e409ec6db8a182967e3856490b8fb446e8da5f79b549a292d"
+  }
+}

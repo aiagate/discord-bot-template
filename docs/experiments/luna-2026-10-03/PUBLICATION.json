@@ -1,0 +1,1342 @@
+{
+  "publication_date": "2026-10-03",
+  "source_zip_name": "luna-review-20261003.zip",
+  "source_zip_size_bytes": 403346,
+  "source_zip_sha256": "4480c89a356da6dff19424706f606efc7751c349739721d05e894e92af3ad11d",
+  "baseline_commit": "950058e2d9d2cfac01c3b1f50b5805097c04ab58",
+  "parent_publication_commit": "f5c721c8c006cb4b9c1c265465054a09d44c5dc3",
+  "subset_not_original_zip": true,
+  "included_source_files": [
+    {
+      "source_path": "PROTOCOL.md",
+      "published_path": "PROTOCOL.md",
+      "source_sha256": "45c7e0c8460818e2a22e9e949f9b234850932baab4d2bc3b2ea2a7eda5787810",
+      "published_sha256": "45c7e0c8460818e2a22e9e949f9b234850932baab4d2bc3b2ea2a7eda5787810",
+      "transformation": [
+        "none; byte-identical"
+      ]
+    },
+    {
+      "source_path": "REPORT.md",
+      "published_path": "REPORT.md",
+      "source_sha256": "be78ec5d1198de2fc5fb64e675f0ddcb328570935edf807c344fe03f36cd249d",
+      "published_sha256": "7b62d05032f6adfc6303e12f0c64230d2d3e706a5e6966bb93e648bbdd029cc7",
+      "transformation": [
+        "Publication-only path/link normalization and operational-environment omission; scientific findings unchanged"
+      ]
+    },
+    {
+      "source_path": "checks/README.md",
+      "published_path": "checks/README.md",
+      "source_sha256": "a57a76dec181e5064d695df459e30e347c14021961ca9ffe91804a06f79c662c",
+      "published_sha256": "0a1b7c21c10b4ad2ad363045fa8195566c0fb182e8c28549d09a8fb9935a52d1",
+      "transformation": [
+        "Normalize local references and commands for public portability; replace raw-log links with structured public summaries; findings unchanged"
+      ]
+    },
+    {
+      "source_path": "checks/baseline_openapi.json",
+      "published_path": "checks/baseline_openapi.json",
+      "source_sha256": "3be388033a2ebe024da4ae009a19af8c80df5b34eb383fb00110af9cdb5f5345",
+      "published_sha256": "3be388033a2ebe024da4ae009a19af8c80df5b34eb383fb00110af9cdb5f5345",
+      "transformation": [
+        "none; byte-identical"
+      ]
+    },
+    {
+      "source_path": "checks/frozen.sha256",
+      "published_path": "checks/frozen.sha256",
+      "source_sha256": "aa036a00a9e9a88fdfd0410bdeafe0ad63c99c5b7f725d4cd4ba7a02f7519c76",
+      "published_sha256": "8ce045fad555ae1abeaf7543ddf565eb0ed7ba0d638032ba328baa4a65e2df5a",
+      "transformation": [
+        "Normalize local references for public portability; hashes and findings unchanged"
+      ]
+    },
+    {
+      "source_path": "checks/probe_selfcheck.py",
+      "published_path": "checks/probe_selfcheck.py",
+      "source_sha256": "760d994a3b8ab2caf24dd90886ffc024bc70da49cdb393d860ac68bcd4fb74f9",
+      "published_sha256": "760d994a3b8ab2caf24dd90886ffc024bc70da49cdb393d860ac68bcd4fb74f9",
+      "transformation": [
+        "none; byte-identical"
+      ]
+    },
+    {
+      "source_path": "checks/team_migration_probe.py",
+      "published_path": "checks/team_migration_probe.py",
+      "source_sha256": "1b16c7c7455ce114c29fcead48af5d83eb8d7106d81dd6638ba1e0c4e84c8744",
+      "published_sha256": "1b16c7c7455ce114c29fcead48af5d83eb8d7106d81dd6638ba1e0c4e84c8744",
+      "transformation": [
+        "none; byte-identical"
+      ]
+    },
+    {
+      "source_path": "checks/team_probe.py",
+      "published_path": "checks/team_probe.py",
+      "source_sha256": "fcdd11bbb06f445aadbc2cedd224707d6b8ace747f4cd0a33dc8a879d276471f",
+      "published_sha256": "fcdd11bbb06f445aadbc2cedd224707d6b8ace747f4cd0a33dc8a879d276471f",
+      "transformation": [
+        "none; byte-identical"
+      ]
+    },
+    {
+      "source_path": "patches/docs-candidate.patch",
+      "published_path": "patches/docs-candidate.patch",
+      "source_sha256": "3e2807b58643b97d1612d330c3e7edbc802ebc422b90ddd7266dcf4f888eb482",
+      "published_sha256": "3e2807b58643b97d1612d330c3e7edbc802ebc422b90ddd7266dcf4f888eb482",
+      "transformation": [
+        "none; byte-identical"
+      ]
+    },
+    {
+      "source_path": "patches/old-heldout-correction.patch",
+      "published_path": "patches/old-heldout-correction.patch",
+      "source_sha256": "435cb77ead533a4cefc38a3a34f820fe1aee32852fc641a4f00db39c9e404339",
+      "published_sha256": "435cb77ead533a4cefc38a3a34f820fe1aee32852fc641a4f00db39c9e404339",
+      "transformation": [
+        "none; byte-identical"
+      ]
+    },
+    {
+      "source_path": "patches/old-heldout-fixed-full.patch",
+      "published_path": "patches/old-heldout-fixed-full.patch",
+      "source_sha256": "f7e853a513bf6542e46cec562eaba213460ffd11cae0a4981d48ed06a9915ca5",
+      "published_sha256": "f7e853a513bf6542e46cec562eaba213460ffd11cae0a4981d48ed06a9915ca5",
+      "transformation": [
+        "none; byte-identical"
+      ]
+    },
+    {
+      "source_path": "patches/trial-17-correction.patch",
+      "published_path": "patches/trial-17-correction.patch",
+      "source_sha256": "3cb4a32692815877f6fdca115784d98bdc087708fdf049666bd7dadd6cfba222",
+      "published_sha256": "3cb4a32692815877f6fdca115784d98bdc087708fdf049666bd7dadd6cfba222",
+      "transformation": [
+        "none; byte-identical"
+      ]
+    },
+    {
+      "source_path": "patches/trial-17-initial.patch",
+      "published_path": "patches/trial-17-initial.patch",
+      "source_sha256": "39826c5bcc4e3aff8435dcf35a390fcdfbfb30d8af1934ef9c626c94416fe9a7",
+      "published_sha256": "39826c5bcc4e3aff8435dcf35a390fcdfbfb30d8af1934ef9c626c94416fe9a7",
+      "transformation": [
+        "none; byte-identical"
+      ]
+    },
+    {
+      "source_path": "patches/trial-17-start.patch",
+      "published_path": "patches/trial-17-start.patch",
+      "source_sha256": "78941a79e29802da2508660b9d658d9e843ea69c82f57a4d2c401a456aa11ee3",
+      "published_sha256": "78941a79e29802da2508660b9d658d9e843ea69c82f57a4d2c401a456aa11ee3",
+      "transformation": [
+        "none; byte-identical"
+      ]
+    },
+    {
+      "source_path": "patches/trial-28-correction.patch",
+      "published_path": "patches/trial-28-correction.patch",
+      "source_sha256": "a91deaffcf513c20c1d808290873616d6fe7033a759d04eda5209c0e9eae9649",
+      "published_sha256": "a91deaffcf513c20c1d808290873616d6fe7033a759d04eda5209c0e9eae9649",
+      "transformation": [
+        "none; byte-identical"
+      ]
+    },
+    {
+      "source_path": "patches/trial-28-initial.patch",
+      "published_path": "patches/trial-28-initial.patch",
+      "source_sha256": "c245e9ea7ef04f4385388ead348860d029736fd1c7cec24bfec777b89a21a1ad",
+      "published_sha256": "c245e9ea7ef04f4385388ead348860d029736fd1c7cec24bfec777b89a21a1ad",
+      "transformation": [
+        "none; byte-identical"
+      ]
+    },
+    {
+      "source_path": "patches/trial-28-start.patch",
+      "published_path": "patches/trial-28-start.patch",
+      "source_sha256": "f605a17838388282952512b748c1c17da6bb75083d9defd4f6651b58546cbc9c",
+      "published_sha256": "f605a17838388282952512b748c1c17da6bb75083d9defd4f6651b58546cbc9c",
+      "transformation": [
+        "none; byte-identical"
+      ]
+    },
+    {
+      "source_path": "patches/trial-43-correction.patch",
+      "published_path": "patches/trial-43-correction.patch",
+      "source_sha256": "02e3b2029c7fa9db429ecfe0c932955ea404f4ff970ae45533d9f2991df4d67a",
+      "published_sha256": "02e3b2029c7fa9db429ecfe0c932955ea404f4ff970ae45533d9f2991df4d67a",
+      "transformation": [
+        "none; byte-identical"
+      ]
+    },
+    {
+      "source_path": "patches/trial-43-initial.patch",
+      "published_path": "patches/trial-43-initial.patch",
+      "source_sha256": "a4fab9c53dd580c5b792c94a63180734541e99fd3a570d5da24bee0fbe4ff398",
+      "published_sha256": "a4fab9c53dd580c5b792c94a63180734541e99fd3a570d5da24bee0fbe4ff398",
+      "transformation": [
+        "none; byte-identical"
+      ]
+    },
+    {
+      "source_path": "patches/trial-43-start.patch",
+      "published_path": "patches/trial-43-start.patch",
+      "source_sha256": "f605a17838388282952512b748c1c17da6bb75083d9defd4f6651b58546cbc9c",
+      "published_sha256": "f605a17838388282952512b748c1c17da6bb75083d9defd4f6651b58546cbc9c",
+      "transformation": [
+        "none; byte-identical"
+      ]
+    },
+    {
+      "source_path": "patches/trial-59-correction.patch",
+      "published_path": "patches/trial-59-correction.patch",
+      "source_sha256": "c407feafc4e71c9de4b0fb3ec482f0dda35b78507d01d180eefd3f2812b4c9fb",
+      "published_sha256": "c407feafc4e71c9de4b0fb3ec482f0dda35b78507d01d180eefd3f2812b4c9fb",
+      "transformation": [
+        "none; byte-identical"
+      ]
+    },
+    {
+      "source_path": "patches/trial-59-initial.patch",
+      "published_path": "patches/trial-59-initial.patch",
+      "source_sha256": "a968cb96673adc1cce43f66e6b14a15bd190ac41bc14ed32e69f100a8fc34743",
+      "published_sha256": "a968cb96673adc1cce43f66e6b14a15bd190ac41bc14ed32e69f100a8fc34743",
+      "transformation": [
+        "none; byte-identical"
+      ]
+    },
+    {
+      "source_path": "patches/trial-59-start.patch",
+      "published_path": "patches/trial-59-start.patch",
+      "source_sha256": "78941a79e29802da2508660b9d658d9e843ea69c82f57a4d2c401a456aa11ee3",
+      "published_sha256": "78941a79e29802da2508660b9d658d9e843ea69c82f57a4d2c401a456aa11ee3",
+      "transformation": [
+        "none; byte-identical"
+      ]
+    },
+    {
+      "source_path": "prompts/tagline.txt",
+      "published_path": "prompts/tagline.txt",
+      "source_sha256": "0c7e9b61dfe70f94833fee6b86ff91ec111c8b24b4cf11626426f8eb1ee78884",
+      "published_sha256": "0c7e9b61dfe70f94833fee6b86ff91ec111c8b24b4cf11626426f8eb1ee78884",
+      "transformation": [
+        "none; byte-identical"
+      ]
+    },
+    {
+      "source_path": "prompts/team.txt",
+      "published_path": "prompts/team.txt",
+      "source_sha256": "0d0df3cc260e4ce6d40b508692f70aa978fec16a20188ada5489f95335b5245a",
+      "published_sha256": "0d0df3cc260e4ce6d40b508692f70aa978fec16a20188ada5489f95335b5245a",
+      "transformation": [
+        "none; byte-identical"
+      ]
+    },
+    {
+      "source_path": "results/comparison.json",
+      "published_path": "results/comparison.json",
+      "source_sha256": "4c49b9752e7ae1387018815fb0013ce869a3a9d1dab75289bc5f997f06ea64b0",
+      "published_sha256": "4c49b9752e7ae1387018815fb0013ce869a3a9d1dab75289bc5f997f06ea64b0",
+      "transformation": [
+        "none; byte-identical"
+      ]
+    },
+    {
+      "source_path": "results/corrected-validation.json",
+      "published_path": "results/corrected-validation.json",
+      "source_sha256": "f448558eca7c90520e9f0699f5d506c8a700dfb51f94b393ea14b39b32d1d2fc",
+      "published_sha256": "f448558eca7c90520e9f0699f5d506c8a700dfb51f94b393ea14b39b32d1d2fc",
+      "transformation": [
+        "none; byte-identical"
+      ]
+    },
+    {
+      "source_path": "results/corrections-review.md",
+      "published_path": "results/corrections-review.md",
+      "source_sha256": "fe08cb17d2d20ebb72e21645ce0b0cf1332678914b35382618963d95d81f1194",
+      "published_sha256": "fe08cb17d2d20ebb72e21645ce0b0cf1332678914b35382618963d95d81f1194",
+      "transformation": [
+        "none; byte-identical"
+      ]
+    },
+    {
+      "source_path": "results/final-report-review.md",
+      "published_path": "results/final-report-review.md",
+      "source_sha256": "848a4a3a0069dd540a5f2fa79d22675f4d825b77c25845604739c5f1b897cc40",
+      "published_sha256": "848a4a3a0069dd540a5f2fa79d22675f4d825b77c25845604739c5f1b897cc40",
+      "transformation": [
+        "none; byte-identical"
+      ]
+    },
+    {
+      "source_path": "results/frozen-checks.sha256",
+      "published_path": "results/frozen-checks.sha256",
+      "source_sha256": "65ede7b1bd211d2c41a84e9d0b19040d7215ea0c9d2773ec2519a7ac69172707",
+      "published_sha256": "65ede7b1bd211d2c41a84e9d0b19040d7215ea0c9d2773ec2519a7ac69172707",
+      "transformation": [
+        "none; byte-identical"
+      ]
+    },
+    {
+      "source_path": "results/frozen-inputs.json",
+      "published_path": "results/frozen-inputs.json",
+      "source_sha256": "a057f2ce4f6d2f58395082405c0a81cbbf3e0910176af4cd02e02cdb03ac0dd3",
+      "published_sha256": "a057f2ce4f6d2f58395082405c0a81cbbf3e0910176af4cd02e02cdb03ac0dd3",
+      "transformation": [
+        "none; byte-identical"
+      ]
+    },
+    {
+      "source_path": "results/independent-validation.json",
+      "published_path": "results/independent-validation.json",
+      "source_sha256": "ec328654c9551d03a0df9d29286381969db9489221a83b8a4d2ec57c570424cd",
+      "published_sha256": "ec328654c9551d03a0df9d29286381969db9489221a83b8a4d2ec57c570424cd",
+      "transformation": [
+        "none; byte-identical"
+      ]
+    },
+    {
+      "source_path": "results/old-heldout-fix-review.md",
+      "published_path": "results/old-heldout-fix-review.md",
+      "source_sha256": "e5798a15623f42ae8007990ee452a3b69f5fb88f704ecd7cc397fbbe4311e052",
+      "published_sha256": "dd66f77d08cb28ca7ebbb945acd7fc4046e7fee3882c782720d561d25d63ee93",
+      "transformation": [
+        "Publication-only path/link normalization and operational-environment omission; scientific findings unchanged"
+      ]
+    },
+    {
+      "source_path": "results/old-heldout-fixed-api.json",
+      "published_path": "results/old-heldout-fixed-api.json",
+      "source_sha256": "6759b898f4ba64e0d57a74f742f9f6d26c2a06393f5c7d7c2994589caf98e9ec",
+      "published_sha256": "6759b898f4ba64e0d57a74f742f9f6d26c2a06393f5c7d7c2994589caf98e9ec",
+      "transformation": [
+        "none; byte-identical"
+      ]
+    },
+    {
+      "source_path": "results/old-heldout-fixed-migration.json",
+      "published_path": "results/old-heldout-fixed-migration.json",
+      "source_sha256": "0d8f66b3a6391db088bd0b1c4154d85eaeae5829c849b2face53b0fe58d07f3d",
+      "published_sha256": "0d8f66b3a6391db088bd0b1c4154d85eaeae5829c849b2face53b0fe58d07f3d",
+      "transformation": [
+        "none; byte-identical"
+      ]
+    },
+    {
+      "source_path": "results/old-heldout-reproduction.json",
+      "published_path": "results/old-heldout-reproduction.json",
+      "source_sha256": "b4bed2e755d3713f48ad4842321371f8ff69b904c23c0764eeb9d1d86fd1739c",
+      "published_sha256": "b4bed2e755d3713f48ad4842321371f8ff69b904c23c0764eeb9d1d86fd1739c",
+      "transformation": [
+        "none; byte-identical"
+      ]
+    },
+    {
+      "source_path": "results/patch-replay.json",
+      "published_path": "results/patch-replay.json",
+      "source_sha256": "e6bc45c77e4942242644fff83f7fdaee51670e9438d547d8a2872ec6fb94c416",
+      "published_sha256": "c036386e5d10f4173efcc8eae9de4044ffc67a9b1324463f6d66d663e0f22409",
+      "transformation": [
+        "Replace local source path with previous publication relative path"
+      ]
+    },
+    {
+      "source_path": "results/prior-review.md",
+      "published_path": "results/prior-review.md",
+      "source_sha256": "a9e5b1c0040043b997148498f42fe1811d6678c35389d2dc65561505e7047cfd",
+      "published_sha256": "b5c702f82f667bf6c0fe161f95d3ef8e106c5b562df800499718c022b50371d4",
+      "transformation": [
+        "Normalize local references for public portability; hashes and findings unchanged"
+      ]
+    },
+    {
+      "source_path": "results/protocol-review.md",
+      "published_path": "results/protocol-review.md",
+      "source_sha256": "cd05b295302449e7dcae5c5a37b317666cf0f3f692407917d400ee0033ad596b",
+      "published_sha256": "cd05b295302449e7dcae5c5a37b317666cf0f3f692407917d400ee0033ad596b",
+      "transformation": [
+        "none; byte-identical"
+      ]
+    },
+    {
+      "source_path": "results/provenance.json",
+      "published_path": "results/provenance.json",
+      "source_sha256": "9eeef52b93ddd000fb467b1bd58df36a4563769f18ab005a9f9506e2085fa16c",
+      "published_sha256": "9eeef52b93ddd000fb467b1bd58df36a4563769f18ab005a9f9506e2085fa16c",
+      "transformation": [
+        "none; byte-identical"
+      ]
+    },
+    {
+      "source_path": "results/regression-red.json",
+      "published_path": "results/regression-red.json",
+      "source_sha256": "8708becdc7c727ee4c17a94093b6c664bcec72491a5fe3842ba3cc627bd56dcd",
+      "published_sha256": "8708becdc7c727ee4c17a94093b6c664bcec72491a5fe3842ba3cc627bd56dcd",
+      "transformation": [
+        "none; byte-identical"
+      ]
+    },
+    {
+      "source_path": "results/review-metrics.json",
+      "published_path": "results/review-metrics.json",
+      "source_sha256": "ee8aa189c6d1cf055c6ba8750f829fde63175b6e61eeeea7588ecf4a06a5e6d6",
+      "published_sha256": "ee8aa189c6d1cf055c6ba8750f829fde63175b6e61eeeea7588ecf4a06a5e6d6",
+      "transformation": [
+        "none; byte-identical"
+      ]
+    },
+    {
+      "source_path": "results/trial-17-implementer.md",
+      "published_path": "results/trial-17-implementer.md",
+      "source_sha256": "f2514467ac63c2163e7f2c9d9daf3bee344cfd4c8b889f27f926f182eaae8261",
+      "published_sha256": "f2514467ac63c2163e7f2c9d9daf3bee344cfd4c8b889f27f926f182eaae8261",
+      "transformation": [
+        "none; byte-identical"
+      ]
+    },
+    {
+      "source_path": "results/trial-17-independent-api.json",
+      "published_path": "results/trial-17-independent-api.json",
+      "source_sha256": "f48abf9cebe640fd42e2f4d43323aaf27a86d10f37c613adf9c00aab7c226b63",
+      "published_sha256": "f48abf9cebe640fd42e2f4d43323aaf27a86d10f37c613adf9c00aab7c226b63",
+      "transformation": [
+        "none; byte-identical"
+      ]
+    },
+    {
+      "source_path": "results/trial-17-independent-migration.json",
+      "published_path": "results/trial-17-independent-migration.json",
+      "source_sha256": "c7512d06fbb415156cc56b6c53b6450ee3e5dcb6e8c1bf5d1eea1cac889aee58",
+      "published_sha256": "c7512d06fbb415156cc56b6c53b6450ee3e5dcb6e8c1bf5d1eea1cac889aee58",
+      "transformation": [
+        "none; byte-identical"
+      ]
+    },
+    {
+      "source_path": "results/trial-17-initial-capture.json",
+      "published_path": "results/trial-17-initial-capture.json",
+      "source_sha256": "4878d4d35be1ff7bbb1edaf32b9afd250f67c4c192e3c213d817c91937d858ed",
+      "published_sha256": "4878d4d35be1ff7bbb1edaf32b9afd250f67c4c192e3c213d817c91937d858ed",
+      "transformation": [
+        "none; byte-identical"
+      ]
+    },
+    {
+      "source_path": "results/trial-17-review.md",
+      "published_path": "results/trial-17-review.md",
+      "source_sha256": "6ede76924533a0f5949de9d11cce83fc312073e4c4a5155feaf9057fe6dcec79",
+      "published_sha256": "f5d5a5a0f210ea68fe367f4ef3d7221485434b72ad9631392f2bd7fdcf158054",
+      "transformation": [
+        "Publication-only path/link normalization and operational-environment omission; scientific findings unchanged"
+      ]
+    },
+    {
+      "source_path": "results/trial-17-start.json",
+      "published_path": "results/trial-17-start.json",
+      "source_sha256": "26c2a8837373541e511999e9db3c8067e7512aff669d4d2b89dd2ebbc12b5824",
+      "published_sha256": "26c2a8837373541e511999e9db3c8067e7512aff669d4d2b89dd2ebbc12b5824",
+      "transformation": [
+        "none; byte-identical"
+      ]
+    },
+    {
+      "source_path": "results/trial-28-implementer.md",
+      "published_path": "results/trial-28-implementer.md",
+      "source_sha256": "78405266b4d306ff269a1ddea821d83f2242d19f58efe20803dcb3c3fbb79eab",
+      "published_sha256": "6687a275e8bb6480e26fbef150efee76f990284e2c93d4bd7f4c4c78146c99f5",
+      "transformation": [
+        "Publication-only path/link normalization and operational-environment omission; scientific findings unchanged"
+      ]
+    },
+    {
+      "source_path": "results/trial-28-independent-api.json",
+      "published_path": "results/trial-28-independent-api.json",
+      "source_sha256": "d3e3a35014c2841a20ee3f14b23fce3c327c8c1f82f76176a85d4075fcea1d85",
+      "published_sha256": "d3e3a35014c2841a20ee3f14b23fce3c327c8c1f82f76176a85d4075fcea1d85",
+      "transformation": [
+        "none; byte-identical"
+      ]
+    },
+    {
+      "source_path": "results/trial-28-independent-migration.json",
+      "published_path": "results/trial-28-independent-migration.json",
+      "source_sha256": "84c6bdce044a6fcf10b81c71cb572b1b0b64889f8815c88fef716d5438ae65f6",
+      "published_sha256": "84c6bdce044a6fcf10b81c71cb572b1b0b64889f8815c88fef716d5438ae65f6",
+      "transformation": [
+        "none; byte-identical"
+      ]
+    },
+    {
+      "source_path": "results/trial-28-initial-capture.json",
+      "published_path": "results/trial-28-initial-capture.json",
+      "source_sha256": "3a5b079d25371394a8bc1eb99c91c758628ccb77e2680b3aa9ed2003540b5447",
+      "published_sha256": "3a5b079d25371394a8bc1eb99c91c758628ccb77e2680b3aa9ed2003540b5447",
+      "transformation": [
+        "none; byte-identical"
+      ]
+    },
+    {
+      "source_path": "results/trial-28-review.md",
+      "published_path": "results/trial-28-review.md",
+      "source_sha256": "279dcd77c71822da1a8252beca3a34dce89b929022e8c085be8876666c68a946",
+      "published_sha256": "464f301a191fe18bea5a825a1ecfaecb9eb5c3b0ba5c3cd5c9fb84c9bc340742",
+      "transformation": [
+        "Publication-only path/link normalization and operational-environment omission; scientific findings unchanged"
+      ]
+    },
+    {
+      "source_path": "results/trial-28-start.json",
+      "published_path": "results/trial-28-start.json",
+      "source_sha256": "c79c1f0289448f59f64e2d3d741d43dbaac7d3986407d62963e9a32b3e03d03b",
+      "published_sha256": "c79c1f0289448f59f64e2d3d741d43dbaac7d3986407d62963e9a32b3e03d03b",
+      "transformation": [
+        "none; byte-identical"
+      ]
+    },
+    {
+      "source_path": "results/trial-43-implementer.md",
+      "published_path": "results/trial-43-implementer.md",
+      "source_sha256": "f51ee17c758a0430ed980e205429a87455ca953e781e280ee124b08226c15bfc",
+      "published_sha256": "4704e6d9a5e240cd8cdd604fad017739305162d0f4502619894c719af82e35e1",
+      "transformation": [
+        "none; byte-identical",
+        "Replace omitted raw-log links with public summary links and original log names"
+      ]
+    },
+    {
+      "source_path": "results/trial-43-independent-api.json",
+      "published_path": "results/trial-43-independent-api.json",
+      "source_sha256": "ce69653e50c8a34d294288c9f919a2ace3e0a9ac0111984f61a21dbea36c7d7b",
+      "published_sha256": "ce69653e50c8a34d294288c9f919a2ace3e0a9ac0111984f61a21dbea36c7d7b",
+      "transformation": [
+        "none; byte-identical"
+      ]
+    },
+    {
+      "source_path": "results/trial-43-independent-migration.json",
+      "published_path": "results/trial-43-independent-migration.json",
+      "source_sha256": "a0383d15cd4d4a9b4a5315464474e11724db25862311d155148fb5345f287f23",
+      "published_sha256": "a0383d15cd4d4a9b4a5315464474e11724db25862311d155148fb5345f287f23",
+      "transformation": [
+        "none; byte-identical"
+      ]
+    },
+    {
+      "source_path": "results/trial-43-initial-capture.json",
+      "published_path": "results/trial-43-initial-capture.json",
+      "source_sha256": "dca83f57438a06127b1e933934755fdcfdd7dcf59b1f895845bccefbe1cc7303",
+      "published_sha256": "dca83f57438a06127b1e933934755fdcfdd7dcf59b1f895845bccefbe1cc7303",
+      "transformation": [
+        "none; byte-identical"
+      ]
+    },
+    {
+      "source_path": "results/trial-43-review.md",
+      "published_path": "results/trial-43-review.md",
+      "source_sha256": "f5907f232917b021d8bf566c3cc9187978a02da6418ed3ed8b484f191d493b6d",
+      "published_sha256": "39c56353b38870e5d4a241481a73365b0f4790ab60eb4fba549fe97ea105a48d",
+      "transformation": [
+        "Publication-only path/link normalization and operational-environment omission; scientific findings unchanged"
+      ]
+    },
+    {
+      "source_path": "results/trial-43-start.json",
+      "published_path": "results/trial-43-start.json",
+      "source_sha256": "a7607dc2b96a20ff91362309af98c0d17900aaaf412a0aa41278d13c6396d948",
+      "published_sha256": "a7607dc2b96a20ff91362309af98c0d17900aaaf412a0aa41278d13c6396d948",
+      "transformation": [
+        "none; byte-identical"
+      ]
+    },
+    {
+      "source_path": "results/trial-59-correction-review.md",
+      "published_path": "results/trial-59-correction-review.md",
+      "source_sha256": "0d16b6daff191d7bc41fbaf6c11a21b01eb3e371756db4ad8d50dc1a7f21ece2",
+      "published_sha256": "c5057ad4fc09307a7ffcae3f1c3dd6cdcb93de6d4b1d2168fe567e7e03bc8667",
+      "transformation": [
+        "Publication-only path/link normalization and operational-environment omission; scientific findings unchanged"
+      ]
+    },
+    {
+      "source_path": "results/trial-59-implementer.md",
+      "published_path": "results/trial-59-implementer.md",
+      "source_sha256": "8acbfce53969f63a840c998c9bfe6fb5ae3bee7dea816362ee1c5c47884161de",
+      "published_sha256": "f982844dbe3de4f204b3925e8a2d598ad14eb3a06e2bf309fc06e13f922c3c7f",
+      "transformation": [
+        "Publication-only path/link normalization and operational-environment omission; scientific findings unchanged"
+      ]
+    },
+    {
+      "source_path": "results/trial-59-independent-api.json",
+      "published_path": "results/trial-59-independent-api.json",
+      "source_sha256": "2fcd570e7a65fda02e4a9cc32d636c7f8505dffab7a14c7bb6f657358c5f7100",
+      "published_sha256": "2fcd570e7a65fda02e4a9cc32d636c7f8505dffab7a14c7bb6f657358c5f7100",
+      "transformation": [
+        "none; byte-identical"
+      ]
+    },
+    {
+      "source_path": "results/trial-59-independent-migration.json",
+      "published_path": "results/trial-59-independent-migration.json",
+      "source_sha256": "487656ced77e71c431cc809c4f3c951d57eba85dacbbc24d5c7d058a9063fe46",
+      "published_sha256": "487656ced77e71c431cc809c4f3c951d57eba85dacbbc24d5c7d058a9063fe46",
+      "transformation": [
+        "none; byte-identical"
+      ]
+    },
+    {
+      "source_path": "results/trial-59-initial-capture.json",
+      "published_path": "results/trial-59-initial-capture.json",
+      "source_sha256": "483bc876c598451d3978811eacd6d98964ec6268fc862f514459f4fafac6e3b4",
+      "published_sha256": "483bc876c598451d3978811eacd6d98964ec6268fc862f514459f4fafac6e3b4",
+      "transformation": [
+        "none; byte-identical"
+      ]
+    },
+    {
+      "source_path": "results/trial-59-review.md",
+      "published_path": "results/trial-59-review.md",
+      "source_sha256": "b072d3e68d6aa5c9f57f0088d4a2c380c6d414ffa712e67c5c59259329368b5c",
+      "published_sha256": "d475b847a0b05e5af7aba39d3171ad0fb56085278ed0520c048420282f028304",
+      "transformation": [
+        "Publication-only path/link normalization and operational-environment omission; scientific findings unchanged"
+      ]
+    },
+    {
+      "source_path": "results/trial-59-start.json",
+      "published_path": "results/trial-59-start.json",
+      "source_sha256": "57ce0117fa300e77bcb19ac9b20442897e4fd0bc3f5965296ab5e44eb39212bf",
+      "published_sha256": "57ce0117fa300e77bcb19ac9b20442897e4fd0bc3f5965296ab5e44eb39212bf",
+      "transformation": [
+        "none; byte-identical"
+      ]
+    }
+  ],
+  "omitted_source_files": [
+    {
+      "source_path": "MANIFEST.json",
+      "sha256": "917f622c7dcc6aed3520b40f11c9f789c62ee5dc7cbf43bb656f7bbb8151e8c3",
+      "reason": "Environment and delivery metadata replaced by publication manifest"
+    },
+    {
+      "source_path": "README.md",
+      "sha256": "ac3a07af9a8557b0bcfccc8df4df667871d69310aff338de173ff946dd40a3ab",
+      "reason": "Replaced by portable public reproduction instructions"
+    },
+    {
+      "source_path": "SHA256SUMS",
+      "sha256": "616dbb34a9174bd66eb68f25bddc820bbfc1b58a9f241f00166f36ef44ab6266",
+      "reason": "Replaced by public subset checksums"
+    },
+    {
+      "source_path": "checks/baseline_api_negative.log",
+      "sha256": "210b4280a5499ee75941145136f61f0c2575d2236ba2f6836b17e8822a9b8d70",
+      "reason": "Raw execution log omitted for data minimization; structured summaries retained"
+    },
+    {
+      "source_path": "checks/baseline_migration_negative.log",
+      "sha256": "5351a2529c6db7403971bca9a86ce1bfe29598f36942d3890309a6d490ec6a63",
+      "reason": "Raw execution log omitted for data minimization; structured summaries retained"
+    },
+    {
+      "source_path": "checks/capture_trial.py",
+      "sha256": "87692b4479df38d41c32edea7ae092808f8efadb0f367ca5203c594f05f1b89e",
+      "reason": "Environment-specific capture helper; frozen capture results retained"
+    },
+    {
+      "source_path": "checks/collect_results.py",
+      "sha256": "3906e223789d09a782453030fd3944e95536c4ab00ab20552084f2a376c5bd61",
+      "reason": "Environment-specific aggregation helper; structured results retained"
+    },
+    {
+      "source_path": "checks/probe_selfcheck.log",
+      "sha256": "c5dab619bac55214f20f6d4cb13d6edb713664a287e7931a25876e74e61340bf",
+      "reason": "Raw execution log omitted for data minimization; structured summaries retained"
+    },
+    {
+      "source_path": "logs/baseline-format.log",
+      "sha256": "c375f615cfe3fc02a2752c83204f39308f22c13d841d979afb4dfc9eeed86c55",
+      "reason": "Raw execution log omitted for data minimization; structured summaries retained"
+    },
+    {
+      "source_path": "logs/baseline-pyright.log",
+      "sha256": "6d88a1b220adb7a3d62092b6e38431f0b3fe8babe9864fab90e5849766260332",
+      "reason": "Raw execution log omitted for data minimization; structured summaries retained"
+    },
+    {
+      "source_path": "logs/baseline-pytest.log",
+      "sha256": "830b1c67c392658dda654fd4782e323884bb0d2215b38702ceefd2e1b9c4e9e4",
+      "reason": "Raw execution log omitted for data minimization; structured summaries retained"
+    },
+    {
+      "source_path": "logs/baseline-ruff.log",
+      "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "reason": "Raw execution log omitted for data minimization; structured summaries retained"
+    },
+    {
+      "source_path": "logs/old-heldout-api.log",
+      "sha256": "e1707e1d1af29b7420b7c445d283e6df5f45d9ca8a5b9d5a6684d169ca4944f7",
+      "reason": "Raw execution log omitted for data minimization; structured summaries retained"
+    },
+    {
+      "source_path": "logs/old-heldout-fixed-api.log",
+      "sha256": "1805cde63946bf56dd01f4a4863bc726048b01b380d4a3c2e54385f4cedd30e8",
+      "reason": "Raw execution log omitted for data minimization; structured summaries retained"
+    },
+    {
+      "source_path": "logs/old-heldout-fixed-migration.log",
+      "sha256": "0f82d031906cbb010ead4c031af994a3623c7ef005dbe4dfbf9271911ceea71d",
+      "reason": "Raw execution log omitted for data minimization; structured summaries retained"
+    },
+    {
+      "source_path": "logs/old-heldout-fixed-pyright.log",
+      "sha256": "6d88a1b220adb7a3d62092b6e38431f0b3fe8babe9864fab90e5849766260332",
+      "reason": "Raw execution log omitted for data minimization; structured summaries retained"
+    },
+    {
+      "source_path": "logs/old-heldout-fixed-pytest.log",
+      "sha256": "9c54d9f0a83eb850a836f1f7346edaa02f4b0402c3fcdc8fd31662c0af90555e",
+      "reason": "Raw execution log omitted for data minimization; structured summaries retained"
+    },
+    {
+      "source_path": "logs/old-heldout-fixed-ruff.log",
+      "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "reason": "Raw execution log omitted for data minimization; structured summaries retained"
+    },
+    {
+      "source_path": "logs/old-heldout-migration.log",
+      "sha256": "55b701021d527026b062e17d109d268cc1c08db5707e106589dc5ec4252d23d4",
+      "reason": "Raw execution log omitted for data minimization; structured summaries retained"
+    },
+    {
+      "source_path": "logs/old-heldout-pytest.log",
+      "sha256": "ddbeb3bdcc2974614c3ed112cedc5bf87250b5c916660ff0bf1c43fbf235cbff",
+      "reason": "Raw execution log omitted for data minimization; structured summaries retained"
+    },
+    {
+      "source_path": "logs/old-heldout-regression-red.log",
+      "sha256": "78fb0dfa26b3ab69b0726ec357bafeb65f6bed109e94128f96f8ef7ee3274d6c",
+      "reason": "Raw execution log omitted for data minimization; structured summaries retained"
+    },
+    {
+      "source_path": "logs/trial-17-capture.log",
+      "sha256": "4878d4d35be1ff7bbb1edaf32b9afd250f67c4c192e3c213d817c91937d858ed",
+      "reason": "Raw execution log omitted for data minimization; structured summaries retained"
+    },
+    {
+      "source_path": "logs/trial-17-corrected-api.log",
+      "sha256": "33c16fe9b7b729788d744eeda042dfd2beba10c99a28cbdbe3b4b416dbe7c333",
+      "reason": "Raw execution log omitted for data minimization; structured summaries retained"
+    },
+    {
+      "source_path": "logs/trial-17-corrected-format.log",
+      "sha256": "b221fa32ed80fb2ebc9605eb60fdfa0a5eaa83ce614a9f728a4fa4632fbfa89a",
+      "reason": "Raw execution log omitted for data minimization; structured summaries retained"
+    },
+    {
+      "source_path": "logs/trial-17-corrected-pyright.log",
+      "sha256": "6d88a1b220adb7a3d62092b6e38431f0b3fe8babe9864fab90e5849766260332",
+      "reason": "Raw execution log omitted for data minimization; structured summaries retained"
+    },
+    {
+      "source_path": "logs/trial-17-corrected-pytest.log",
+      "sha256": "407be1735c95b69ce0dd81f09736936ae18e62792780f9792dd1284a8c0fb039",
+      "reason": "Raw execution log omitted for data minimization; structured summaries retained"
+    },
+    {
+      "source_path": "logs/trial-17-corrected-ruff.log",
+      "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "reason": "Raw execution log omitted for data minimization; structured summaries retained"
+    },
+    {
+      "source_path": "logs/trial-17-focused-pytest.log",
+      "sha256": "5b3a44ab1560353e252094db1431ff685739da907da99c1afe18934d8896e5f0",
+      "reason": "Raw execution log omitted for data minimization; structured summaries retained"
+    },
+    {
+      "source_path": "logs/trial-17-full-pytest.log",
+      "sha256": "26af83ec05da9a46d1ae0d486e8d56dae236cb97173e7a6c8011d286f706341e",
+      "reason": "Raw execution log omitted for data minimization; structured summaries retained"
+    },
+    {
+      "source_path": "logs/trial-17-independent-api.log",
+      "sha256": "df735da2ea66c7a2d7646f819f3410aa0e4c9ae50a9a35d00aafd235972c32b4",
+      "reason": "Raw execution log omitted for data minimization; structured summaries retained"
+    },
+    {
+      "source_path": "logs/trial-17-independent-format.log",
+      "sha256": "b221fa32ed80fb2ebc9605eb60fdfa0a5eaa83ce614a9f728a4fa4632fbfa89a",
+      "reason": "Raw execution log omitted for data minimization; structured summaries retained"
+    },
+    {
+      "source_path": "logs/trial-17-independent-migration.log",
+      "sha256": "dd84f4d00ecfe870dda22e51d20e1376a1d169efae0bcf283788c779a4032cff",
+      "reason": "Raw execution log omitted for data minimization; structured summaries retained"
+    },
+    {
+      "source_path": "logs/trial-17-independent-pyright.log",
+      "sha256": "6d88a1b220adb7a3d62092b6e38431f0b3fe8babe9864fab90e5849766260332",
+      "reason": "Raw execution log omitted for data minimization; structured summaries retained"
+    },
+    {
+      "source_path": "logs/trial-17-independent-pytest.log",
+      "sha256": "fbbed929787cedcb44d6ce174d7f1997531439239ad1dc7cafcd922214c3fcf1",
+      "reason": "Raw execution log omitted for data minimization; structured summaries retained"
+    },
+    {
+      "source_path": "logs/trial-17-independent-ruff.log",
+      "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "reason": "Raw execution log omitted for data minimization; structured summaries retained"
+    },
+    {
+      "source_path": "logs/trial-17-migration-autogenerate.log",
+      "sha256": "74414729a3dbeb1f3bba3ea959f928edf9be20dc84eff12fbec86ccd04bc1d93",
+      "reason": "Raw execution log omitted for data minimization; structured summaries retained"
+    },
+    {
+      "source_path": "logs/trial-17-migration-check-clean.log",
+      "sha256": "e30a0f2d4c0dff18ab2798b40dfb6a86b3ba748cc9b90d6c08cb91e275107683",
+      "reason": "Raw execution log omitted for data minimization; structured summaries retained"
+    },
+    {
+      "source_path": "logs/trial-17-migration-check-existing.log",
+      "sha256": "e30a0f2d4c0dff18ab2798b40dfb6a86b3ba748cc9b90d6c08cb91e275107683",
+      "reason": "Raw execution log omitted for data minimization; structured summaries retained"
+    },
+    {
+      "source_path": "logs/trial-17-migration-clean-upgrade.log",
+      "sha256": "a4f77d581372f34a1a8b0380f70c2754eb0c2a051684056aace66ebe2c81a9ed",
+      "reason": "Raw execution log omitted for data minimization; structured summaries retained"
+    },
+    {
+      "source_path": "logs/trial-17-migration-downgrade-data-check.log",
+      "sha256": "124a9b40a9635f38a83f60f941970ab9f8534f93f8fb1995b821c7eba596e60f",
+      "reason": "Raw execution log omitted for data minimization; structured summaries retained"
+    },
+    {
+      "source_path": "logs/trial-17-migration-downgrade.log",
+      "sha256": "09893f7b67000e83925ad4d136760ba310d24a8700d3cc349eda50ec38816b5f",
+      "reason": "Raw execution log omitted for data minimization; structured summaries retained"
+    },
+    {
+      "source_path": "logs/trial-17-migration-fixture-insert.log",
+      "sha256": "19eaf43821a7660ec323a87c8457bf74823beb296c39f5e01aa8a683aa50f061",
+      "reason": "Raw execution log omitted for data minimization; structured summaries retained"
+    },
+    {
+      "source_path": "logs/trial-17-migration-gen-upgrade.log",
+      "sha256": "de085b3d31b76c4f1ca42856bd52b0b631dab15c247be0c23fd9e88c38b2c3b3",
+      "reason": "Raw execution log omitted for data minimization; structured summaries retained"
+    },
+    {
+      "source_path": "logs/trial-17-migration-old-schema.log",
+      "sha256": "de085b3d31b76c4f1ca42856bd52b0b631dab15c247be0c23fd9e88c38b2c3b3",
+      "reason": "Raw execution log omitted for data minimization; structured summaries retained"
+    },
+    {
+      "source_path": "logs/trial-17-migration-reupgrade-data-check.log",
+      "sha256": "bf5a74ed377ed5bf1f1041b99cf5f9beaf462860fcf9bf3e1510b519bc385f54",
+      "reason": "Raw execution log omitted for data minimization; structured summaries retained"
+    },
+    {
+      "source_path": "logs/trial-17-migration-reupgrade.log",
+      "sha256": "75069df2be406a0b850fe582476ab3c377d58210b57726a0160a7a67d33a3cf4",
+      "reason": "Raw execution log omitted for data minimization; structured summaries retained"
+    },
+    {
+      "source_path": "logs/trial-17-migration-upgrade-with-data.log",
+      "sha256": "75069df2be406a0b850fe582476ab3c377d58210b57726a0160a7a67d33a3cf4",
+      "reason": "Raw execution log omitted for data minimization; structured summaries retained"
+    },
+    {
+      "source_path": "logs/trial-17-pyright.log",
+      "sha256": "6d88a1b220adb7a3d62092b6e38431f0b3fe8babe9864fab90e5849766260332",
+      "reason": "Raw execution log omitted for data minimization; structured summaries retained"
+    },
+    {
+      "source_path": "logs/trial-17-ruff-check.log",
+      "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "reason": "Raw execution log omitted for data minimization; structured summaries retained"
+    },
+    {
+      "source_path": "logs/trial-17-ruff-fix.log",
+      "sha256": "28229e10c3e50a836bd1b6ab41d3fbac78f10dc646eeac936dbb564bf1cdc0a0",
+      "reason": "Raw execution log omitted for data minimization; structured summaries retained"
+    },
+    {
+      "source_path": "logs/trial-17-ruff-format-check.log",
+      "sha256": "b221fa32ed80fb2ebc9605eb60fdfa0a5eaa83ce614a9f728a4fa4632fbfa89a",
+      "reason": "Raw execution log omitted for data minimization; structured summaries retained"
+    },
+    {
+      "source_path": "logs/trial-17-ruff-format.log",
+      "sha256": "21fe836332ca663fbc40de3e0881eed9802d1c89c93c3df4baa366b49e777c4f",
+      "reason": "Raw execution log omitted for data minimization; structured summaries retained"
+    },
+    {
+      "source_path": "logs/trial-28-capture.log",
+      "sha256": "3a5b079d25371394a8bc1eb99c91c758628ccb77e2680b3aa9ed2003540b5447",
+      "reason": "Raw execution log omitted for data minimization; structured summaries retained"
+    },
+    {
+      "source_path": "logs/trial-28-corrected-api.log",
+      "sha256": "ae903953ae961a20702584196e74dc9a32efedf7f29b376f40425e3866634ffa",
+      "reason": "Raw execution log omitted for data minimization; structured summaries retained"
+    },
+    {
+      "source_path": "logs/trial-28-corrected-format.log",
+      "sha256": "b221fa32ed80fb2ebc9605eb60fdfa0a5eaa83ce614a9f728a4fa4632fbfa89a",
+      "reason": "Raw execution log omitted for data minimization; structured summaries retained"
+    },
+    {
+      "source_path": "logs/trial-28-corrected-pyright.log",
+      "sha256": "6d88a1b220adb7a3d62092b6e38431f0b3fe8babe9864fab90e5849766260332",
+      "reason": "Raw execution log omitted for data minimization; structured summaries retained"
+    },
+    {
+      "source_path": "logs/trial-28-corrected-pytest.log",
+      "sha256": "011c3f979613f4a038be7fae023b2a7c73f7369078f66b7085205102500844ec",
+      "reason": "Raw execution log omitted for data minimization; structured summaries retained"
+    },
+    {
+      "source_path": "logs/trial-28-corrected-ruff.log",
+      "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "reason": "Raw execution log omitted for data minimization; structured summaries retained"
+    },
+    {
+      "source_path": "logs/trial-28-diff-check.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "reason": "Raw execution log omitted for data minimization; structured summaries retained"
+    },
+    {
+      "source_path": "logs/trial-28-format.log",
+      "sha256": "21fe836332ca663fbc40de3e0881eed9802d1c89c93c3df4baa366b49e777c4f",
+      "reason": "Raw execution log omitted for data minimization; structured summaries retained"
+    },
+    {
+      "source_path": "logs/trial-28-independent-api.log",
+      "sha256": "7274454c1098a3cb4c5e17b25f8008efcbb718481d462488a6f71a256a933682",
+      "reason": "Raw execution log omitted for data minimization; structured summaries retained"
+    },
+    {
+      "source_path": "logs/trial-28-independent-format.log",
+      "sha256": "b221fa32ed80fb2ebc9605eb60fdfa0a5eaa83ce614a9f728a4fa4632fbfa89a",
+      "reason": "Raw execution log omitted for data minimization; structured summaries retained"
+    },
+    {
+      "source_path": "logs/trial-28-independent-migration.log",
+      "sha256": "355c10e7e4dc2544a0d1772f2078dcaf7efc78ce54bcb16315cc414dc3c05f91",
+      "reason": "Raw execution log omitted for data minimization; structured summaries retained"
+    },
+    {
+      "source_path": "logs/trial-28-independent-pyright.log",
+      "sha256": "6d88a1b220adb7a3d62092b6e38431f0b3fe8babe9864fab90e5849766260332",
+      "reason": "Raw execution log omitted for data minimization; structured summaries retained"
+    },
+    {
+      "source_path": "logs/trial-28-independent-pytest.log",
+      "sha256": "b6936a761a2cb48e35d803f9ea68f20aba485779aa83b2284c376f16dbb49d32",
+      "reason": "Raw execution log omitted for data minimization; structured summaries retained"
+    },
+    {
+      "source_path": "logs/trial-28-independent-ruff.log",
+      "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "reason": "Raw execution log omitted for data minimization; structured summaries retained"
+    },
+    {
+      "source_path": "logs/trial-28-migration.log",
+      "sha256": "39dea594890ab00881af1983debacf878f25b8f490d0edd31f94621a11e448ad",
+      "reason": "Raw execution log omitted for data minimization; structured summaries retained"
+    },
+    {
+      "source_path": "logs/trial-28-pyright.log",
+      "sha256": "6d88a1b220adb7a3d62092b6e38431f0b3fe8babe9864fab90e5849766260332",
+      "reason": "Raw execution log omitted for data minimization; structured summaries retained"
+    },
+    {
+      "source_path": "logs/trial-28-pytest.log",
+      "sha256": "0aca62f5f1f0171b7fe1adf257e0c1419f80a719969f98a1c74d34120d9c5308",
+      "reason": "Raw execution log omitted for data minimization; structured summaries retained"
+    },
+    {
+      "source_path": "logs/trial-28-ruff-check.log",
+      "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "reason": "Raw execution log omitted for data minimization; structured summaries retained"
+    },
+    {
+      "source_path": "logs/trial-28-ruff-fix.log",
+      "sha256": "4cb773bf0501eba4b8bd21044fd8482a687a0705ab1badcbda8685822daa1ab1",
+      "reason": "Raw execution log omitted for data minimization; structured summaries retained"
+    },
+    {
+      "source_path": "logs/trial-28-ruff-format-check.log",
+      "sha256": "b221fa32ed80fb2ebc9605eb60fdfa0a5eaa83ce614a9f728a4fa4632fbfa89a",
+      "reason": "Raw execution log omitted for data minimization; structured summaries retained"
+    },
+    {
+      "source_path": "logs/trial-43-capture.log",
+      "sha256": "dca83f57438a06127b1e933934755fdcfdd7dcf59b1f895845bccefbe1cc7303",
+      "reason": "Raw execution log omitted for data minimization; structured summaries retained"
+    },
+    {
+      "source_path": "logs/trial-43-corrected-api.log",
+      "sha256": "ce0733d59ad9f6fc18dbf2261486f89e7a89bfe7a5d89fca61a4b2cdd8a38190",
+      "reason": "Raw execution log omitted for data minimization; structured summaries retained"
+    },
+    {
+      "source_path": "logs/trial-43-corrected-format.log",
+      "sha256": "02bed28762c49640d7f02e6846a37745113a47eec5cdfeda4cdac36b08151b75",
+      "reason": "Raw execution log omitted for data minimization; structured summaries retained"
+    },
+    {
+      "source_path": "logs/trial-43-corrected-pyright.log",
+      "sha256": "6d88a1b220adb7a3d62092b6e38431f0b3fe8babe9864fab90e5849766260332",
+      "reason": "Raw execution log omitted for data minimization; structured summaries retained"
+    },
+    {
+      "source_path": "logs/trial-43-corrected-pytest.log",
+      "sha256": "9a6452ad2dd7676e4aa706a608c583253fa24e993390481dd42ca30f76258428",
+      "reason": "Raw execution log omitted for data minimization; structured summaries retained"
+    },
+    {
+      "source_path": "logs/trial-43-corrected-ruff.log",
+      "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "reason": "Raw execution log omitted for data minimization; structured summaries retained"
+    },
+    {
+      "source_path": "logs/trial-43-focused-pytest.log",
+      "sha256": "1e60fa04b4bfaf3340e7a57a26b73075bb4a3a66fea934d1437ef41d08eb77f3",
+      "reason": "Raw execution log omitted for data minimization; structured summaries retained"
+    },
+    {
+      "source_path": "logs/trial-43-independent-api.log",
+      "sha256": "028481a46802bf30de601c1fedf634d8424cea3a8bea44bf1f449d86568a1d43",
+      "reason": "Raw execution log omitted for data minimization; structured summaries retained"
+    },
+    {
+      "source_path": "logs/trial-43-independent-format.log",
+      "sha256": "02bed28762c49640d7f02e6846a37745113a47eec5cdfeda4cdac36b08151b75",
+      "reason": "Raw execution log omitted for data minimization; structured summaries retained"
+    },
+    {
+      "source_path": "logs/trial-43-independent-migration.log",
+      "sha256": "a0728df02933529b0f5a68fc7b0187762d33aa1964ef3c5f2ae6091a53722fc6",
+      "reason": "Raw execution log omitted for data minimization; structured summaries retained"
+    },
+    {
+      "source_path": "logs/trial-43-independent-pyright.log",
+      "sha256": "6d88a1b220adb7a3d62092b6e38431f0b3fe8babe9864fab90e5849766260332",
+      "reason": "Raw execution log omitted for data minimization; structured summaries retained"
+    },
+    {
+      "source_path": "logs/trial-43-independent-pytest.log",
+      "sha256": "076927b8dbd7645718369f2017305472f12aa0e1d85bd2711922b7d905a6da2e",
+      "reason": "Raw execution log omitted for data minimization; structured summaries retained"
+    },
+    {
+      "source_path": "logs/trial-43-independent-ruff.log",
+      "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "reason": "Raw execution log omitted for data minimization; structured summaries retained"
+    },
+    {
+      "source_path": "logs/trial-43-migration.log",
+      "sha256": "b9552be9cd324ff0d03944458313a2194034dd2cf029fea11cf2a5d1e2822d1c",
+      "reason": "Raw execution log omitted for data minimization; structured summaries retained"
+    },
+    {
+      "source_path": "logs/trial-43-pyright.log",
+      "sha256": "6d88a1b220adb7a3d62092b6e38431f0b3fe8babe9864fab90e5849766260332",
+      "reason": "Raw execution log omitted for data minimization; structured summaries retained"
+    },
+    {
+      "source_path": "logs/trial-43-pytest.log",
+      "sha256": "007e891f36936be213ae6a05d8136b99d987d12462f0d243baf501d2e8d407e5",
+      "reason": "Raw execution log omitted for data minimization; structured summaries retained"
+    },
+    {
+      "source_path": "logs/trial-43-ruff-check.log",
+      "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "reason": "Raw execution log omitted for data minimization; structured summaries retained"
+    },
+    {
+      "source_path": "logs/trial-43-ruff-fix.log",
+      "sha256": "18a1870e43654de125f6cf52d247a1e8da43d31a58999f7c8f4b52783084d1be",
+      "reason": "Raw execution log omitted for data minimization; structured summaries retained"
+    },
+    {
+      "source_path": "logs/trial-43-ruff-format-check.log",
+      "sha256": "02bed28762c49640d7f02e6846a37745113a47eec5cdfeda4cdac36b08151b75",
+      "reason": "Raw execution log omitted for data minimization; structured summaries retained"
+    },
+    {
+      "source_path": "logs/trial-43-ruff-format.log",
+      "sha256": "18ab6453ffe48b679134b437d0e2a5e3a2e0efc9169b70674dee6c1d74b46858",
+      "reason": "Raw execution log omitted for data minimization; structured summaries retained"
+    },
+    {
+      "source_path": "logs/trial-59-alembic-roundtrip.log",
+      "sha256": "5625942a6a1eb27ec901ebc918f336c9d22cac00c2e5df3808877a594300a920",
+      "reason": "Raw execution log omitted for data minimization; structured summaries retained"
+    },
+    {
+      "source_path": "logs/trial-59-capture.log",
+      "sha256": "483bc876c598451d3978811eacd6d98964ec6268fc862f514459f4fafac6e3b4",
+      "reason": "Raw execution log omitted for data minimization; structured summaries retained"
+    },
+    {
+      "source_path": "logs/trial-59-corrected-api.log",
+      "sha256": "7b698e9c300f56e0c8f8dbb67d2deaf2504721d47bbe3646965111dbe0a4568c",
+      "reason": "Raw execution log omitted for data minimization; structured summaries retained"
+    },
+    {
+      "source_path": "logs/trial-59-corrected-format.log",
+      "sha256": "06e5b11d2de8e39aa7c4b1b31df2987775504a00282cba43c3262aeaceb4f040",
+      "reason": "Raw execution log omitted for data minimization; structured summaries retained"
+    },
+    {
+      "source_path": "logs/trial-59-corrected-pyright.log",
+      "sha256": "6d88a1b220adb7a3d62092b6e38431f0b3fe8babe9864fab90e5849766260332",
+      "reason": "Raw execution log omitted for data minimization; structured summaries retained"
+    },
+    {
+      "source_path": "logs/trial-59-corrected-pytest.log",
+      "sha256": "717e4c71cf1243ef135238460e43c4b1a70ac2c314951fa48c65bd71f0629923",
+      "reason": "Raw execution log omitted for data minimization; structured summaries retained"
+    },
+    {
+      "source_path": "logs/trial-59-corrected-ruff.log",
+      "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "reason": "Raw execution log omitted for data minimization; structured summaries retained"
+    },
+    {
+      "source_path": "logs/trial-59-focused-pytest.log",
+      "sha256": "cd1b55fb935ae9cbcb653c0b101e56b861a2c0348627b82160159fad02d96b76",
+      "reason": "Raw execution log omitted for data minimization; structured summaries retained"
+    },
+    {
+      "source_path": "logs/trial-59-format-check.log",
+      "sha256": "06e5b11d2de8e39aa7c4b1b31df2987775504a00282cba43c3262aeaceb4f040",
+      "reason": "Raw execution log omitted for data minimization; structured summaries retained"
+    },
+    {
+      "source_path": "logs/trial-59-format.log",
+      "sha256": "898ccbc94630d20087c9433c8f7390713b83954ec1572237b6189282a8c8e292",
+      "reason": "Raw execution log omitted for data minimization; structured summaries retained"
+    },
+    {
+      "source_path": "logs/trial-59-independent-api.log",
+      "sha256": "f4c1d102dbed49ba6d3a395d76324bf74d36d27bbfc213561133170a00aeab29",
+      "reason": "Raw execution log omitted for data minimization; structured summaries retained"
+    },
+    {
+      "source_path": "logs/trial-59-independent-format.log",
+      "sha256": "06e5b11d2de8e39aa7c4b1b31df2987775504a00282cba43c3262aeaceb4f040",
+      "reason": "Raw execution log omitted for data minimization; structured summaries retained"
+    },
+    {
+      "source_path": "logs/trial-59-independent-migration.log",
+      "sha256": "d037a05caacabffe6aec2169eb8796885ec7e507e261885b065a2b75bad9a637",
+      "reason": "Raw execution log omitted for data minimization; structured summaries retained"
+    },
+    {
+      "source_path": "logs/trial-59-independent-pyright.log",
+      "sha256": "6d88a1b220adb7a3d62092b6e38431f0b3fe8babe9864fab90e5849766260332",
+      "reason": "Raw execution log omitted for data minimization; structured summaries retained"
+    },
+    {
+      "source_path": "logs/trial-59-independent-pytest.log",
+      "sha256": "debba5f5f10a1b51fca3bcd4917f6fd13008809030b0e23099cc5e1e5f470935",
+      "reason": "Raw execution log omitted for data minimization; structured summaries retained"
+    },
+    {
+      "source_path": "logs/trial-59-independent-ruff.log",
+      "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "reason": "Raw execution log omitted for data minimization; structured summaries retained"
+    },
+    {
+      "source_path": "logs/trial-59-pyright.log",
+      "sha256": "6d88a1b220adb7a3d62092b6e38431f0b3fe8babe9864fab90e5849766260332",
+      "reason": "Raw execution log omitted for data minimization; structured summaries retained"
+    },
+    {
+      "source_path": "logs/trial-59-pytest.log",
+      "sha256": "958e0881e70920997e07d5a9aa425aafd25924fec94251f964794ebf61fd386d",
+      "reason": "Raw execution log omitted for data minimization; structured summaries retained"
+    },
+    {
+      "source_path": "logs/trial-59-ruff-check.log",
+      "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "reason": "Raw execution log omitted for data minimization; structured summaries retained"
+    },
+    {
+      "source_path": "prior-publication/PUBLICATION.json",
+      "sha256": "2a4e4a22d6d48c744b261fb3f2b0b003afe2c2586f31e7b96d9876a41b5921b7",
+      "reason": "Duplicate of existing immutable docs/experiments/luna-2026-10-02 publication"
+    },
+    {
+      "source_path": "prior-publication/PUBLICATION.md",
+      "sha256": "49b481a6364e269a09bdb39241f62fe60f93fe7abc20da713e6f2c1e9a4981f3",
+      "reason": "Duplicate of existing immutable docs/experiments/luna-2026-10-02 publication"
+    },
+    {
+      "source_path": "prior-publication/README.md",
+      "sha256": "9823a3e633ee54e8fd08c384cb3388d03bd863c59930e26ab4b8d9e600b74c1e",
+      "reason": "Duplicate of existing immutable docs/experiments/luna-2026-10-02 publication"
+    },
+    {
+      "source_path": "prior-publication/REPORT.md",
+      "sha256": "9f9f224e7c306eae6f42b5063f56b854c97c08d7c8cbfbba33ea33c9eae93bef",
+      "reason": "Duplicate of existing immutable docs/experiments/luna-2026-10-02 publication"
+    },
+    {
+      "source_path": "prior-publication/SHA256SUMS",
+      "sha256": "ec037f30d152c59378a802086f44412b85b74938626d89fc37580c52338ad39d",
+      "reason": "Duplicate of existing immutable docs/experiments/luna-2026-10-02 publication"
+    },
+    {
+      "source_path": "prior-publication/checks/migration_probe.py",
+      "sha256": "9820c6c5d86efdf87c6d7c8e2eb73124f6721cf39ae0be7a3759b0678a64edf2",
+      "reason": "Duplicate of existing immutable docs/experiments/luna-2026-10-02 publication"
+    },
+    {
+      "source_path": "prior-publication/checks/profile_probe.py",
+      "sha256": "871e8d263483d4c4777fd8126a77cd116e2b6686474b00d3b25a2b3b0d9dbde4",
+      "reason": "Duplicate of existing immutable docs/experiments/luna-2026-10-02 publication"
+    },
+    {
+      "source_path": "prior-publication/checks/team_migration_probe.py",
+      "sha256": "74719b285e1cb09d02484553224a4fe97a85aee573d7b0345ddb9d33032ebd4f",
+      "reason": "Duplicate of existing immutable docs/experiments/luna-2026-10-02 publication"
+    },
+    {
+      "source_path": "prior-publication/checks/team_probe.py",
+      "sha256": "2378cb47f5707f47a57195740aa6aa332e1aaeb261d5cf93e00a7cdbcada07ec",
+      "reason": "Duplicate of existing immutable docs/experiments/luna-2026-10-02 publication"
+    },
+    {
+      "source_path": "prior-publication/manifest.json",
+      "sha256": "1a17efe3f0eed5002151cdaa77660cf77aa495fe41f31975e3f7011d8ac11a22",
+      "reason": "Duplicate of existing immutable docs/experiments/luna-2026-10-02 publication"
+    },
+    {
+      "source_path": "prior-publication/next-doc-candidate.md",
+      "sha256": "abbcc2f4f10cec6f993aa5c3a04c1d5e4a9bac6638fc928d77238e2a9fc9227a",
+      "reason": "Duplicate of existing immutable docs/experiments/luna-2026-10-02 publication"
+    },
+    {
+      "source_path": "prior-publication/patches/baseline-1.patch",
+      "sha256": "68bd0b95e30774a30a9f8d9245365c52374a6411d2f829166af47d0df8237481",
+      "reason": "Duplicate of existing immutable docs/experiments/luna-2026-10-02 publication"
+    },
+    {
+      "source_path": "prior-publication/patches/baseline-2.patch",
+      "sha256": "492aaeaa9f96db9a372620ab6ce5930795ef868422e21d979f6202d60ecdc3b9",
+      "reason": "Duplicate of existing immutable docs/experiments/luna-2026-10-02 publication"
+    },
+    {
+      "source_path": "prior-publication/patches/baseline-3.patch",
+      "sha256": "294e5045b0f1f8a4c75a1da40c02a7113ac6296c171e0cf4bc7e8d425f9c8cd9",
+      "reason": "Duplicate of existing immutable docs/experiments/luna-2026-10-02 publication"
+    },
+    {
+      "source_path": "prior-publication/patches/docs-intervention.patch",
+      "sha256": "a310559fd19c92e5fb5417880dffa9e64dec29b8275c667031272e0cf55a3616",
+      "reason": "Duplicate of existing immutable docs/experiments/luna-2026-10-02 publication"
+    },
+    {
+      "source_path": "prior-publication/patches/heldout-1.patch",
+      "sha256": "f38ea9ac5e02da9fdb7682add8bfc6e13d2513cb543878d4f66759ce3f932d16",
+      "reason": "Duplicate of existing immutable docs/experiments/luna-2026-10-02 publication"
+    },
+    {
+      "source_path": "prior-publication/patches/improved-1.patch",
+      "sha256": "1c2eaaffdd4762d6fc231d4a6e212884094b7d06a69fc55365c199be704bea15",
+      "reason": "Duplicate of existing immutable docs/experiments/luna-2026-10-02 publication"
+    },
+    {
+      "source_path": "prior-publication/patches/improved-2.patch",
+      "sha256": "c0152e367e8bda8129b5f823a14e8e8ec559bd67278991a9af4954649d6a222a",
+      "reason": "Duplicate of existing immutable docs/experiments/luna-2026-10-02 publication"
+    },
+    {
+      "source_path": "prior-publication/prompts/task-heldout.txt",
+      "sha256": "0d0df3cc260e4ce6d40b508692f70aa978fec16a20188ada5489f95335b5245a",
+      "reason": "Duplicate of existing immutable docs/experiments/luna-2026-10-02 publication"
+    },
+    {
+      "source_path": "prior-publication/prompts/task-prompt.txt",
+      "sha256": "90213640912dddd5b05876abeac453472fd368e6af49982c87b9aa3129b00c9b",
+      "reason": "Duplicate of existing immutable docs/experiments/luna-2026-10-02 publication"
+    },
+    {
+      "source_path": "prior-publication/results/baseline-1-acceptance.json",
+      "sha256": "ba24358e470cebd07d35a60a3ac12d87fda4aa837f8558903d98fec122fd6eb0",
+      "reason": "Duplicate of existing immutable docs/experiments/luna-2026-10-02 publication"
+    },
+    {
+      "source_path": "prior-publication/results/baseline-2-acceptance.json",
+      "sha256": "1c8c2967c3458258d519057ff39c6c7c633f629a6c32a9f0dabfb7b6b4ab54ff",
+      "reason": "Duplicate of existing immutable docs/experiments/luna-2026-10-02 publication"
+    },
+    {
+      "source_path": "prior-publication/results/baseline-3-acceptance.json",
+      "sha256": "0d16301e81bc38e2d11990da0ff854ecd136e1d179b0bb1cfb9cfac6c17a4059",
+      "reason": "Duplicate of existing immutable docs/experiments/luna-2026-10-02 publication"
+    },
+    {
+      "source_path": "prior-publication/results/comparison-metrics.json",
+      "sha256": "a8b28d1d07fe5ebab5985856c13647756d0cad185fe6e28dacd4c1c18c0c7466",
+      "reason": "Duplicate of existing immutable docs/experiments/luna-2026-10-02 publication"
+    },
+    {
+      "source_path": "prior-publication/results/heldout-1-acceptance.json",
+      "sha256": "73d1319662921d2ff4433f050097bb5b408fc2ed27b260ec5724832722f3dca1",
+      "reason": "Duplicate of existing immutable docs/experiments/luna-2026-10-02 publication"
+    },
+    {
+      "source_path": "prior-publication/results/improved-1-acceptance.json",
+      "sha256": "8e4e91704eb0cfa4e0e4330fd5ae54f3a82cf32cf10abab95a306105f6973685",
+      "reason": "Duplicate of existing immutable docs/experiments/luna-2026-10-02 publication"
+    },
+    {
+      "source_path": "prior-publication/results/improved-2-acceptance.json",
+      "sha256": "5c09d5bb4e282e3d0cfbf14c43bd2d84c32bff78bf1d09ede330573978d02c8c",
+      "reason": "Duplicate of existing immutable docs/experiments/luna-2026-10-02 publication"
+    },
+    {
+      "source_path": "prior-publication/results/symbol-review.json",
+      "sha256": "eaae73a91b3d1c21731061a8bef5f76a2e6ff8eef089bd7b5353a2ee12707431",
+      "reason": "Duplicate of existing immutable docs/experiments/luna-2026-10-02 publication"
+    },
+    {
+      "source_path": "results/delivery-status.json",
+      "sha256": "77954e0aeb894b81384f69f6a9b001aa816b00931ef56a2f6ecd749030a0f30b",
+      "reason": "Private delivery/authentication environment metadata"
+    },
+    {
+      "source_path": "results/execution.json",
+      "sha256": "925fcfbaa1530955ac9f051ea2573ccc2324712b2242c946416d401b2e4a749a",
+      "reason": "Internal orchestration and environment metadata; requested model retained in protocol"
+    },
+    {
+      "source_path": "results/preregistered.sha256",
+      "sha256": "904add7bee4b384fd01897e4ba60d20aa773e44d3d1c00f888a09906a0de98cf",
+      "reason": "Absolute-path inventory; input hashes retained in frozen-inputs.json"
+    }
+  ],
+  "new_publication_files": [
+    "README.md",
+    "PUBLICATION.md",
+    "PUBLICATION.json",
+    "SHA256SUMS",
+    "results/public-log-summary.json"
+  ],
+  "scientific_results_changed": false,
+  "new_experiments_during_publication": false,
+  "notes": [
+    "All implementation patches and independent probe code are byte-identical to source archive.",
+    "No personal conversation or authentication data is included.",
+    "Raw logs are omitted, not claimed to contain credentials. Structured summaries cannot replace full execution-trace audit.",
+    "Historical statements that no publication occurred refer to experiment completion before this separately authorized publication."
+  ]
+}

@@ -1,0 +1,70 @@
+[
+  {
+    "case": "docs",
+    "patches": [
+      "docs-candidate.patch"
+    ],
+    "apply": true,
+    "diff_check": true,
+    "content_matches_validated_checkout": true
+  },
+  {
+    "case": "old-full",
+    "patches": [
+      "old-heldout-fixed-full.patch"
+    ],
+    "apply": true,
+    "diff_check": true,
+    "content_matches_validated_checkout": true
+  },
+  {
+    "case": "old-correction",
+    "patches": [
+      "../luna-2026-10-02/patches/heldout-1.patch",
+      "old-heldout-correction.patch"
+    ],
+    "apply": true,
+    "diff_check": true,
+    "content_matches_validated_checkout": true
+  },
+  {
+    "case": "trial-17",
+    "patches": [
+      "trial-17-initial.patch",
+      "trial-17-correction.patch"
+    ],
+    "apply": true,
+    "diff_check": true,
+    "content_matches_validated_checkout": true
+  },
+  {
+    "case": "trial-28",
+    "patches": [
+      "trial-28-initial.patch",
+      "trial-28-correction.patch"
+    ],
+    "apply": true,
+    "diff_check": true,
+    "content_matches_validated_checkout": true
+  },
+  {
+    "case": "trial-43",
+    "patches": [
+      "trial-43-initial.patch",
+      "trial-43-correction.patch"
+    ],
+    "apply": true,
+    "diff_check": true,
+    "content_matches_validated_checkout": true
+  },
+  {
+    "case": "trial-59",
+    "patches": [
+      "trial-59-initial.patch",
+      "trial-59-correction.patch"
+    ],
+    "apply": true,
+    "diff_check": true,
+    "content_matches_validated_checkout": true
+  }
+]

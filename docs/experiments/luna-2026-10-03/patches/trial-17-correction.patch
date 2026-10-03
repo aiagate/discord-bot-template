@@ -1,0 +1,40 @@
+--- a/src/app/domain/aggregates/team.py
++++ b/src/app/domain/aggregates/team.py
+@@ -41,16 +41,9 @@
+         return self.id == other.id
+ 
+     @classmethod
+-    def form(
+-        cls,
+-        name: TeamName,
+-        description: TeamDescription | None = None,
+-    ) -> Team:
++    def form(cls, name: TeamName) -> Team:
+         """Factory method to create a new Team."""
+-        return Team(
+-            _name=name,
+-            _description=description or TeamDescription(_value=""),
+-        )
++        return Team(_name=name)
+ 
+     @classmethod
+     def restore(
+@@ -83,6 +76,7 @@
+ 
+     @property
+     def description(self) -> TeamDescription:
++        """Return the team's exact description text as a value object."""
+         return self._description
+ 
+     @property
+--- a/src/app/presentation/api/routers/teams.py
++++ b/src/app/presentation/api/routers/teams.py
+@@ -35,6 +35,8 @@
+ 
+ 
+ class UpdateTeamDescriptionRequest(BaseModel):
++    """Request to replace the description of an existing team."""
++
+     description: str
+ 
+ 

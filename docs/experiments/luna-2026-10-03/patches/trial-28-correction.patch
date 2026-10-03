@@ -1,0 +1,21 @@
+--- a/src/app/domain/aggregates/team.py
++++ b/src/app/domain/aggregates/team.py
+@@ -75,6 +75,7 @@
+ 
+     @property
+     def description(self) -> TeamDescription:
++        """Return the team's exact description text as a value object."""
+         return self._description
+ 
+     @property
+--- a/src/app/presentation/api/routers/teams.py
++++ b/src/app/presentation/api/routers/teams.py
+@@ -35,6 +35,8 @@
+ 
+ 
+ class UpdateTeamDescriptionRequest(BaseModel):
++    """Request to replace the description of an existing team."""
++
+     description: str
+ 
+ 

@@ -1,0 +1,639 @@
+[
+  {
+    "source_log": "checks/baseline_api_negative.log",
+    "source_sha256": "210b4280a5499ee75941145136f61f0c2575d2236ba2f6836b17e8822a9b8d70",
+    "probe": {
+      "passed": 21,
+      "total": 28,
+      "failed_checks": [
+        "openapi_get_new_string",
+        "openapi_new_route",
+        "new_team_empty",
+        "whitespace_newline_update",
+        "whitespace_newline_exact",
+        "whitespace_newline_version_increment",
+        "probe_exception"
+      ]
+    }
+  },
+  {
+    "source_log": "checks/baseline_migration_negative.log",
+    "source_sha256": "5351a2529c6db7403971bca9a86ce1bfe29598f36942d3890309a6d490ec6a63",
+    "probe": {
+      "passed": 7,
+      "total": 11,
+      "failed_checks": [
+        "one_new_head",
+        "legacy_default_empty",
+        "clean_install_field_exists",
+        "clean_install_field_not_null"
+      ]
+    }
+  },
+  {
+    "source_log": "logs/baseline-pyright.log",
+    "source_sha256": "6d88a1b220adb7a3d62092b6e38431f0b3fe8babe9864fab90e5849766260332",
+    "pyright": [
+      "0",
+      "0",
+      "0"
+    ]
+  },
+  {
+    "source_log": "logs/baseline-pytest.log",
+    "source_sha256": "830b1c67c392658dda654fd4782e323884bb0d2215b38702ceefd2e1b9c4e9e4",
+    "pytest": [
+      "354",
+      "2"
+    ]
+  },
+  {
+    "source_log": "logs/baseline-ruff.log",
+    "source_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+    "ruff": "All checks passed"
+  },
+  {
+    "source_log": "logs/old-heldout-fixed-api.log",
+    "source_sha256": "1805cde63946bf56dd01f4a4863bc726048b01b380d4a3c2e54385f4cedd30e8",
+    "probe": {
+      "passed": 103,
+      "total": 103,
+      "failed_checks": []
+    }
+  },
+  {
+    "source_log": "logs/old-heldout-fixed-migration.log",
+    "source_sha256": "0f82d031906cbb010ead4c031af994a3623c7ef005dbe4dfbf9271911ceea71d",
+    "probe": {
+      "passed": 11,
+      "total": 11,
+      "failed_checks": []
+    }
+  },
+  {
+    "source_log": "logs/old-heldout-fixed-pyright.log",
+    "source_sha256": "6d88a1b220adb7a3d62092b6e38431f0b3fe8babe9864fab90e5849766260332",
+    "pyright": [
+      "0",
+      "0",
+      "0"
+    ]
+  },
+  {
+    "source_log": "logs/old-heldout-fixed-pytest.log",
+    "source_sha256": "9c54d9f0a83eb850a836f1f7346edaa02f4b0402c3fcdc8fd31662c0af90555e",
+    "pytest": [
+      "382",
+      "2"
+    ]
+  },
+  {
+    "source_log": "logs/old-heldout-fixed-ruff.log",
+    "source_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+    "ruff": "All checks passed"
+  },
+  {
+    "source_log": "logs/old-heldout-migration.log",
+    "source_sha256": "55b701021d527026b062e17d109d268cc1c08db5707e106589dc5ec4252d23d4",
+    "probe": {
+      "passed": 8,
+      "total": 8,
+      "failed_checks": []
+    }
+  },
+  {
+    "source_log": "logs/old-heldout-pytest.log",
+    "source_sha256": "ddbeb3bdcc2974614c3ed112cedc5bf87250b5c916660ff0bf1c43fbf235cbff",
+    "pytest": [
+      "379",
+      "2"
+    ]
+  },
+  {
+    "source_log": "logs/old-heldout-regression-red.log",
+    "source_sha256": "78fb0dfa26b3ab69b0726ec357bafeb65f6bed109e94128f96f8ef7ee3274d6c",
+    "pytest": [
+      "2",
+      ""
+    ],
+    "regression": [
+      "1",
+      "2"
+    ]
+  },
+  {
+    "source_log": "logs/trial-17-corrected-api.log",
+    "source_sha256": "33c16fe9b7b729788d744eeda042dfd2beba10c99a28cbdbe3b4b416dbe7c333",
+    "probe": {
+      "passed": 103,
+      "total": 103,
+      "failed_checks": []
+    }
+  },
+  {
+    "source_log": "logs/trial-17-corrected-pyright.log",
+    "source_sha256": "6d88a1b220adb7a3d62092b6e38431f0b3fe8babe9864fab90e5849766260332",
+    "pyright": [
+      "0",
+      "0",
+      "0"
+    ]
+  },
+  {
+    "source_log": "logs/trial-17-corrected-pytest.log",
+    "source_sha256": "407be1735c95b69ce0dd81f09736936ae18e62792780f9792dd1284a8c0fb039",
+    "pytest": [
+      "371",
+      "2"
+    ]
+  },
+  {
+    "source_log": "logs/trial-17-corrected-ruff.log",
+    "source_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+    "ruff": "All checks passed"
+  },
+  {
+    "source_log": "logs/trial-17-focused-pytest.log",
+    "source_sha256": "5b3a44ab1560353e252094db1431ff685739da907da99c1afe18934d8896e5f0",
+    "pytest": [
+      "55",
+      ""
+    ]
+  },
+  {
+    "source_log": "logs/trial-17-full-pytest.log",
+    "source_sha256": "26af83ec05da9a46d1ae0d486e8d56dae236cb97173e7a6c8011d286f706341e",
+    "pytest": [
+      "371",
+      "2"
+    ]
+  },
+  {
+    "source_log": "logs/trial-17-independent-api.log",
+    "source_sha256": "df735da2ea66c7a2d7646f819f3410aa0e4c9ae50a9a35d00aafd235972c32b4",
+    "probe": {
+      "passed": 103,
+      "total": 103,
+      "failed_checks": []
+    }
+  },
+  {
+    "source_log": "logs/trial-17-independent-migration.log",
+    "source_sha256": "dd84f4d00ecfe870dda22e51d20e1376a1d169efae0bcf283788c779a4032cff",
+    "probe": {
+      "passed": 11,
+      "total": 11,
+      "failed_checks": []
+    }
+  },
+  {
+    "source_log": "logs/trial-17-independent-pyright.log",
+    "source_sha256": "6d88a1b220adb7a3d62092b6e38431f0b3fe8babe9864fab90e5849766260332",
+    "pyright": [
+      "0",
+      "0",
+      "0"
+    ]
+  },
+  {
+    "source_log": "logs/trial-17-independent-pytest.log",
+    "source_sha256": "fbbed929787cedcb44d6ce174d7f1997531439239ad1dc7cafcd922214c3fcf1",
+    "pytest": [
+      "371",
+      "2"
+    ]
+  },
+  {
+    "source_log": "logs/trial-17-independent-ruff.log",
+    "source_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+    "ruff": "All checks passed"
+  },
+  {
+    "source_log": "logs/trial-17-pyright.log",
+    "source_sha256": "6d88a1b220adb7a3d62092b6e38431f0b3fe8babe9864fab90e5849766260332",
+    "pyright": [
+      "0",
+      "0",
+      "0"
+    ]
+  },
+  {
+    "source_log": "logs/trial-17-ruff-check.log",
+    "source_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+    "ruff": "All checks passed"
+  },
+  {
+    "source_log": "logs/trial-28-corrected-api.log",
+    "source_sha256": "ae903953ae961a20702584196e74dc9a32efedf7f29b376f40425e3866634ffa",
+    "probe": {
+      "passed": 103,
+      "total": 103,
+      "failed_checks": []
+    }
+  },
+  {
+    "source_log": "logs/trial-28-corrected-pyright.log",
+    "source_sha256": "6d88a1b220adb7a3d62092b6e38431f0b3fe8babe9864fab90e5849766260332",
+    "pyright": [
+      "0",
+      "0",
+      "0"
+    ]
+  },
+  {
+    "source_log": "logs/trial-28-corrected-pytest.log",
+    "source_sha256": "011c3f979613f4a038be7fae023b2a7c73f7369078f66b7085205102500844ec",
+    "pytest": [
+      "367",
+      "2"
+    ]
+  },
+  {
+    "source_log": "logs/trial-28-corrected-ruff.log",
+    "source_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+    "ruff": "All checks passed"
+  },
+  {
+    "source_log": "logs/trial-28-independent-api.log",
+    "source_sha256": "7274454c1098a3cb4c5e17b25f8008efcbb718481d462488a6f71a256a933682",
+    "probe": {
+      "passed": 103,
+      "total": 103,
+      "failed_checks": []
+    }
+  },
+  {
+    "source_log": "logs/trial-28-independent-migration.log",
+    "source_sha256": "355c10e7e4dc2544a0d1772f2078dcaf7efc78ce54bcb16315cc414dc3c05f91",
+    "probe": {
+      "passed": 11,
+      "total": 11,
+      "failed_checks": []
+    }
+  },
+  {
+    "source_log": "logs/trial-28-independent-pyright.log",
+    "source_sha256": "6d88a1b220adb7a3d62092b6e38431f0b3fe8babe9864fab90e5849766260332",
+    "pyright": [
+      "0",
+      "0",
+      "0"
+    ]
+  },
+  {
+    "source_log": "logs/trial-28-independent-pytest.log",
+    "source_sha256": "b6936a761a2cb48e35d803f9ea68f20aba485779aa83b2284c376f16dbb49d32",
+    "pytest": [
+      "367",
+      "2"
+    ]
+  },
+  {
+    "source_log": "logs/trial-28-independent-ruff.log",
+    "source_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+    "ruff": "All checks passed"
+  },
+  {
+    "source_log": "logs/trial-28-pyright.log",
+    "source_sha256": "6d88a1b220adb7a3d62092b6e38431f0b3fe8babe9864fab90e5849766260332",
+    "pyright": [
+      "0",
+      "0",
+      "0"
+    ]
+  },
+  {
+    "source_log": "logs/trial-28-pytest.log",
+    "source_sha256": "0aca62f5f1f0171b7fe1adf257e0c1419f80a719969f98a1c74d34120d9c5308",
+    "pytest": [
+      "367",
+      "2"
+    ]
+  },
+  {
+    "source_log": "logs/trial-28-ruff-check.log",
+    "source_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+    "ruff": "All checks passed"
+  },
+  {
+    "source_log": "logs/trial-43-corrected-api.log",
+    "source_sha256": "ce0733d59ad9f6fc18dbf2261486f89e7a89bfe7a5d89fca61a4b2cdd8a38190",
+    "probe": {
+      "passed": 103,
+      "total": 103,
+      "failed_checks": []
+    }
+  },
+  {
+    "source_log": "logs/trial-43-corrected-pyright.log",
+    "source_sha256": "6d88a1b220adb7a3d62092b6e38431f0b3fe8babe9864fab90e5849766260332",
+    "pyright": [
+      "0",
+      "0",
+      "0"
+    ]
+  },
+  {
+    "source_log": "logs/trial-43-corrected-pytest.log",
+    "source_sha256": "9a6452ad2dd7676e4aa706a608c583253fa24e993390481dd42ca30f76258428",
+    "pytest": [
+      "363",
+      "2"
+    ]
+  },
+  {
+    "source_log": "logs/trial-43-corrected-ruff.log",
+    "source_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+    "ruff": "All checks passed"
+  },
+  {
+    "source_log": "logs/trial-43-focused-pytest.log",
+    "source_sha256": "1e60fa04b4bfaf3340e7a57a26b73075bb4a3a66fea934d1437ef41d08eb77f3",
+    "pytest": [
+      "65",
+      ""
+    ]
+  },
+  {
+    "source_log": "logs/trial-43-independent-api.log",
+    "source_sha256": "028481a46802bf30de601c1fedf634d8424cea3a8bea44bf1f449d86568a1d43",
+    "probe": {
+      "passed": 103,
+      "total": 103,
+      "failed_checks": []
+    }
+  },
+  {
+    "source_log": "logs/trial-43-independent-migration.log",
+    "source_sha256": "a0728df02933529b0f5a68fc7b0187762d33aa1964ef3c5f2ae6091a53722fc6",
+    "probe": {
+      "passed": 11,
+      "total": 11,
+      "failed_checks": []
+    }
+  },
+  {
+    "source_log": "logs/trial-43-independent-pyright.log",
+    "source_sha256": "6d88a1b220adb7a3d62092b6e38431f0b3fe8babe9864fab90e5849766260332",
+    "pyright": [
+      "0",
+      "0",
+      "0"
+    ]
+  },
+  {
+    "source_log": "logs/trial-43-independent-pytest.log",
+    "source_sha256": "076927b8dbd7645718369f2017305472f12aa0e1d85bd2711922b7d905a6da2e",
+    "pytest": [
+      "363",
+      "2"
+    ]
+  },
+  {
+    "source_log": "logs/trial-43-independent-ruff.log",
+    "source_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+    "ruff": "All checks passed"
+  },
+  {
+    "source_log": "logs/trial-43-pyright.log",
+    "source_sha256": "6d88a1b220adb7a3d62092b6e38431f0b3fe8babe9864fab90e5849766260332",
+    "pyright": [
+      "0",
+      "0",
+      "0"
+    ]
+  },
+  {
+    "source_log": "logs/trial-43-pytest.log",
+    "source_sha256": "007e891f36936be213ae6a05d8136b99d987d12462f0d243baf501d2e8d407e5",
+    "pytest": [
+      "363",
+      "2"
+    ]
+  },
+  {
+    "source_log": "logs/trial-43-ruff-check.log",
+    "source_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+    "ruff": "All checks passed"
+  },
+  {
+    "source_log": "logs/trial-59-corrected-api.log",
+    "source_sha256": "7b698e9c300f56e0c8f8dbb67d2deaf2504721d47bbe3646965111dbe0a4568c",
+    "probe": {
+      "passed": 103,
+      "total": 103,
+      "failed_checks": []
+    }
+  },
+  {
+    "source_log": "logs/trial-59-corrected-pyright.log",
+    "source_sha256": "6d88a1b220adb7a3d62092b6e38431f0b3fe8babe9864fab90e5849766260332",
+    "pyright": [
+      "0",
+      "0",
+      "0"
+    ]
+  },
+  {
+    "source_log": "logs/trial-59-corrected-pytest.log",
+    "source_sha256": "717e4c71cf1243ef135238460e43c4b1a70ac2c314951fa48c65bd71f0629923",
+    "pytest": [
+      "370",
+      "2"
+    ]
+  },
+  {
+    "source_log": "logs/trial-59-corrected-ruff.log",
+    "source_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+    "ruff": "All checks passed"
+  },
+  {
+    "source_log": "logs/trial-59-focused-pytest.log",
+    "source_sha256": "cd1b55fb935ae9cbcb653c0b101e56b861a2c0348627b82160159fad02d96b76",
+    "pytest": [
+      "8",
+      ""
+    ]
+  },
+  {
+    "source_log": "logs/trial-59-independent-api.log",
+    "source_sha256": "f4c1d102dbed49ba6d3a395d76324bf74d36d27bbfc213561133170a00aeab29",
+    "probe": {
+      "passed": 103,
+      "total": 103,
+      "failed_checks": []
+    }
+  },
+  {
+    "source_log": "logs/trial-59-independent-migration.log",
+    "source_sha256": "d037a05caacabffe6aec2169eb8796885ec7e507e261885b065a2b75bad9a637",
+    "probe": {
+      "passed": 11,
+      "total": 11,
+      "failed_checks": []
+    }
+  },
+  {
+    "source_log": "logs/trial-59-independent-pyright.log",
+    "source_sha256": "6d88a1b220adb7a3d62092b6e38431f0b3fe8babe9864fab90e5849766260332",
+    "pyright": [
+      "0",
+      "0",
+      "0"
+    ]
+  },
+  {
+    "source_log": "logs/trial-59-independent-pytest.log",
+    "source_sha256": "debba5f5f10a1b51fca3bcd4917f6fd13008809030b0e23099cc5e1e5f470935",
+    "pytest": [
+      "370",
+      "2"
+    ]
+  },
+  {
+    "source_log": "logs/trial-59-independent-ruff.log",
+    "source_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+    "ruff": "All checks passed"
+  },
+  {
+    "source_log": "logs/trial-59-pyright.log",
+    "source_sha256": "6d88a1b220adb7a3d62092b6e38431f0b3fe8babe9864fab90e5849766260332",
+    "pyright": [
+      "0",
+      "0",
+      "0"
+    ]
+  },
+  {
+    "source_log": "logs/trial-59-pytest.log",
+    "source_sha256": "958e0881e70920997e07d5a9aa425aafd25924fec94251f964794ebf61fd386d",
+    "pytest": [
+      "370",
+      "2"
+    ]
+  },
+  {
+    "source_log": "logs/trial-59-ruff-check.log",
+    "source_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+    "ruff": "All checks passed"
+  },
+  {
+    "source_log": "checks/probe_selfcheck.log",
+    "source_sha256": "c5dab619bac55214f20f6d4cb13d6edb713664a287e7931a25876e74e61340bf",
+    "exit_scenarios": [
+      {
+        "probe": "team_probe",
+        "task": "description",
+        "scenario": "success",
+        "exit": 0,
+        "as_expected": true
+      },
+      {
+        "probe": "team_probe",
+        "task": "description",
+        "scenario": "false",
+        "exit": 1,
+        "as_expected": true
+      },
+      {
+        "probe": "team_probe",
+        "task": "description",
+        "scenario": "early_return",
+        "exit": 1,
+        "as_expected": true
+      },
+      {
+        "probe": "team_probe",
+        "task": "description",
+        "scenario": "exception",
+        "exit": 1,
+        "as_expected": true
+      },
+      {
+        "probe": "team_probe",
+        "task": "tagline",
+        "scenario": "success",
+        "exit": 0,
+        "as_expected": true
+      },
+      {
+        "probe": "team_probe",
+        "task": "tagline",
+        "scenario": "false",
+        "exit": 1,
+        "as_expected": true
+      },
+      {
+        "probe": "team_probe",
+        "task": "tagline",
+        "scenario": "early_return",
+        "exit": 1,
+        "as_expected": true
+      },
+      {
+        "probe": "team_probe",
+        "task": "tagline",
+        "scenario": "exception",
+        "exit": 1,
+        "as_expected": true
+      },
+      {
+        "probe": "team_migration_probe",
+        "task": "description",
+        "scenario": "success",
+        "exit": 0,
+        "as_expected": true
+      },
+      {
+        "probe": "team_migration_probe",
+        "task": "description",
+        "scenario": "false",
+        "exit": 1,
+        "as_expected": true
+      },
+      {
+        "probe": "team_migration_probe",
+        "task": "description",
+        "scenario": "early_return",
+        "exit": 1,
+        "as_expected": true
+      },
+      {
+        "probe": "team_migration_probe",
+        "task": "description",
+        "scenario": "exception",
+        "exit": 1,
+        "as_expected": true
+      },
+      {
+        "probe": "team_migration_probe",
+        "task": "tagline",
+        "scenario": "success",
+        "exit": 0,
+        "as_expected": true
+      },
+      {
+        "probe": "team_migration_probe",
+        "task": "tagline",
+        "scenario": "false",
+        "exit": 1,
+        "as_expected": true
+      },
+      {
+        "probe": "team_migration_probe",
+        "task": "tagline",
+        "scenario": "early_return",
+        "exit": 1,
+        "as_expected": true
+      },
+      {
+        "probe": "team_migration_probe",
+        "task": "tagline",
+        "scenario": "exception",
+        "exit": 1,
+        "as_expected": true
+      }
+    ],
+    "openapi_ref_metadata_property_name_required_checks": "OK"
+  }
+]

@@ -1,0 +1,33 @@
+--- a/src/app/domain/aggregates/team.py
++++ b/src/app/domain/aggregates/team.py
+@@ -41,9 +41,9 @@
+         return self.id == other.id
+ 
+     @classmethod
+-    def form(cls, name: TeamName, tagline: TeamTagline = _EMPTY_TAGLINE) -> Team:
++    def form(cls, name: TeamName) -> Team:
+         """Factory method to create a new Team."""
+-        return Team(_name=name, _tagline=tagline)
++        return Team(_name=name)
+ 
+     @classmethod
+     def restore(
+@@ -74,6 +74,7 @@
+ 
+     @property
+     def tagline(self) -> TeamTagline:
++        """Return the team's exact tagline text as a value object."""
+         return self._tagline
+ 
+     @property
+--- a/src/app/presentation/api/routers/teams.py
++++ b/src/app/presentation/api/routers/teams.py
+@@ -35,6 +35,8 @@
+ 
+ 
+ class UpdateTeamTaglineRequest(BaseModel):
++    """Request to replace the tagline of an existing team."""
++
+     tagline: str
+ 
+ 

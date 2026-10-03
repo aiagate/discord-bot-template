@@ -1,0 +1,34 @@
+[
+  {
+    "trial": 17,
+    "major_functional_or_architecture_findings": 0,
+    "unnecessary_factory_extension": 1,
+    "missing_docstrings": 2,
+    "response_name_observation_not_functional_failure": 1,
+    "feature_specific_shared_test_branches": 0
+  },
+  {
+    "trial": 28,
+    "major_functional_or_architecture_findings": 0,
+    "unnecessary_factory_extension": 0,
+    "missing_docstrings": 2,
+    "response_name_observation_not_functional_failure": 1,
+    "feature_specific_shared_test_branches": 0
+  },
+  {
+    "trial": 43,
+    "major_functional_or_architecture_findings": 0,
+    "unnecessary_factory_extension": 0,
+    "missing_docstrings": 2,
+    "response_name_observation_not_functional_failure": 1,
+    "feature_specific_shared_test_branches": 0
+  },
+  {
+    "trial": 59,
+    "major_functional_or_architecture_findings": 0,
+    "unnecessary_factory_extension": 1,
+    "missing_docstrings": 2,
+    "response_name_observation_not_functional_failure": 1,
+    "feature_specific_shared_test_branches": 0
+  }
+]

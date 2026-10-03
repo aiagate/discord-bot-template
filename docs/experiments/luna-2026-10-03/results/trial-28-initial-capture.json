@@ -1,0 +1,39 @@
+{
+  "trial": 28,
+  "phase": "initial",
+  "head": "950058e2d9d2cfac01c3b1f50b5805097c04ab58",
+  "start_changes_preserved": {
+    "README.md": true,
+    "LOCAL_REVIEW_NOTE.txt": true,
+    "AGENTS.md": true,
+    "docs/development/ADDING_FEATURE.md": true,
+    "docs/api/implementation_guide.md": true
+  },
+  "all_preserved": true,
+  "feature_files": [
+    "src/app/application/mediator.py",
+    "src/app/domain/aggregates/team.py",
+    "src/app/domain/value_objects/__init__.py",
+    "src/app/infrastructure/mappings/team.py",
+    "src/app/infrastructure/orm_models/team_orm.py",
+    "src/app/presentation/api/routers/teams.py",
+    "src/app/usecases/teams/__init__.py",
+    "src/app/usecases/teams/get_team.py",
+    "tests/domain/aggregate_cases.py",
+    "tests/domain/aggregates/test_team.py",
+    "tests/domain/test_aggregate_contracts.py",
+    "tests/infrastructure/test_domain_mappings.py",
+    "tests/usecases/teams/test_get_team.py",
+    "alembic/versions/202610031300_add_team_description.py",
+    "src/app/domain/value_objects/team_description.py",
+    "src/app/usecases/teams/update_team_description.py",
+    "tests/domain/value_objects/test_team_description.py",
+    "tests/presentation/api/test_teams_router.py",
+    "tests/usecases/teams/test_update_team_description.py"
+  ],
+  "feature_file_count": 19,
+  "added_lines": 593,
+  "deleted_lines": 7,
+  "patch_sha256": "c245e9ea7ef04f4385388ead348860d029736fd1c7cec24bfec777b89a21a1ad",
+  "note": "Size is a proxy only, not human review time."
+}

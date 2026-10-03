@@ -1,0 +1,36 @@
+{
+  "trial": 43,
+  "phase": "initial",
+  "head": "950058e2d9d2cfac01c3b1f50b5805097c04ab58",
+  "start_changes_preserved": {
+    "README.md": true,
+    "LOCAL_REVIEW_NOTE.txt": true,
+    "AGENTS.md": true,
+    "docs/development/ADDING_FEATURE.md": true,
+    "docs/api/implementation_guide.md": true
+  },
+  "all_preserved": true,
+  "feature_files": [
+    "src/app/application/mediator.py",
+    "src/app/domain/aggregates/team.py",
+    "src/app/domain/value_objects/__init__.py",
+    "src/app/infrastructure/mappings/team.py",
+    "src/app/infrastructure/orm_models/team_orm.py",
+    "src/app/presentation/api/routers/teams.py",
+    "src/app/usecases/teams/get_team.py",
+    "tests/domain/aggregate_cases.py",
+    "tests/domain/aggregates/test_team.py",
+    "tests/infrastructure/test_domain_mappings.py",
+    "tests/usecases/teams/test_get_team.py",
+    "alembic/versions/202610030900_2ab4c7d9e201_add_team_tagline.py",
+    "src/app/domain/value_objects/team_tagline.py",
+    "src/app/usecases/teams/change_team_tagline.py",
+    "tests/presentation/api/test_team_tagline_routes.py",
+    "tests/usecases/teams/test_change_team_tagline.py"
+  ],
+  "feature_file_count": 16,
+  "added_lines": 519,
+  "deleted_lines": 7,
+  "patch_sha256": "a4fab9c53dd580c5b792c94a63180734541e99fd3a570d5da24bee0fbe4ff398",
+  "note": "Size is a proxy only, not human review time."
+}

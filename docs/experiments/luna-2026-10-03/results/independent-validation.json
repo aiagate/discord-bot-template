@@ -1,0 +1,92 @@
+{
+  "source": "Parent-run commands, completed process exit codes and persisted logs",
+  "baseline": {
+    "pytest_passed": 354,
+    "pytest_exit": 0,
+    "format_exit": 0,
+    "ruff_exit": 0,
+    "pyright_exit": 0
+  },
+  "trials": [
+    {
+      "trial": 17,
+      "pytest_passed": 371,
+      "pytest_warnings": 2,
+      "pytest_exit": 0,
+      "format_exit": 0,
+      "ruff_exit": 0,
+      "pyright_exit": 0,
+      "git_diff_check_exit": 0,
+      "api": {
+        "exit": 0,
+        "passed": 103,
+        "total": 103
+      },
+      "migration": {
+        "exit": 0,
+        "passed": 11,
+        "total": 11
+      }
+    },
+    {
+      "trial": 28,
+      "pytest_passed": 367,
+      "pytest_warnings": 2,
+      "pytest_exit": 0,
+      "format_exit": 0,
+      "ruff_exit": 0,
+      "pyright_exit": 0,
+      "git_diff_check_exit": 0,
+      "api": {
+        "exit": 0,
+        "passed": 103,
+        "total": 103
+      },
+      "migration": {
+        "exit": 0,
+        "passed": 11,
+        "total": 11
+      }
+    },
+    {
+      "trial": 43,
+      "pytest_passed": 363,
+      "pytest_warnings": 2,
+      "pytest_exit": 0,
+      "format_exit": 0,
+      "ruff_exit": 0,
+      "pyright_exit": 0,
+      "git_diff_check_exit": 0,
+      "api": {
+        "exit": 0,
+        "passed": 103,
+        "total": 103
+      },
+      "migration": {
+        "exit": 0,
+        "passed": 11,
+        "total": 11
+      }
+    },
+    {
+      "trial": 59,
+      "pytest_passed": 370,
+      "pytest_warnings": 2,
+      "pytest_exit": 0,
+      "format_exit": 0,
+      "ruff_exit": 0,
+      "pyright_exit": 0,
+      "git_diff_check_exit": 0,
+      "api": {
+        "exit": 0,
+        "passed": 103,
+        "total": 103
+      },
+      "migration": {
+        "exit": 0,
+        "passed": 11,
+        "total": 11
+      }
+    }
+  ]
+}

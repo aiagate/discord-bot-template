@@ -1,0 +1,58 @@
+[
+  {
+    "trial": 17,
+    "pytest_passed": 371,
+    "pytest_exit": 0,
+    "format_exit": 0,
+    "ruff_exit": 0,
+    "pyright_exit": 0,
+    "api_passed": 103,
+    "api_total": 103,
+    "api_exit": 0,
+    "migration": "not rerun; migration and ORM unchanged; initial checks passed",
+    "review": "no further required changes",
+    "independent_implementation": false
+  },
+  {
+    "trial": 28,
+    "pytest_passed": 367,
+    "pytest_exit": 0,
+    "format_exit": 0,
+    "ruff_exit": 0,
+    "pyright_exit": 0,
+    "api_passed": 103,
+    "api_total": 103,
+    "api_exit": 0,
+    "migration": "not rerun; migration and ORM unchanged; initial checks passed",
+    "review": "no further required changes",
+    "independent_implementation": false
+  },
+  {
+    "trial": 43,
+    "pytest_passed": 363,
+    "pytest_exit": 0,
+    "format_exit": 0,
+    "ruff_exit": 0,
+    "pyright_exit": 0,
+    "api_passed": 103,
+    "api_total": 103,
+    "api_exit": 0,
+    "migration": "not rerun; migration and ORM unchanged; initial checks passed",
+    "review": "no further required changes",
+    "independent_implementation": false
+  },
+  {
+    "trial": 59,
+    "pytest_passed": 370,
+    "pytest_exit": 0,
+    "format_exit": 0,
+    "ruff_exit": 0,
+    "pyright_exit": 0,
+    "api_passed": 103,
+    "api_total": 103,
+    "api_exit": 0,
+    "migration": "not rerun; migration and ORM unchanged; initial checks passed",
+    "review": "no further required changes",
+    "independent_implementation": false
+  }
+]

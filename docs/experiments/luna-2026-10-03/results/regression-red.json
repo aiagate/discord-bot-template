@@ -1,0 +1,5 @@
+{
+  "returncode": 1,
+  "expected": 1,
+  "method": "original router restored temporarily; regression tests retained; fixed router restored in finally"
+}

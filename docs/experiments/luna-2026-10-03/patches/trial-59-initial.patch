@@ -1,0 +1,904 @@
+diff --git a/README.md b/README.md
+index 8785751..8c9a25b 100644
+--- a/README.md
++++ b/README.md
+@@ -303,3 +303,5 @@ uv run pytest
+ ## ライセンス
+ 
+ このプロジェクトは[MITライセンス](LICENSE)の下で公開されています。
++
++<!-- Local draft: retain this note while implementing the requested feature. -->
+diff --git a/src/app/application/mediator.py b/src/app/application/mediator.py
+index f32b88f..72b7969 100644
+--- a/src/app/application/mediator.py
++++ b/src/app/application/mediator.py
+@@ -20,6 +20,7 @@ from app.usecases.result import UseCaseError, UseCaseResultError
+ from app.usecases.teams.create_team import CreateTeamHandler
+ from app.usecases.teams.get_team import GetTeamHandler
+ from app.usecases.teams.update_team import UpdateTeamHandler
++from app.usecases.teams.update_team_tagline import UpdateTeamTaglineHandler
+ from app.usecases.users.create_user import CreateUserHandler
+ from app.usecases.users.get_user import GetUserHandler
+ from app.usecases.users.welcome_user import WelcomeUserHandler
+@@ -35,6 +36,7 @@ _HANDLER_TYPES: tuple[type[RequestHandler[Any, Any]], ...] = (
+     CreateTeamHandler,
+     GetTeamHandler,
+     UpdateTeamHandler,
++    UpdateTeamTaglineHandler,
+     CreateUserHandler,
+     GetUserHandler,
+     WelcomeUserHandler,
+diff --git a/src/app/domain/aggregates/team.py b/src/app/domain/aggregates/team.py
+index 5bb4d34..4e1bf57 100644
+--- a/src/app/domain/aggregates/team.py
++++ b/src/app/domain/aggregates/team.py
+@@ -5,7 +5,9 @@ from __future__ import annotations
+ from dataclasses import dataclass, field
+ from datetime import UTC, datetime
+ 
+-from app.domain.value_objects import TeamId, TeamName, Version
++from app.domain.value_objects import TeamId, TeamName, TeamTagline, Version
++
++_EMPTY_TAGLINE = TeamTagline("")
+ 
+ 
+ @dataclass(kw_only=True, slots=True)
+@@ -27,6 +29,7 @@ class Team:
+         ),
+     )
+     _name: TeamName
++    _tagline: TeamTagline = field(default_factory=lambda: TeamTagline(""))
+     _version: Version = field(init=False, default_factory=lambda: Version(0))
+     _created_at: datetime = field(init=False, default_factory=lambda: datetime.now(UTC))
+     _updated_at: datetime = field(init=False, default_factory=lambda: datetime.now(UTC))
+@@ -38,9 +41,9 @@ class Team:
+         return self.id == other.id
+ 
+     @classmethod
+-    def form(cls, name: TeamName) -> Team:
++    def form(cls, name: TeamName, tagline: TeamTagline = _EMPTY_TAGLINE) -> Team:
+         """Factory method to create a new Team."""
+-        return Team(_name=name)
++        return Team(_name=name, _tagline=tagline)
+ 
+     @classmethod
+     def restore(
+@@ -48,12 +51,13 @@ class Team:
+         *,
+         team_id: TeamId,
+         name: TeamName,
++        tagline: TeamTagline = _EMPTY_TAGLINE,
+         version: Version,
+         created_at: datetime,
+         updated_at: datetime,
+     ) -> Team:
+         """Restore a team with persistence-managed identity and audit state."""
+-        team = cls(_name=name)
++        team = cls(_name=name, _tagline=tagline)
+         team._id = team_id
+         team._version = version
+         team._created_at = created_at
+@@ -68,6 +72,10 @@ class Team:
+     def name(self) -> TeamName:
+         return self._name
+ 
++    @property
++    def tagline(self) -> TeamTagline:
++        return self._tagline
++
+     @property
+     def version(self) -> Version:
+         return self._version
+@@ -88,3 +96,8 @@ class Team:
+         self._name = new_name
+ 
+         return self
++
++    def change_tagline(self, new_tagline: TeamTagline) -> Team:
++        """Replace the team tagline without changing other team state."""
++        self._tagline = new_tagline
++        return self
+diff --git a/src/app/domain/value_objects/__init__.py b/src/app/domain/value_objects/__init__.py
+index 1dcd3c6..93b69b8 100644
+--- a/src/app/domain/value_objects/__init__.py
++++ b/src/app/domain/value_objects/__init__.py
+@@ -21,6 +21,7 @@ from app.domain.value_objects.message_content import MessageContent, MessageCont
+ from app.domain.value_objects.message_id import MessageId
+ from app.domain.value_objects.team_id import TeamId
+ from app.domain.value_objects.team_name import TeamName
++from app.domain.value_objects.team_tagline import TeamTagline
+ from app.domain.value_objects.user_id import UserId
+ from app.domain.value_objects.version import Version
+ 
+@@ -43,6 +44,7 @@ __all__ = [
+     "MessageId",
+     "TeamId",
+     "TeamName",
++    "TeamTagline",
+     "UserId",
+     "Version",
+ ]
+diff --git a/src/app/infrastructure/mappings/team.py b/src/app/infrastructure/mappings/team.py
+index dd4f2b2..515c17c 100644
+--- a/src/app/infrastructure/mappings/team.py
++++ b/src/app/infrastructure/mappings/team.py
+@@ -3,7 +3,7 @@
+ from sqlmodel import SQLModel
+ 
+ from app.domain.aggregates.team import Team
+-from app.domain.value_objects import TeamId, TeamName, Version
++from app.domain.value_objects import TeamId, TeamName, TeamTagline, Version
+ from app.infrastructure.mappings._restore_helpers import (
+     required_text,
+     required_timestamp,
+@@ -17,6 +17,7 @@ def team_to_orm(team: Team) -> TeamORM:
+     return TeamORM(
+         id=team.id.to_primitive(),
+         name=team.name.to_primitive(),
++        tagline=team.tagline.to_primitive(),
+         version=team.version.to_primitive(),
+         created_at=team.created_at,
+         updated_at=team.updated_at,
+@@ -31,6 +32,7 @@ def team_from_orm(row: SQLModel) -> Team:
+     return Team.restore(
+         team_id=unwrap_value(TeamId.from_primitive(required_text(row.id, "id")), "id"),
+         name=unwrap_value(TeamName.from_primitive(row.name), "name"),
++        tagline=unwrap_value(TeamTagline.from_primitive(row.tagline), "tagline"),
+         version=unwrap_value(Version.from_primitive(row.version), "version"),
+         created_at=required_timestamp(row.created_at, "created_at"),
+         updated_at=required_timestamp(row.updated_at, "updated_at"),
+diff --git a/src/app/infrastructure/orm_models/team_orm.py b/src/app/infrastructure/orm_models/team_orm.py
+index 509ca56..81b1229 100644
+--- a/src/app/infrastructure/orm_models/team_orm.py
++++ b/src/app/infrastructure/orm_models/team_orm.py
+@@ -19,6 +19,7 @@ class TeamORM(SQLModel, table=True):
+ 
+     id: str | None = Field(default=None, primary_key=True, max_length=26)
+     name: str = Field(max_length=100, index=True)
++    tagline: str = Field(default="", max_length=160)
+     version: int = Field(default=0, sa_column=_version_column)
+ 
+     __mapper_args__ = {
+diff --git a/src/app/presentation/api/routers/teams.py b/src/app/presentation/api/routers/teams.py
+index dce8e60..b1b1348 100644
+--- a/src/app/presentation/api/routers/teams.py
++++ b/src/app/presentation/api/routers/teams.py
+@@ -10,6 +10,7 @@ from app.presentation.api.error_mapping import http_status_for_error
+ from app.usecases.teams.create_team import CreateTeamCommand
+ from app.usecases.teams.get_team import GetTeamQuery
+ from app.usecases.teams.update_team import UpdateTeamCommand
++from app.usecases.teams.update_team_tagline import UpdateTeamTaglineCommand
+ 
+ router = APIRouter(prefix="/teams", tags=["teams"])
+ 
+@@ -25,6 +26,7 @@ class CreateTeamResponse(BaseModel):
+ class TeamResponse(BaseModel):
+     id: str
+     name: str
++    tagline: str
+     version: int
+ 
+ 
+@@ -32,6 +34,10 @@ class UpdateTeamRequest(BaseModel):
+     name: str
+ 
+ 
++class UpdateTeamTaglineRequest(BaseModel):
++    tagline: str
++
++
+ @router.post("", response_model=CreateTeamResponse)
+ async def create_team(
+     request: CreateTeamRequest,
+@@ -73,6 +79,7 @@ async def get_team(
+     return TeamResponse(
+         id=team_result.id,
+         name=team_result.name,
++        tagline=team_result.tagline,
+         version=team_result.version,
+     )
+ 
+@@ -95,3 +102,23 @@ async def update_team(
+ 
+     updated_team_id = result.unwrap().id
+     return CreateTeamResponse(id=updated_team_id)
++
++
++@router.put("/{team_id}/tagline", response_model=CreateTeamResponse)
++async def update_team_tagline(
++    team_id: str,
++    request: UpdateTeamTaglineRequest,
++    mediator: Annotated[ApplicationMediator, Depends(get_mediator)],
++) -> CreateTeamResponse:
++    """Replace a team's tagline."""
++    command = UpdateTeamTaglineCommand(team_id=team_id, tagline=request.tagline)
++    result = await mediator.send_async(command)
++
++    if is_err(result):
++        raise HTTPException(
++            status_code=http_status_for_error(result.error.type),
++            detail=result.error.display_message,
++        )
++
++    updated_team_id = result.unwrap().id
++    return CreateTeamResponse(id=updated_team_id)
+diff --git a/src/app/usecases/teams/__init__.py b/src/app/usecases/teams/__init__.py
+index 3c25b2b..ad13f52 100644
+--- a/src/app/usecases/teams/__init__.py
++++ b/src/app/usecases/teams/__init__.py
+@@ -9,6 +9,11 @@ from app.usecases.teams.update_team import (
+     UpdateTeamCommand,
+     UpdateTeamHandler,
+ )
++from app.usecases.teams.update_team_tagline import (
++    UpdateTeamTaglineCommand,
++    UpdateTeamTaglineHandler,
++    UpdateTeamTaglineResult,
++)
+ 
+ __all__ = [
+     "CreateTeamCommand",
+@@ -18,4 +23,7 @@ __all__ = [
+     "GetTeamResult",
+     "UpdateTeamCommand",
+     "UpdateTeamHandler",
++    "UpdateTeamTaglineCommand",
++    "UpdateTeamTaglineHandler",
++    "UpdateTeamTaglineResult",
+ ]
+diff --git a/src/app/usecases/teams/get_team.py b/src/app/usecases/teams/get_team.py
+index 067c3d5..67c8f79 100644
+--- a/src/app/usecases/teams/get_team.py
++++ b/src/app/usecases/teams/get_team.py
+@@ -25,6 +25,7 @@ class GetTeamResult:
+ 
+     id: str
+     name: str
++    tagline: str
+     version: int
+ 
+ 
+@@ -71,6 +72,7 @@ class GetTeamHandler(
+                 GetTeamResult(
+                     id=team.id.to_primitive(),
+                     name=team.name.to_primitive(),
++                    tagline=team.tagline.to_primitive(),
+                     version=team.version.to_primitive(),
+                 )
+             )
+diff --git a/tests/domain/aggregate_cases.py b/tests/domain/aggregate_cases.py
+index b9b6e6a..ccc841f 100644
+--- a/tests/domain/aggregate_cases.py
++++ b/tests/domain/aggregate_cases.py
+@@ -19,6 +19,7 @@ from app.domain.value_objects import (
+     MessageId,
+     TeamId,
+     TeamName,
++    TeamTagline,
+     UserId,
+     Version,
+ )
+@@ -66,15 +67,31 @@ AGGREGATE_CASES: dict[type[Aggregate], AggregateCase] = {
+         restore_values={
+             "team_id": TeamId.generate().expect("valid ID"),
+             "name": TeamName("Alpha"),
++            "tagline": TeamTagline("  Alpha team\ncommunity  "),
+             "version": Version(3),
+             "created_at": CREATED_AT,
+             "updated_at": UPDATED_AT,
+         },
+-        changed_values={"name": TeamName("Beta"), "version": Version(8)},
++        changed_values={
++            "name": TeamName("Beta"),
++            "tagline": TeamTagline("A new tagline"),
++            "version": Version(8),
++        },
+         id_parameter="team_id",
+-        state_fields=("id", "name", "version", "created_at", "updated_at"),
++        state_fields=(
++            "id",
++            "name",
++            "tagline",
++            "version",
++            "created_at",
++            "updated_at",
++        ),
+         mutable=True,
+-        invalid_rows=(("id", "invalid"), ("name", "")),
++        invalid_rows=(
++            ("id", "invalid"),
++            ("name", ""),
++            ("tagline", "x" * 161),
++        ),
+     ),
+     TeamMembership: AggregateCase(
+         restore_values={
+@@ -150,7 +167,7 @@ AGGREGATE_CASES: dict[type[Aggregate], AggregateCase] = {
+ 
+ TRANSITION_EXEMPTIONS = {
+     User: "Email changes accept any valid Email; there is no lifecycle transition guard.",
+-    Team: "Name changes accept any valid TeamName; there is no lifecycle transition guard.",
++    Team: "Name and tagline changes accept valid values; there is no lifecycle transition guard.",
+     ChatMessage: "Messages are immutable and append-only; they have no state transitions.",
+ }
+ 
+diff --git a/tests/domain/test_aggregate_contracts.py b/tests/domain/test_aggregate_contracts.py
+index 7b4fd49..eccb7ff 100644
+--- a/tests/domain/test_aggregate_contracts.py
++++ b/tests/domain/test_aggregate_contracts.py
+@@ -6,7 +6,7 @@ import pytest
+ 
+ from app.domain import aggregates
+ from app.domain.aggregates import ChatMessage, Team, TeamMembership, User
+-from app.domain.value_objects import Email, MessageContent, TeamName
++from app.domain.value_objects import Email, MessageContent, TeamName, TeamTagline
+ from tests.domain.aggregate_cases import (
+     AGGREGATE_CASES,
+     TRANSITION_EXEMPTIONS,
+@@ -85,6 +85,7 @@ def test_public_fields_cannot_bypass_domain_operations(
+     [
+         (User, "change_email", "email", Email("new@example.com")),
+         (Team, "change_name", "name", TeamName("New name")),
++        (Team, "change_tagline", "tagline", TeamTagline("  New\ntagline  ")),
+     ],
+ )
+ def test_valid_attribute_change_preserves_identity_and_audit_state(
+diff --git a/tests/infrastructure/test_domain_mappings.py b/tests/infrastructure/test_domain_mappings.py
+index 52be64d..400533f 100644
+--- a/tests/infrastructure/test_domain_mappings.py
++++ b/tests/infrastructure/test_domain_mappings.py
+@@ -15,6 +15,7 @@ from app.domain.value_objects import (
+     MembershipStatus,
+     TeamId,
+     TeamName,
++    TeamTagline,
+     UserId,
+     Version,
+ )
+@@ -98,6 +99,7 @@ def test_team_mapping_restores_id_version_and_audit_state() -> None:
+     team = Team.restore(
+         team_id=TeamId.generate().expect("valid id"),
+         name=TeamName.from_primitive("Alpha").expect("valid name"),
++        tagline=TeamTagline.from_primitive(" \nAlpha\t ").expect("valid tagline"),
+         version=Version(3),
+         created_at=created_at,
+         updated_at=updated_at,
+@@ -107,6 +109,7 @@ def test_team_mapping_restores_id_version_and_audit_state() -> None:
+ 
+     assert restored == team
+     assert restored.name == team.name
++    assert restored.tagline == team.tagline
+     assert restored.version == Version(3)
+     assert restored.created_at == created_at
+     assert restored.updated_at == updated_at
+diff --git a/alembic/versions/202610030900_add_team_tagline.py b/alembic/versions/202610030900_add_team_tagline.py
+new file mode 100644
+index 0000000..098f2b0
+--- /dev/null
++++ b/alembic/versions/202610030900_add_team_tagline.py
+@@ -0,0 +1,37 @@
++"""Add a tagline to teams.
++
++Revision ID: 202610030900
++Revises: 7d5f0d6a2b31
++Create Date: 2026-10-03 09:00:00.000000
++"""
++
++from collections.abc import Sequence
++
++import sqlalchemy as sa
++
++from alembic import op
++
++revision: str = "202610030900"
++down_revision: str | Sequence[str] | None = "7d5f0d6a2b31"
++branch_labels: str | Sequence[str] | None = None
++depends_on: str | Sequence[str] | None = None
++
++
++def upgrade() -> None:
++    """Add an empty tagline for existing teams."""
++    op.add_column(
++        "teams",
++        sa.Column(
++            "tagline",
++            sa.String(length=160),
++            nullable=False,
++            server_default="",
++        ),
++    )
++    with op.batch_alter_table("teams") as batch_op:
++        batch_op.alter_column("tagline", server_default=None)
++
++
++def downgrade() -> None:
++    """Remove team taglines."""
++    op.drop_column("teams", "tagline")
+diff --git a/src/app/domain/value_objects/team_tagline.py b/src/app/domain/value_objects/team_tagline.py
+new file mode 100644
+index 0000000..32286d7
+--- /dev/null
++++ b/src/app/domain/value_objects/team_tagline.py
+@@ -0,0 +1,42 @@
++"""TeamTagline value object with length validation."""
++
++from dataclasses import dataclass
++from typing import ClassVar
++
++from flow_res import Err, Ok, Result
++
++
++@dataclass(frozen=True)
++class TeamTagline:
++    """An immutable tagline that preserves text exactly as entered."""
++
++    _value: str
++
++    MAX_LENGTH: ClassVar[int] = 160
++
++    def __post_init__(self) -> None:
++        """Require a string no longer than the configured maximum."""
++        if not isinstance(  # type: ignore[reportUnnecessaryIsInstance]
++            self._value, str
++        ):
++            raise TypeError("Team tagline must be a string.")
++        if len(self._value) > self.MAX_LENGTH:
++            raise ValueError(
++                f"Team tagline must not exceed {self.MAX_LENGTH} characters."
++            )
++
++    def to_primitive(self) -> str:
++        """Return the exact tagline text."""
++        return self._value
++
++    @classmethod
++    def from_primitive(cls, value: str) -> Result["TeamTagline", Exception]:
++        """Create a validated tagline from a string."""
++        try:
++            return Ok(cls(_value=value))
++        except (TypeError, ValueError) as error:
++            return Err(error)
++
++    def __str__(self) -> str:
++        """Return the tagline text."""
++        return self.to_primitive()
+diff --git a/src/app/usecases/teams/update_team_tagline.py b/src/app/usecases/teams/update_team_tagline.py
+new file mode 100644
+index 0000000..901cfeb
+--- /dev/null
++++ b/src/app/usecases/teams/update_team_tagline.py
+@@ -0,0 +1,83 @@
++"""Update Team tagline use case."""
++
++from dataclasses import dataclass
++
++from flow_med import Request, RequestHandler
++from flow_res import Err, Ok, Result, combine_all, is_err
++from injector import inject
++
++from app.contracts.ports import IUnitOfWork
++from app.domain.aggregates.team import Team
++from app.domain.value_objects import TeamId, TeamTagline
++from app.usecases.result import ErrorType, UseCaseError, UseCaseResultError
++
++
++@dataclass(frozen=True)
++class UpdateTeamTaglineResult:
++    """Result object for a successful tagline update."""
++
++    id: str
++
++
++@dataclass(frozen=True)
++class UpdateTeamTaglineCommand(
++    Request[Result[UpdateTeamTaglineResult, UseCaseResultError]]
++):
++    """Command to replace an existing team's tagline."""
++
++    team_id: str
++    tagline: str
++
++
++class UpdateTeamTaglineHandler(
++    RequestHandler[
++        UpdateTeamTaglineCommand,
++        Result[UpdateTeamTaglineResult, UseCaseResultError],
++    ]
++):
++    """Handler that validates and persists a team's tagline."""
++
++    @inject
++    def __init__(self, uow: IUnitOfWork) -> None:
++        self._uow = uow
++
++    async def handle(
++        self, request: UpdateTeamTaglineCommand
++    ) -> Result[UpdateTeamTaglineResult, UseCaseResultError]:
++        """Update a team's tagline without creating teams on unknown IDs."""
++        combined_result = combine_all(
++            (
++                TeamId.from_primitive(request.team_id),
++                TeamTagline.from_primitive(request.tagline),
++            )
++        ).map_err(
++            lambda error: UseCaseError(
++                type=ErrorType.VALIDATION_ERROR,
++                message=", ".join(str(exc) for exc in error.exceptions),
++            )
++        )
++        if is_err(combined_result):
++            return Err(combined_result.error)
++
++        team_id, tagline = combined_result.unwrap()
++
++        async with self._uow:
++            team_repo = self._uow.GetRepository(Team, TeamId)
++            get_result = await team_repo.get_by_id(team_id)
++            if is_err(get_result):
++                return Err(get_result.error)
++
++            team = get_result.unwrap()
++            team.change_tagline(tagline)
++
++            update_result = await team_repo.update(team)
++            if is_err(update_result):
++                return Err(update_result.error)
++
++            commit_result = await self._uow.commit()
++            if is_err(commit_result):
++                return Err(commit_result.error)
++
++            return Ok(
++                UpdateTeamTaglineResult(id=update_result.unwrap().id.to_primitive())
++            )
+diff --git a/tests/domain/value_objects/test_team_tagline.py b/tests/domain/value_objects/test_team_tagline.py
+new file mode 100644
+index 0000000..51decc9
+--- /dev/null
++++ b/tests/domain/value_objects/test_team_tagline.py
+@@ -0,0 +1,34 @@
++"""Tests for TeamTagline validation and exact text preservation."""
++
++import pytest
++from flow_res import is_err, is_ok
++
++from app.domain.value_objects import TeamTagline
++
++
++@pytest.mark.parametrize("value", ["", "  \n  ", "line one\nline two\t"])
++def test_tagline_preserves_empty_whitespace_and_newlines(value: str) -> None:
++    result = TeamTagline.from_primitive(value)
++
++    assert is_ok(result)
++    assert result.value.to_primitive() == value
++
++
++def test_tagline_accepts_maximum_length() -> None:
++    tagline = TeamTagline("x" * TeamTagline.MAX_LENGTH)
++
++    assert len(tagline.to_primitive()) == 160
++
++
++def test_tagline_rejects_more_than_maximum_length() -> None:
++    result = TeamTagline.from_primitive("x" * (TeamTagline.MAX_LENGTH + 1))
++
++    assert is_err(result)
++    assert "160 characters" in str(result.error)
++
++
++def test_tagline_rejects_non_string_values() -> None:
++    result = TeamTagline.from_primitive(123)  # type: ignore[arg-type]
++
++    assert is_err(result)
++    assert isinstance(result.error, TypeError)
+diff --git a/tests/infrastructure/test_team_tagline_migration.py b/tests/infrastructure/test_team_tagline_migration.py
+new file mode 100644
+index 0000000..baf9474
+--- /dev/null
++++ b/tests/infrastructure/test_team_tagline_migration.py
+@@ -0,0 +1,84 @@
++"""Tests for adding the team tagline column to an existing database."""
++
++import importlib.util
++from datetime import UTC, datetime
++from pathlib import Path
++from typing import Any
++
++import pytest
++import sqlalchemy as sa
++from alembic.migration import MigrationContext
++from alembic.operations import Operations
++from sqlalchemy.ext.asyncio import create_async_engine
++
++_MIGRATION_PATH = (
++    Path(__file__).parents[2]
++    / "alembic"
++    / "versions"
++    / "202610030900_add_team_tagline.py"
++)
++
++
++def _load_migration() -> Any:
++    spec = importlib.util.spec_from_file_location(
++        "team_tagline_migration", _MIGRATION_PATH
++    )
++    if spec is None or spec.loader is None:
++        raise RuntimeError("Could not load team tagline migration.")
++    migration = importlib.util.module_from_spec(spec)
++    spec.loader.exec_module(migration)
++    return migration
++
++
++@pytest.mark.anyio
++async def test_migration_adds_empty_tagline_to_existing_teams_and_downgrades() -> None:
++    """Existing rows receive an empty value and downgrade removes the column."""
++    engine = create_async_engine("sqlite+aiosqlite:///:memory:")
++    metadata = sa.MetaData()
++    teams = sa.Table(
++        "teams",
++        metadata,
++        sa.Column("id", sa.String(26), primary_key=True),
++        sa.Column("name", sa.String(100), nullable=False),
++        sa.Column("version", sa.Integer, nullable=False),
++        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
++        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
++    )
++    migration = _load_migration()
++
++    async with engine.begin() as connection:
++        await connection.run_sync(metadata.create_all)
++        await connection.execute(
++            teams.insert().values(
++                id="01ARZ3NDEKTSV4RRFFQ69G5FAV",
++                name="Old team",
++                version=0,
++                created_at=datetime(2026, 9, 1, tzinfo=UTC),
++                updated_at=datetime(2026, 9, 1, tzinfo=UTC),
++            )
++        )
++
++        def run_upgrade(sync_connection: sa.Connection) -> None:
++            context = MigrationContext.configure(sync_connection)
++            with Operations.context(context):
++                migration.upgrade()
++
++        await connection.run_sync(run_upgrade)
++        value = (
++            await connection.exec_driver_sql("SELECT tagline FROM teams")
++        ).scalar_one()
++        assert value == ""
++
++        def run_downgrade(sync_connection: sa.Connection) -> set[str]:
++            context = MigrationContext.configure(sync_connection)
++            with Operations.context(context):
++                migration.downgrade()
++            return {
++                column["name"]
++                for column in sa.inspect(sync_connection).get_columns("teams")
++            }
++
++        column_names = await connection.run_sync(run_downgrade)
++
++    await engine.dispose()
++    assert "tagline" not in column_names
+diff --git a/tests/presentation/api/test_teams_tagline.py b/tests/presentation/api/test_teams_tagline.py
+new file mode 100644
+index 0000000..f8b65d7
+--- /dev/null
++++ b/tests/presentation/api/test_teams_tagline.py
+@@ -0,0 +1,69 @@
++"""Tests for team tagline API behavior."""
++
++from typing import cast
++from unittest.mock import AsyncMock, MagicMock
++
++import pytest
++from flow_res import Ok
++
++from app.application.mediator import ApplicationMediator
++from app.presentation.api.routers.teams import (
++    CreateTeamResponse,
++    TeamResponse,
++    UpdateTeamTaglineRequest,
++    get_team,
++    update_team_tagline,
++)
++from app.usecases.teams.get_team import GetTeamResult
++from app.usecases.teams.update_team_tagline import (
++    UpdateTeamTaglineCommand,
++    UpdateTeamTaglineResult,
++)
++
++
++@pytest.mark.anyio
++async def test_get_team_response_includes_tagline() -> None:
++    """GET returns the tagline from the use-case result."""
++    mediator_mock = MagicMock(spec=ApplicationMediator)
++    mediator_mock.send_async = AsyncMock(
++        return_value=Ok(
++            GetTeamResult(
++                id="01ARZ3NDEKTSV4RRFFQ69G5FAV",
++                name="Alpha",
++                tagline="  welcome\n",
++                version=2,
++            )
++        )
++    )
++
++    response = await get_team(
++        "01ARZ3NDEKTSV4RRFFQ69G5FAV", cast(ApplicationMediator, mediator_mock)
++    )
++
++    assert response == TeamResponse(
++        id="01ARZ3NDEKTSV4RRFFQ69G5FAV",
++        name="Alpha",
++        tagline="  welcome\n",
++        version=2,
++    )
++
++
++@pytest.mark.anyio
++async def test_put_team_tagline_dispatches_command_and_returns_update_shape() -> None:
++    """PUT accepts a required tagline and uses the existing update response."""
++    team_id = "01ARZ3NDEKTSV4RRFFQ69G5FAV"
++    mediator_mock = MagicMock(spec=ApplicationMediator)
++    mediator_mock.send_async = AsyncMock(
++        return_value=Ok(UpdateTeamTaglineResult(id=team_id))
++    )
++
++    response = await update_team_tagline(
++        team_id,
++        UpdateTeamTaglineRequest(tagline="  text\n"),
++        cast(ApplicationMediator, mediator_mock),
++    )
++
++    assert response == CreateTeamResponse(id=team_id)
++    sent_command = mediator_mock.send_async.await_args.args[0]
++    assert sent_command == UpdateTeamTaglineCommand(team_id, "  text\n")
++    assert UpdateTeamTaglineRequest.model_fields["tagline"].is_required()
+diff --git a/tests/usecases/teams/test_update_team_tagline.py b/tests/usecases/teams/test_update_team_tagline.py
+new file mode 100644
+index 0000000..c925016
+--- /dev/null
++++ b/tests/usecases/teams/test_update_team_tagline.py
+@@ -0,0 +1,140 @@
++"""Tests for the update team tagline use case."""
++
++from unittest.mock import AsyncMock, MagicMock
++
++import pytest
++from flow_res import Err, Ok, is_err, is_ok
++from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
++
++from app.contracts.ports import IUnitOfWork
++from app.domain.aggregates.team import Team
++from app.domain.repositories import RepositoryError, RepositoryErrorType
++from app.domain.value_objects import TeamName, TeamTagline
++from app.infrastructure.unit_of_work import SQLAlchemyUnitOfWork
++from app.usecases.result import ErrorType
++from app.usecases.teams.get_team import GetTeamHandler, GetTeamQuery
++from app.usecases.teams.update_team import UpdateTeamCommand, UpdateTeamHandler
++from app.usecases.teams.update_team_tagline import (
++    UpdateTeamTaglineCommand,
++    UpdateTeamTaglineHandler,
++)
++
++
++@pytest.mark.anyio
++async def test_tagline_update_persists_exact_text_and_name_update_keeps_it(
++    session_factory: async_sessionmaker[AsyncSession],
++) -> None:
++    """A new UoW reads exact text after update and rename."""
++    uow = SQLAlchemyUnitOfWork(session_factory)
++    team = Team.form(TeamName("Original"))
++    async with uow:
++        assert is_ok(await uow.GetRepository(Team).add(team))
++        assert is_ok(await uow.commit())
++
++    created_team = await GetTeamHandler(SQLAlchemyUnitOfWork(session_factory)).handle(
++        GetTeamQuery(id=team.id.to_primitive())
++    )
++    assert is_ok(created_team)
++    assert created_team.value.tagline == ""
++
++    tagline = "  Welcome to our team!\nSecond line\t "
++    update_result = await UpdateTeamTaglineHandler(uow).handle(
++        UpdateTeamTaglineCommand(team.id.to_primitive(), tagline)
++    )
++    assert is_ok(update_result)
++    assert update_result.value.id == team.id.to_primitive()
++
++    rename_result = await UpdateTeamHandler(uow).handle(
++        UpdateTeamCommand(team_id=team.id.to_primitive(), new_name="Renamed")
++    )
++    assert is_ok(rename_result)
++
++    other_uow = SQLAlchemyUnitOfWork(session_factory)
++    get_result = await GetTeamHandler(other_uow).handle(
++        GetTeamQuery(id=team.id.to_primitive())
++    )
++    assert is_ok(get_result)
++    assert get_result.value.name == "Renamed"
++    assert get_result.value.tagline == tagline
++
++
++@pytest.mark.anyio
++async def test_tagline_update_accepts_empty_text(uow: IUnitOfWork) -> None:
++    """An empty tagline is a valid replacement value."""
++    team = Team.form(TeamName("Alpha"))
++    async with uow:
++        assert is_ok(await uow.GetRepository(Team).add(team))
++        assert is_ok(await uow.commit())
++
++    result = await UpdateTeamTaglineHandler(uow).handle(
++        UpdateTeamTaglineCommand(team.id.to_primitive(), "")
++    )
++
++    assert is_ok(result)
++    loaded = await GetTeamHandler(uow).handle(GetTeamQuery(id=team.id.to_primitive()))
++    assert is_ok(loaded)
++    assert loaded.value.tagline == ""
++
++
++@pytest.mark.anyio
++async def test_tagline_update_rejects_invalid_inputs_without_changing_team(
++    uow: IUnitOfWork,
++) -> None:
++    """Invalid IDs and oversized taglines fail before changing stored state."""
++    team = Team.form(TeamName("Alpha"))
++    team.change_tagline(TeamTagline("original"))
++    async with uow:
++        assert is_ok(await uow.GetRepository(Team).add(team))
++        assert is_ok(await uow.commit())
++
++    handler = UpdateTeamTaglineHandler(uow)
++    invalid_id = await handler.handle(UpdateTeamTaglineCommand("invalid", "valid"))
++    too_long = await handler.handle(
++        UpdateTeamTaglineCommand(team.id.to_primitive(), "x" * 161)
++    )
++    assert is_err(invalid_id) and invalid_id.error.type is ErrorType.VALIDATION_ERROR
++    assert is_err(too_long) and too_long.error.type is ErrorType.VALIDATION_ERROR
++
++    loaded = await GetTeamHandler(uow).handle(GetTeamQuery(id=team.id.to_primitive()))
++    assert is_ok(loaded)
++    assert loaded.value.tagline == "original"
++
++
++@pytest.mark.anyio
++async def test_tagline_update_unknown_team_returns_not_found(uow: IUnitOfWork) -> None:
++    """An unknown team ID is not treated as a request to create a team."""
++    result = await UpdateTeamTaglineHandler(uow).handle(
++        UpdateTeamTaglineCommand("01ARZ3NDEKTSV4RRFFQ69G5FAV", "tagline")
++    )
++
++    assert is_err(result)
++    assert result.error.type is RepositoryErrorType.NOT_FOUND
++
++
++@pytest.mark.anyio
++async def test_tagline_update_save_failure_does_not_commit() -> None:
++    """A failed repository update is returned without committing the UoW."""
++    mock_uow = MagicMock(spec=IUnitOfWork)
++    mock_repo = MagicMock()
++    team = Team.form(TeamName("Alpha"))
++    mock_repo.get_by_id = AsyncMock(return_value=Ok(team))
++    mock_repo.update = AsyncMock(
++        return_value=Err(
++            RepositoryError(
++                type=RepositoryErrorType.UNEXPECTED,
++                message="Database write failed",
++            )
++        )
++    )
++    mock_uow.GetRepository.return_value = mock_repo
++    mock_uow.__aenter__ = AsyncMock(return_value=mock_uow)
++    mock_uow.__aexit__ = AsyncMock(return_value=None)
++    mock_uow.commit = AsyncMock()
++
++    result = await UpdateTeamTaglineHandler(mock_uow).handle(
++        UpdateTeamTaglineCommand(team.id.to_primitive(), "tagline")
++    )
++
++    assert is_err(result)
++    assert result.error.type is RepositoryErrorType.UNEXPECTED
++    mock_uow.commit.assert_not_awaited()

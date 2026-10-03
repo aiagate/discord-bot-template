@@ -1,0 +1,21 @@
+--- a/src/app/domain/aggregates/team.py
++++ b/src/app/domain/aggregates/team.py
+@@ -73,6 +73,7 @@
+ 
+     @property
+     def tagline(self) -> TeamTagline:
++        """Return the team's exact tagline text as a value object."""
+         return self._tagline
+ 
+     @property
+--- a/src/app/presentation/api/routers/teams.py
++++ b/src/app/presentation/api/routers/teams.py
+@@ -35,6 +35,8 @@
+ 
+ 
+ class UpdateTeamTaglineRequest(BaseModel):
++    """Request to replace the tagline of an existing team."""
++
+     tagline: str
+ 
+ 

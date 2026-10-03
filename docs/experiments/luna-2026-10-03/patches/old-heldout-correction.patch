@@ -1,0 +1,119 @@
+--- a/src/app/presentation/api/routers/teams.py
++++ b/src/app/presentation/api/routers/teams.py
+@@ -2,7 +2,7 @@
+ 
+ from fastapi import APIRouter, Depends, HTTPException
+ from flow_res import is_err
+-from pydantic import BaseModel, Field
++from pydantic import BaseModel
+ 
+ from app.application.mediator import ApplicationMediator
+ from app.presentation.api.dependencies import get_mediator
+@@ -35,7 +35,7 @@
+ 
+ 
+ class UpdateTeamDescriptionRequest(BaseModel):
+-    description: str = Field(max_length=2000)
++    description: str
+ 
+ 
+ class UpdateTeamDescriptionResponse(BaseModel):
+--- a/tests/presentation/api/test_teams_router.py
++++ b/tests/presentation/api/test_teams_router.py
+@@ -61,13 +61,13 @@
+     assert command.description == "  first\nsecond  "
+ 
+ 
+-def test_description_request_requires_string_and_enforces_maximum() -> None:
+-    """The body requires description and accepts at most 2000 characters."""
++def test_description_request_requires_string() -> None:
++    """The body validates shape; the domain validates the business limit."""
+     with pytest.raises(ValidationError):
+         teams.UpdateTeamDescriptionRequest.model_validate({})
+ 
+     with pytest.raises(ValidationError):
+-        teams.UpdateTeamDescriptionRequest.model_validate({"description": "x" * 2001})
++        teams.UpdateTeamDescriptionRequest.model_validate({"description": None})
+ 
+     assert (
+         teams.UpdateTeamDescriptionRequest.model_validate(
+--- /dev/null
++++ b/tests/presentation/api/test_description_http_contract.py
+@@ -0,0 +1,77 @@
++"""Regression checks through Pydantic, routing and the real mediator."""
++
++import json
++from typing import Any
++
++import anyio
++import pytest
++from fastapi import FastAPI
++from injector import Injector
++from starlette.types import Message, Scope
++
++from app import container
++from app.application.mediator import ApplicationMediator
++from app.presentation.api.routers import teams
++
++
++async def request(
++    app: FastAPI, method: str, path: str, payload: dict[str, Any] | None = None
++) -> tuple[int, Any]:
++    """Issue one in-process HTTP request without external services."""
++    body = json.dumps(payload).encode() if payload is not None else b""
++    messages: list[Message] = []
++
++    async def receive() -> Message:
++        return {"type": "http.request", "body": body, "more_body": False}
++
++    async def send(message: Message) -> None:
++        messages.append(message)
++
++    scope: Scope = {
++        "type": "http",
++        "asgi": {"version": "3.0"},
++        "http_version": "1.1",
++        "method": method,
++        "scheme": "http",
++        "path": path,
++        "query_string": b"",
++        "headers": [(b"content-type", b"application/json")],
++        "server": ("test", 80),
++        "client": ("test", 1),
++        "root_path": "",
++    }
++    with anyio.fail_after(5):
++        await app(scope, receive, send)
++    status = next(m["status"] for m in messages if m["type"] == "http.response.start")
++    content = b"".join(
++        m.get("body", b"") for m in messages if m["type"] == "http.response.body"
++    )
++    return status, json.loads(content)
++
++
++@pytest.mark.anyio
++@pytest.mark.parametrize(
++    "payload, expected_status",
++    [
++        ({"description": "x" * 2001}, 400),
++        ({}, 422),
++        ({"description": None}, 422),
++    ],
++)
++async def test_description_http_validation_preserves_team(
++    test_db_engine: None, payload: dict[str, Any], expected_status: int
++) -> None:
++    """Reject business limits as 400 and malformed bodies as 422, atomically."""
++    app = FastAPI()
++    app.include_router(teams.router)
++    app.state.mediator = Injector([container.configure]).get(ApplicationMediator)
++    status, created = await request(app, "POST", "/teams", {"name": "Before"})
++    assert status == 200
++    path = f"/teams/{created['id']}"
++    status, before = await request(app, "GET", path)
++    assert status == 200
++    status, _ = await request(app, "PUT", path + "/description", payload)
++    assert status == expected_status
++    status, after = await request(app, "GET", path)
++    assert status == 200
++    assert after == before
