@@ -195,7 +195,12 @@ def _text_event(text: str, sender: str, timestamp: int) -> MessageEvent:
     event = MessageEvent.from_dict(
         {
             "type": "message",
-            "message": {"type": "text", "id": f"msg-{sender}", "text": text},
+            "message": {
+                "type": "text",
+                "id": f"msg-{sender}",
+                "text": text,
+                "quoteToken": f"quote-{sender}",
+            },
             "source": {"type": "user", "userId": sender},
             "replyToken": f"reply-{sender}",
             "timestamp": timestamp,
@@ -291,12 +296,14 @@ async def test_handle_callback_ignored_event_does_not_hide_text(
         "deliveryContext": {"isRedelivery": False},
     }
     if ignored_type == "follow":
+        payload["follow"] = {"isUnblocked": False}
         ignored = FollowEvent.from_dict(payload)
     else:
         payload["message"] = {
             "type": "image",
             "id": "image-1",
             "contentProvider": {"type": "line"},
+            "quoteToken": "quote-image",
         }
         ignored = MessageEvent.from_dict(payload)
     assert ignored is not None
