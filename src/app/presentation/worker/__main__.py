@@ -4,14 +4,13 @@ import os
 import signal
 import sys
 from collections.abc import Awaitable, Callable
-from pathlib import Path
 
-from dotenv import load_dotenv
 from injector import Injector
 
 from app import container
 from app.application.mediator import ApplicationMediator
 from app.contracts.ports.event_bus import IEventBus
+from app.environment import load_environment
 from app.infrastructure.database import init_db
 
 logging.basicConfig(
@@ -20,18 +19,6 @@ logging.basicConfig(
     stream=sys.stdout,
 )
 logger = logging.getLogger(__name__)
-
-
-def load_environment() -> None:
-    """Load environment variables from .env files."""
-    root_dir = Path(__file__).parent.parent.parent.parent.parent
-    env_local = root_dir / ".env.local"
-    if env_local.exists():
-        load_dotenv(env_local)
-        return
-    env_file = root_dir / ".env"
-    if env_file.exists():
-        load_dotenv(env_file)
 
 
 async def _run_periodic_task(

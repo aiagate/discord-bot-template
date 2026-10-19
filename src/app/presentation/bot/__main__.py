@@ -1,19 +1,18 @@
 import logging
 import os
 import sys
-from pathlib import Path
 
-import discord
 from discord.ext import commands
-from dotenv import load_dotenv
 from injector import Injector
 
 from app.application.mediator import ApplicationMediator
+from app.environment import load_environment
 from app.infrastructure.database import init_db
 from app.presentation.bot.cogs.dm_response_cog import DirectMessageResponseCog
 from app.presentation.bot.cogs.memberships_cog import MembershipsCog
 from app.presentation.bot.cogs.teams_cog import TeamsCog
 from app.presentation.bot.cogs.users_cog import UsersCog
+from app.presentation.bot.intents import create_bot_intents
 
 
 class MyBot(commands.Bot):
@@ -22,7 +21,7 @@ class MyBot(commands.Bot):
 
     def __init__(self, command_prefix: str = "!") -> None:
         super().__init__(
-            intents=discord.Intents.all(),
+            intents=create_bot_intents(),
             command_prefix=command_prefix,
         )
 
@@ -48,24 +47,6 @@ class MyBot(commands.Bot):
         await self.add_cog(UsersCog(self, mediator))
         await self.add_cog(MembershipsCog(self, mediator))
         await self.add_cog(DirectMessageResponseCog(self, mediator))
-
-
-def load_environment() -> None:
-    """Load environment variables from .env files."""
-    # プロジェクトルートディレクトリを取得
-    # app/presentation/bot/__main__.py -> app/presentation/bot/ -> app/presentation/ -> app/ -> src/ -> root
-    root_dir = Path(__file__).parent.parent.parent.parent.parent
-
-    # .env.local が存在すれば優先的に読み込む（開発環境用）
-    env_local = root_dir / ".env.local"
-    if env_local.exists():
-        load_dotenv(env_local)
-        return
-
-    # .env ファイルを読み込む（本番環境用）
-    env_file = root_dir / ".env"
-    if env_file.exists():
-        load_dotenv(env_file)
 
 
 def main() -> None:

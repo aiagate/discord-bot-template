@@ -50,7 +50,7 @@ class MessagingModule(injector.Module):
     @injector.singleton
     def provide_event_bus(self) -> IEventBus:
         """Provide Event Bus implementation."""
-        # 将来的にはここを RedisEventBus などに変更可能
+        # プロセスローカルなイベントバス。プロセスをまたぐ配信は行わない。
         return InMemoryEventBus()
 
 
