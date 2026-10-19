@@ -265,3 +265,56 @@ async def test_cancellation_during_stop_is_not_a_subscriber_failure(
             await _stop_bus(bus)
 
     assert _event_bus_errors(caplog) == []
+
+
+@pytest.mark.anyio
+async def test_failure_is_logged_before_a_parallel_handler_is_cancelled(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A slow peer cannot delay or erase another subscriber's failure log."""
+    topic = "orders.created"
+    blocking_started = asyncio.Event()
+    failure_raised = asyncio.Event()
+    blocking_cancelled = asyncio.Event()
+    never_set = asyncio.Event()
+
+    async def failing_handler(_payload: Mapping[str, object]) -> None:
+        await blocking_started.wait()
+        failure_raised.set()
+        raise RuntimeError("subscriber failed before stop")
+
+    async def blocking_handler(_payload: Mapping[str, object]) -> None:
+        blocking_started.set()
+        try:
+            await never_set.wait()
+        except asyncio.CancelledError:
+            blocking_cancelled.set()
+            raise
+
+    bus = InMemoryEventBus()
+    with caplog.at_level(logging.ERROR, logger=_EVENT_BUS_LOGGER):
+        try:
+            await bus.subscribe(topic, failing_handler)
+            await bus.subscribe(topic, blocking_handler)
+            await bus.start()
+            await bus.publish(topic, {"private": _PAYLOAD_SENTINEL})
+            await _wait_for_event(failure_raised)
+            assert not blocking_cancelled.is_set()
+            _assert_single_failure_log(
+                caplog,
+                topic=topic,
+                handler_name="failing_handler",
+                exception_type="RuntimeError",
+                exception_message="subscriber failed before stop",
+            )
+        finally:
+            await _stop_bus(bus)
+
+    assert blocking_cancelled.is_set()
+    _assert_single_failure_log(
+        caplog,
+        topic=topic,
+        handler_name="failing_handler",
+        exception_type="RuntimeError",
+        exception_message="subscriber failed before stop",
+    )

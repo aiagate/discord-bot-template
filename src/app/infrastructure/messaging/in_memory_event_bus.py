@@ -64,6 +64,17 @@ class InMemoryEventBus(IEventBus):
                 pass
         logger.info("InMemoryEventBus stopped")
 
+    async def _execute_handler(
+        self, topic: str, handler: EventHandler, payload: Mapping[str, object]
+    ) -> None:
+        try:
+            await handler(payload)
+        except Exception as error:
+            logger.error(
+                f"Handler {_handler_name(handler)} failed for topic {topic}: {error}",
+                exc_info=True,
+            )
+
     async def _worker_loop(self) -> None:
         """キューを監視し、受信したメッセージをハンドラーにディスパッチします。"""
         while self._running:
@@ -75,24 +86,13 @@ class InMemoryEventBus(IEventBus):
                     logger.warning(f"No handlers registered for topic: {topic}")
 
                 # 同一トピックのハンドラーを並列実行
-                results = await asyncio.gather(
-                    *[handler(payload) for handler in handlers],
+                await asyncio.gather(
+                    *[
+                        self._execute_handler(topic, handler, payload)
+                        for handler in handlers
+                    ],
                     return_exceptions=True,
                 )
-
-                for handler, result in zip(handlers, results, strict=True):
-                    if isinstance(result, asyncio.CancelledError):
-                        continue
-                    if isinstance(result, Exception):
-                        logger.error(
-                            f"Handler {_handler_name(handler)} failed for "
-                            f"topic {topic}: {result}",
-                            exc_info=(
-                                type(result),
-                                result,
-                                result.__traceback__,
-                            ),
-                        )
 
                 self._queue.task_done()
             except asyncio.CancelledError:
