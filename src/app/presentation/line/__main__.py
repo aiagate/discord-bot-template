@@ -4,11 +4,9 @@ import sys
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
-from pathlib import Path
 from pprint import pformat
 from typing import cast
 
-from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Request
 from flow_res import is_err
 from injector import Injector
@@ -32,6 +30,7 @@ from linebot.v3.webhooks import (
 from app import container
 from app.application.mediator import ApplicationMediator
 from app.domain.value_objects.conversation_scope import LineConversationScope
+from app.environment import load_environment
 from app.infrastructure.database import init_db
 from app.usecases.chat.save_line_chat import SaveLineChatCommand
 
@@ -43,25 +42,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def load_environment() -> None:
-    """Load environment variables from .env files."""
-    # プロジェクトルートディレクトリを取得
-    # app/presentation/line/__main__.py -> app/presentation/line/ -> app/presentation/ -> app/ -> src/ -> root
-    root_dir = Path(__file__).parent.parent.parent.parent.parent
-
-    # .env.local が存在すれば優先的に読み込む（開発環境用）
-    env_local = root_dir / ".env.local"
-    if env_local.exists():
-        load_dotenv(env_local)
-        return
-
-    # .env ファイルを読み込む（本番環境用）
-    env_file = root_dir / ".env"
-    if env_file.exists():
-        load_dotenv(env_file)
-
-
-# 環境変数を読み込む
+# 環境変数を読み込む（プロセス環境 > .env.local > .env）
 load_environment()
 
 # シークレット/トークンを取得

@@ -21,7 +21,10 @@
   - [`test_registration_completeness.py`](infrastructure/test_registration_completeness.py): ORMモデル・明示的マッピング・Handlerの登録漏れやVersion設定漏れを検出。
   - [`test_aggregate_persistence.py`](infrastructure/test_aggregate_persistence.py)（モデル定義: [`helpers/aggregate_persistence.py`](helpers/aggregate_persistence.py)）: 親子集約の完全スナップショット保存、実race競合検出とロールバック、専用RepositoryとUoWのトランザクション共有・ライフサイクル検証。
 - **`presentation/`**: プレゼンテーション層（Discord Bot Cog、Web API Router、Worker、LINE）のテスト。
-- **[`conftest.py`](conftest.py)**: pytest共通フィクスチャ定義（テスト用DBエンジン `database_engine`, アプリDBバインド `test_db_engine`, `session_factory`, `uow`, `chat_history_query`, モックイベントバス `event_bus`）。※Mediatorフィクスチャは提供していません。
+  - [`bot/test_intents.py`](presentation/bot/test_intents.py): Bot が最小権限の Gateway Intents のみを使うことの回帰テスト。
+  - [`test_entrypoint_environment.py`](presentation/test_entrypoint_environment.py): 各エントリポイントが共通環境ローダー（`app.environment`）を使うことの検証。
+- **`test_environment.py`** / **`test_alembic_env.py`**: 共通環境ローダーと Alembic が隔離ルート・疑似クレデンシャルだけで環境変数を解決することの検証。
+- **[`conftest.py`](conftest.py)**: pytest共通フィクスチャ定義（テスト用DBエンジン `database_engine`, アプリDBバインド `test_db_engine`, `session_factory`, `uow`, `chat_history_query`, モックイベントバス `event_bus`, dotenv汚染防止 `isolated_environment`）。※Mediatorフィクスチャは提供していません。
 
 ---
 

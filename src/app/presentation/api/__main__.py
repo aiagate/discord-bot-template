@@ -9,6 +9,7 @@ from injector import Injector
 
 from app import container
 from app.application.mediator import ApplicationMediator
+from app.environment import load_environment
 from app.infrastructure.database import init_db
 from app.presentation.api.routers import teams, users
 
@@ -23,6 +24,10 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     """Initialize application services on startup."""
+    # 0. 環境変数の読み込み（プロセス環境 > .env.local > .env）
+    #    uvicorn で直接モジュールを指定された場合も lifespan 内で確実に読み込む。
+    load_environment()
+
     # 1. Initialize Database
     db_url = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///./bot.db")
     init_db(db_url, echo=True)

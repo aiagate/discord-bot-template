@@ -144,6 +144,17 @@
    DATABASE_URL=sqlite+aiosqlite:///./bot.db
    ```
 
+   環境変数の読み込みは全エントリポイント（Bot / API / Worker / LINE /
+   Alembic）で共通です（`src/app/environment.py`）。優先順位は次のとおりです:
+
+   1. 既に設定されたプロセス環境変数（外部提供分は上書きしない）
+   2. プロジェクトルートの `.env.local`（開発環境用）
+   3. プロジェクトルートの `.env`（`.env.local` に無いキーのフォールバック）
+
+   読み込み対象は明示的に解決したプロジェクトルートのみで、
+   カレントディレクトリやその親ディレクトリは探索しません。
+   ファイルが存在しない場合は無視されます。
+
 5. データベースマイグレーションを実行:
 
    ```bash
@@ -238,6 +249,33 @@ uv run pyright && \
 uv run pytest
 ```
 
+## Discord Developer Portal とサーバー権限の設定（最小権限）
+
+現行機能は最小限の Gateway Intents のみを有効化します
+（`src/app/presentation/bot/intents.py`）:
+
+| Intent               | 必要な理由                                             |
+| -------------------- | ------------------------------------------------------ |
+| `guilds`             | ギルド（サーバー）メタデータ。コマンドのコンテキスト取得 |
+| `guild_messages`     | ギルド内メッセージイベント。`!` プレフィックスコマンドの受信 |
+| `dm_messages`        | DM メッセージイベント。DM 履歴の永続化                  |
+| `message_content`    | **特権 Intent（Message Content Intent）**。`!` コマンドの引数解析と DM 本文の保存 |
+
+`message_content` は特権 Intent のため、Developer Portal の Bot 設定で
+Message Content Intent を明示的に有効化する必要があります。
+有効化しない Intent: メンバー一覧（members）、プレゼンス（presences）、
+タイピング、音声、リアクション、BAN、招待、Webhook、自動モデレーション等は
+現行機能で不要のため無効です。
+
+Discord サーバー側で付与する権限は次の最小集合です:
+
+- チャンネルの閲覧（View Channels）
+- メッセージ送信（Send Messages）
+
+Administrator / Manage Roles / Manage Server は不要です。
+なお、ドメイン層の「チームロール（membership role）」はアプリ内データであり、
+Discord のサーバーロール操作とは無関係です。
+
 ## 利用可能なDiscordコマンド
 
 ### ユーザー管理 (Users)
@@ -283,6 +321,13 @@ uv run pytest
 - 上位層から下位層への依存のみ許可
 - ドメイン層はインフラストラクチャに依存しない
 - リポジトリパターンで永続化を抽象化
+
+### イベント配信について
+
+イベントバスは `InMemoryEventBus`（`IEventBus` の実装）のみを使用し、
+Worker を含む全プロセスで**プロセスローカルなイベント配信**を行います。
+**プロセスをまたいだイベント配信（Redis 等の外部バックエンド）は行いません**。
+Redis 依存は現行の DI・ランタイムで未使用だったため削除済みです。
 
 ### 詳細ドキュメント
 

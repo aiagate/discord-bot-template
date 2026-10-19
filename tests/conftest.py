@@ -1,7 +1,7 @@
 """Pytest configuration and fixtures."""
 
 import os
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, Iterator
 from pathlib import Path
 from unittest.mock import AsyncMock
 from uuid import uuid4
@@ -125,6 +125,17 @@ async def session_factory(
 def anyio_backend() -> str:
     """Specify anyio backend for pytest-anyio."""
     return "asyncio"
+
+
+@pytest.fixture
+def isolated_environment() -> Iterator[None]:
+    """Snapshot os.environ so dotenv side effects never leak to other tests."""
+    saved = os.environ.copy()
+    try:
+        yield
+    finally:
+        os.environ.clear()
+        os.environ.update(saved)
 
 
 @pytest.fixture

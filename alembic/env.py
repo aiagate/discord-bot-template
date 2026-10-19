@@ -10,10 +10,15 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 from sqlmodel import SQLModel
 
 from alembic import context
+from app.environment import load_environment
 from app.infrastructure import orm_models as orm_models
 
 # this is the Alembic Config object
 config = context.config
+
+# 環境変数を読み込む（プロセス環境 > .env.local > .env）
+# DATABASE_URL を読み取る前に実行すること。
+load_environment()
 
 # Override sqlalchemy.url with environment variable if available
 database_url = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///./bot.db")
