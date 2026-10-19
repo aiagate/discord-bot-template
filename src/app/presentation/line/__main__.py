@@ -174,10 +174,8 @@ async def handle_callback(request: Request):
                             )
                         )
                         return
-                return "OK"
             case _:
                 logger.info(f"Received non-message event: {event}")
-                return "OK"
 
     return "OK"
 
