@@ -1,7 +1,7 @@
 [project]
 name = "app"
 version = "0.1.0"
-description = "Clean Architecture Discord Bot Template"
+description = "Flow App Template: a use-case-first Python application template with Clean Architecture."
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [

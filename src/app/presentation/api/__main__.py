@@ -44,7 +44,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     # Shutdown logic if needed
 
 
-app = FastAPI(title="Discord Bot API", lifespan=lifespan)
+app = FastAPI(title="Flow App API", lifespan=lifespan)
 
 app.include_router(teams.router)
 app.include_router(users.router)

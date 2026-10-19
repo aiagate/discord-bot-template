@@ -31,3 +31,8 @@ async def test_lifespan_loads_environment_before_init_db(
 
     async with api_main.lifespan(api_main.app):
         assert recorded_urls == [f"sqlite+aiosqlite:///{scratch_db}"]
+
+
+def test_openapi_info_title_is_flow_app_api() -> None:
+    """The API display title reflects the Flow App Template rebrand."""
+    assert api_main.app.openapi()["info"]["title"] == "Flow App API"
