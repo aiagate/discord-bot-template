@@ -66,9 +66,9 @@ DBスキーマ、Compose のリソース識別子（container_name 等）は変�
 
 ### 9. **テスト環境の整備**
 
-- `pytest`と`pytest-asyncio`を使用したテスト環境を構築。
+- `pytest`と`anyio`を使用し、`asyncio`バックエンドで非同期テストを実行。
 - `pytest-cov`によるコードカバレッジ測定。
-- インメモリSQLiteを使用した高速なテスト実行。
+- テストごとに独立した一時ファイルSQLite（外部キー制約有効）を使用。
 
 ### 10. **コード品質管理**
 
@@ -80,27 +80,33 @@ DBスキーマ、Compose のリソース識別子（container_name 等）は変�
 
 ```text
 .
-├── src/app/                           # アプリケーション本体
-│   ├── api/                       # Web API層
-│   │   ├── __main__.py            # APIエントリーポイント (start-api)
-│   │   └── routers/               # APIルーター
-│   ├── bot/                       # Discord Bot層
-│   │   ├── __main__.py            # Botエントリーポイント (start-bot)
-│   │   └── cogs/                  # Cogモジュール
-│   ├── core/                      # アプリケーションコア (Result, Mediatorなど)
-│   ├── container.py               # DIコンテナ設定
-│   ├── domain/                    # ドメイン層
-│   │   ├── aggregates/            # ドメイン集約 (user.py, team.py)
-│   │   ├── interfaces/            # 抽象インターフェース
-│   │   ├── repositories/          # リポジトリインターフェース
-│   │   └── value_objects/         # 値オブジェクト
-│   ├── infrastructure/            # インフラストラクチャ層
-│   │   ├── database.py            # DB設定・セッション管理
-│   │   ├── orm_models/            # ORMモデル (user_orm.py, team_orm.py)
-│   │   └── repositories/          # リポジトリ実装
-│   └── usecases/                  # ユースケース層
-│       ├── users/                 # ユーザー関連ユースケース
-│       └── teams/                 # チーム関連ユースケース
+├── src/app/                      # アプリケーション本体
+│   ├── application/              # Mediatorの構成・アプリケーション境界
+│   ├── contracts/                # 複数レイヤーで共有する境界契約
+│   │   ├── messages/             # イベント・共有メッセージ
+│   │   └── ports/                # UoW・Query・イベントバスのPort
+│   ├── domain/                   # 業務ルール（ORM・入口に依存しない）
+│   │   ├── aggregates/           # ドメイン集約
+│   │   ├── interfaces/           # ドメイン固有の抽象
+│   │   ├── repositories/         # リポジトリ契約
+│   │   └── value_objects/        # 値オブジェクト
+│   ├── usecases/                 # ユースケース・入出力DTO・Handler
+│   │   ├── users/                # ユーザー関連
+│   │   ├── teams/                # チーム関連
+│   │   ├── memberships/          # メンバーシップ関連
+│   │   └── chat/                 # チャット保存
+│   ├── infrastructure/           # Port・永続化の実装
+│   │   ├── mappings/             # ドメイン集約とORMの明示的変換
+│   │   ├── orm_models/           # SQLModelによるテーブル定義
+│   │   ├── repositories/         # リポジトリ実装
+│   │   └── unit_of_work.py       # トランザクションとRepositoryの寿命
+│   ├── presentation/             # 必要な入口のみを利用
+│   │   ├── api/                  # HTTP API (start-api)
+│   │   ├── bot/                  # Discord Bot (start-bot)
+│   │   ├── line/                 # LINE (start-line)
+│   │   └── worker/               # プロセスローカルのイベント処理
+│   ├── container.py              # DIコンテナ設定
+│   └── environment.py            # 全入口共通の環境変数ローダー
 ├── alembic/                       # Alembicマイグレーション
 │   └── versions/                  # マイグレーションファイル
 ├── docs/                          # ドキュメント
@@ -149,7 +155,7 @@ DBスキーマ、Compose のリソース識別子（container_name 等）は変�
    `.env.local`の内容を編集:
 
    ```bash
-   # Discord Bot トークン（必須）
+   # Discord Bot を使う場合のみ必須（HTTP API単体では不要）
    DISCORD_BOT_TOKEN=your_discord_bot_token_here
 
    # データベースURL（オプション、デフォルト: sqlite+aiosqlite:///./bot.db）
