@@ -2,14 +2,18 @@
 
 from datetime import UTC, datetime
 from importlib import import_module
-from types import SimpleNamespace
+from types import ModuleType, SimpleNamespace
 from typing import cast
 from unittest.mock import AsyncMock, Mock
 
 import pytest
+from fastapi import Request
 from flow_res import Err, Ok
+from linebot.v3.webhooks import Event, FollowEvent, MessageEvent, TextMessageContent
+from starlette.types import Message
 
 from app.application.mediator import ApplicationMediator
+from app.usecases.chat.save_line_chat import SaveLineChatCommand
 from app.usecases.result import ErrorType, UseCaseError
 
 
@@ -185,3 +189,182 @@ async def test_handle_callback_replies_on_save_error(
 
     assert result is None
     line_bot_api.reply_message.assert_awaited_once()
+
+
+def _text_event(text: str, sender: str, timestamp: int) -> MessageEvent:
+    event = MessageEvent.from_dict(
+        {
+            "type": "message",
+            "message": {
+                "type": "text",
+                "id": f"msg-{sender}",
+                "text": text,
+                "quoteToken": f"quote-{sender}",
+            },
+            "source": {"type": "user", "userId": sender},
+            "replyToken": f"reply-{sender}",
+            "timestamp": timestamp,
+            "mode": "active",
+            "webhookEventId": f"event-{sender}",
+            "deliveryContext": {"isRedelivery": False},
+        }
+    )
+    assert isinstance(event, MessageEvent)
+    assert isinstance(event.message, TextMessageContent)
+    return event
+
+
+def _batch_request(
+    monkeypatch: pytest.MonkeyPatch,
+    line_main: ModuleType,
+    events: list[Event],
+    send_async: AsyncMock,
+    *,
+    wrapped: bool = False,
+) -> tuple[Request, AsyncMock]:
+    parsed = SimpleNamespace(events=events) if wrapped else events
+    monkeypatch.setattr(line_main.parser, "parse", Mock(return_value=parsed))
+    line_bot_api = AsyncMock()
+
+    async def receive() -> Message:
+        return {"type": "http.request", "body": b"body", "more_body": False}
+
+    request = Request(
+        {
+            "type": "http",
+            "headers": [(b"x-line-signature", b"signature")],
+            "app": SimpleNamespace(
+                state=SimpleNamespace(
+                    mediator=SimpleNamespace(send_async=send_async),
+                    line_bot_api=line_bot_api,
+                )
+            ),
+        },
+        receive=receive,
+    )
+    return request, line_bot_api
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("wrapped", [False, True], ids=["list", "object.events"])
+async def test_handle_callback_saves_all_messages_in_order(
+    monkeypatch: pytest.MonkeyPatch, wrapped: bool
+) -> None:
+    """Both parser representations preserve every message and its event data."""
+    line_main = _load_line_main(monkeypatch)
+    send_async = AsyncMock(return_value=Ok(None))
+    request, api = _batch_request(
+        monkeypatch,
+        line_main,
+        [
+            _text_event("first", "u1", 1_700_000_123_456),
+            _text_event("second", "u2", 1_700_000_124_789),
+        ],
+        send_async,
+        wrapped=wrapped,
+    )
+
+    assert await line_main.handle_callback(request) == "OK"
+
+    assert send_async.await_count == 2
+    commands = [call.args[0] for call in send_async.await_args_list]
+    assert all(isinstance(command, SaveLineChatCommand) for command in commands)
+    assert [
+        (command.content, command.external_sender_id, command.occurred_at)
+        for command in commands
+    ] == [
+        ("first", "u1", datetime(2023, 11, 14, 22, 15, 23, 456000, tzinfo=UTC)),
+        ("second", "u2", datetime(2023, 11, 14, 22, 15, 24, 789000, tzinfo=UTC)),
+    ]
+    api.reply_message.assert_not_awaited()
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("ignored_type", ["follow", "image"])
+async def test_handle_callback_ignored_event_does_not_hide_text(
+    monkeypatch: pytest.MonkeyPatch, ignored_type: str
+) -> None:
+    """Non-message events and unsupported messages do not end the batch."""
+    line_main = _load_line_main(monkeypatch)
+    payload: dict[str, object] = {
+        "type": ignored_type if ignored_type == "follow" else "message",
+        "source": {"type": "user", "userId": "ignored-user"},
+        "replyToken": "ignored-reply",
+        "timestamp": 1_700_000_000_000,
+        "mode": "active",
+        "webhookEventId": "ignored-event",
+        "deliveryContext": {"isRedelivery": False},
+    }
+    if ignored_type == "follow":
+        payload["follow"] = {"isUnblocked": False}
+        ignored = FollowEvent.from_dict(payload)
+    else:
+        payload["message"] = {
+            "type": "image",
+            "id": "image-1",
+            "contentProvider": {"type": "line"},
+            "quoteToken": "quote-image",
+        }
+        ignored = MessageEvent.from_dict(payload)
+    assert ignored is not None
+    send_async = AsyncMock(return_value=Ok(None))
+    request, api = _batch_request(
+        monkeypatch,
+        line_main,
+        [ignored, _text_event("after ignored", "u2", 1_700_000_124_789)],
+        send_async,
+    )
+
+    assert await line_main.handle_callback(request) == "OK"
+
+    send_async.assert_awaited_once()
+    command = send_async.await_args_list[0].args[0]
+    assert isinstance(command, SaveLineChatCommand)
+    assert command.content == "after ignored"
+    assert command.external_sender_id == "u2"
+    api.reply_message.assert_not_awaited()
+
+
+@pytest.mark.anyio
+async def test_handle_callback_empty_batch(monkeypatch: pytest.MonkeyPatch) -> None:
+    """An empty batch succeeds without saving or replying."""
+    line_main = _load_line_main(monkeypatch)
+    send_async = AsyncMock(return_value=Ok(None))
+    request, api = _batch_request(monkeypatch, line_main, [], send_async)
+
+    assert await line_main.handle_callback(request) == "OK"
+
+    send_async.assert_not_awaited()
+    api.reply_message.assert_not_awaited()
+
+
+@pytest.mark.anyio
+async def test_handle_callback_save_error_stops_batch(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A failed save replies once and leaves subsequent events unhandled."""
+    line_main = _load_line_main(monkeypatch)
+    send_async = AsyncMock(
+        return_value=Err(UseCaseError(type=ErrorType.UNEXPECTED, message="save failed"))
+    )
+    request, api = _batch_request(
+        monkeypatch,
+        line_main,
+        [
+            _text_event("fails", "u1", 1_700_000_123_456),
+            _text_event("must not save", "u2", 1_700_000_124_789),
+        ],
+        send_async,
+    )
+
+    assert await line_main.handle_callback(request) is None
+
+    send_async.assert_awaited_once()
+    command = send_async.await_args_list[0].args[0]
+    assert isinstance(command, SaveLineChatCommand)
+    assert command.content == "fails"
+    api.reply_message.assert_awaited_once()
+    reply = api.reply_message.await_args_list[0].args[0]
+    assert reply.reply_token == "reply-u1"
+    assert len(reply.messages) == 1
+    assert reply.messages[0].text == "メッセージの保存に失敗しました。"
