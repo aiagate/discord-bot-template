@@ -7,6 +7,19 @@ from app.contracts.ports.event_bus import EventHandler, IEventBus
 logger = logging.getLogger(__name__)
 
 
+def _handler_name(handler: EventHandler) -> str:
+    """ログ用にハンドラーを識別する名前を返します。"""
+    name = getattr(handler, "__name__", None)
+    if isinstance(name, str):
+        return name
+
+    func_name = getattr(getattr(handler, "__func__", None), "__name__", None)
+    if isinstance(func_name, str):
+        return func_name
+
+    return type(handler).__name__
+
+
 class InMemoryEventBus(IEventBus):
     """同一プロセス内でのみ動作するインメモリ・イベントバスの実装。
 
@@ -51,19 +64,34 @@ class InMemoryEventBus(IEventBus):
                 pass
         logger.info("InMemoryEventBus stopped")
 
+    async def _execute_handler(
+        self, topic: str, handler: EventHandler, payload: Mapping[str, object]
+    ) -> None:
+        try:
+            await handler(payload)
+        except Exception as error:
+            logger.error(
+                f"Handler {_handler_name(handler)} failed for topic {topic}: {error}",
+                exc_info=True,
+            )
+
     async def _worker_loop(self) -> None:
         """キューを監視し、受信したメッセージをハンドラーにディスパッチします。"""
         while self._running:
             try:
                 topic, payload = await self._queue.get()
 
-                handlers = self._handlers.get(topic, [])
+                handlers = list(self._handlers.get(topic, []))
                 if not handlers:
                     logger.warning(f"No handlers registered for topic: {topic}")
 
                 # 同一トピックのハンドラーを並列実行
                 await asyncio.gather(
-                    *[handler(payload) for handler in handlers], return_exceptions=True
+                    *[
+                        self._execute_handler(topic, handler, payload)
+                        for handler in handlers
+                    ],
+                    return_exceptions=True,
                 )
 
                 self._queue.task_done()
