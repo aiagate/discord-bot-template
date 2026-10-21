@@ -1,7 +1,5 @@
 # 現行のドメイン境界と用語集
 
-最終更新日: 2026-09-16
-
 この文書は、現在のコードから確認できるモデル境界と前提を記録する。将来の
 サービス分割、コアドメインの順位付け、または未確定の業務ルールを先取りして
 定義するものではない。
@@ -34,8 +32,8 @@
 
 `ChatMessage` は一件の不変・追記専用メッセージを表す集約ルートである。会話全体を
 集約としてロードせず、`ConversationScope` を条件に `IChatHistoryQuery` で読む。
-この判断の詳細は [ADR 0001](../adr/0001-chat-message-aggregate-and-conversation-scope.md)
-に記録している。
+集約境界と会話識別の詳細は [ChatMessageモデル](./CHAT_MESSAGE_MODEL.md)
+を参照する。
 
 ## 用語集
 
