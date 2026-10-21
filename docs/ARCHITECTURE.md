@@ -1,7 +1,5 @@
 # アーキテクチャ設計ドキュメント
 
-最終更新日: 2026-10-19
-
 このドキュメントは、Flow App Template（Discord Bot / HTTP API / LINE / Worker を
 エントリポイントとする Python アプリケーションテンプレート）のアーキテクチャ設計と
 実装パターンを詳細に説明します。
@@ -548,9 +546,3 @@ ruff = ">=0.14.6"
 - [CQRS Pattern](https://martinfowler.com/bliki/CQRS.html)
 - [Repository Pattern](https://martinfowler.com/eaaCatalog/repository.html)
 - [Unit of Work Pattern](https://martinfowler.com/eaaCatalog/unitOfWork.html)
-
----
-
-**ドキュメント作成者**: Claude Code
-**作成日**: 2025-11-26
-**バージョン**: 1.0

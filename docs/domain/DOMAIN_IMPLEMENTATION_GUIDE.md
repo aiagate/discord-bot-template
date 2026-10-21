@@ -1,7 +1,5 @@
 # Domain層実装ガイド
 
-最終更新日: 2026-09-19
-
 このガイドは現行ドメイン実装の判断と読み方を説明します。新機能や集約の追加手順全体（登録・ORM・UoW・UseCase・マイグレーション・テスト）については、正本ガイドである **[機能追加ガイド](../development/ADDING_FEATURE.md)** を参照してください。
 
 集約の実装例は
@@ -102,7 +100,7 @@ assert before != Team.form(TeamName("Alpha"))
 そのルールを同時実行時にも守るための実装手段です。
 
 `ChatMessage` は一件を整合性境界とし、会話履歴は `ConversationScope` 全体を
-条件にQueryで取得します。履歴を集約に含めない理由は[ADR 0001](../adr/0001-chat-message-aggregate-and-conversation-scope.md)
+条件にQueryで取得します。履歴を集約に含めない理由は[ChatMessageモデル](./CHAT_MESSAGE_MODEL.md)
 を参照してください。現在の業務ルールと未確定事項は[境界と用語集](./BOUNDARIES_AND_GLOSSARY.md)
 に記録しています。
 

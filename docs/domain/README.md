@@ -4,7 +4,7 @@
 
 - [実装ガイド](./DOMAIN_IMPLEMENTATION_GUIDE.md): カプセル化、不変性、同一性、永続化の責務。
 - [境界と用語集](./BOUNDARIES_AND_GLOSSARY.md): 各集約の不変条件と業務上の前提。
-- [ChatMessageのADR](../adr/0001-chat-message-aggregate-and-conversation-scope.md): メッセージ一件を集約とする理由。
+- [ChatMessageモデル](./CHAT_MESSAGE_MODEL.md): メッセージ一件を集約とする理由と会話スコープの仕様。
 - [アーキテクチャ](../ARCHITECTURE.md): アプリケーション全体の依存関係と構成。
 
 ## 読み始める順序
